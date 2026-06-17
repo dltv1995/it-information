@@ -6,12 +6,13 @@ import { getFirestore } from "https://www.gstatic.com/firebasejs/10.8.0/firebase
 
 // Firebase Config ของโปรเจกต์
 export const firebaseConfig = {
-  apiKey: "AIzaSyCcOi0Ae3AHzxlhebHoDwxA_twdWA-1-z0",
-  authDomain: "it-informatio.firebaseapp.com",
-  projectId: "it-informatio",
-  storageBucket: "it-informatio.firebasestorage.app",
-  messagingSenderId: "18547295463",
-  appId: "1:18547295463:web:e59e0655f184d33fbc4e42"
+  apiKey: "AIzaSyD6KySxJ_tPDKG-dOnmbUd3npnoIyVxOEA",
+  authDomain: "it-information-3c4aa.firebaseapp.com",
+  projectId: "it-information-3c4aa",
+  storageBucket: "it-information-3c4aa.firebasestorage.app",
+  messagingSenderId: "290860273066",
+  appId: "1:290860273066:web:e45409cf15f33553792fd3",
+  measurementId: "G-RBGPQPS9K7"
 };
 
 // กัน initializeApp ซ้ำ กรณีกลับหน้า/โหลดซ้ำ
