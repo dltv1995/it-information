@@ -1,7 +1,7 @@
 // assets/js/dashboard.js
 // Firebase-only Dashboard + Global Budget from Firestore settings/budget
 // แก้ปัญหา "ช่องงบประมาณรวมเป็น 0" โดยอ่านงบรวมจาก settings/budget.totalBudget
-// Version: dashboard-metric-soft-colors-v4
+// Version: dashboard-metric-soft-colors-css-v5
 
 import { auth, db } from './firebase-config.js';
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -12,7 +12,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-console.log('dashboard.js loaded: dashboard-metric-soft-colors-v4');
+console.log('dashboard.js loaded: dashboard-metric-soft-colors-css-v5');
 
 const DEFAULT_TOTAL_BUDGET = 1500000;
 const BUDGET_REF = doc(db, 'settings', 'budget');
