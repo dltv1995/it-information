@@ -1,7 +1,7 @@
 // assets/js/dashboard.js
 // Firebase-only Dashboard + Global Budget from Firestore settings/budget
 // แก้ปัญหา "ช่องงบประมาณรวมเป็น 0" โดยอ่านงบรวมจาก settings/budget.totalBudget
-// Version: dashboard-popup-fix-v11
+// Version: dashboard-popup-remove-v12
 
 import { auth, db } from './firebase-config.js';
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -12,7 +12,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-console.log('dashboard.js loaded: dashboard-popup-fix-v11');
+console.log('dashboard.js loaded: dashboard-popup-remove-v12');
 
 const DEFAULT_TOTAL_BUDGET = 1500000;
 const SECTION_LABELS = {
@@ -406,49 +406,11 @@ function renderDashboard(data) {
     }
 }
 
-function ensureDashboardProjectDetailsModal() {
-    if (document.getElementById('dashboardProjectDetailsModal')) return;
-    const modal = document.createElement('div');
-    modal.id = 'dashboardProjectDetailsModal';
-    modal.className = 'fixed inset-0 z-[95] hidden items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4 opacity-0 transition-opacity duration-200';
-    modal.style.pointerEvents = 'none';
-    modal.innerHTML = `
-        <div id="dashboardProjectDetailsContent" class="w-full max-w-3xl max-h-[88vh] overflow-hidden rounded-3xl border border-slate-200/20 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl transform scale-95 transition-transform duration-200">
-            <div class="flex items-start justify-between gap-4 px-6 py-5 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/70">
-                <div>
-                    <p class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">รายละเอียดโครงการ</p>
-                    <h3 id="dashboardProjectDetailsTitle" class="text-lg font-extrabold text-slate-900 dark:text-white mt-1">-</h3>
-                </div>
-                <button id="closeDashboardProjectDetailsBtn" type="button" class="w-9 h-9 rounded-full flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-200 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-700 transition-colors">
-                    <i class="ph ph-x text-xl"></i>
-                </button>
-            </div>
-            <div id="dashboardProjectDetailsBody" class="p-6 overflow-y-auto max-h-[70vh]"></div>
-        </div>
-    `;
-    document.body.appendChild(modal);
-    modal.addEventListener('click', (event) => {
-        if (event.target === modal) closeDashboardProjectDetailsModal();
-    });
-    document.getElementById('closeDashboardProjectDetailsBtn')?.addEventListener('click', closeDashboardProjectDetailsModal);
-    document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape' && !modal.classList.contains('hidden')) closeDashboardProjectDetailsModal();
-    });
-}
-
-function closeDashboardProjectDetailsModal() {
+function removeDashboardProjectDetailsModal() {
     const modal = document.getElementById('dashboardProjectDetailsModal');
-    const content = document.getElementById('dashboardProjectDetailsContent');
-    if (!modal || !content) return;
-    modal.classList.add('opacity-0');
-    content.classList.add('scale-95');
-    modal.style.pointerEvents = 'none';
+    if (modal) modal.remove();
     document.body.style.overflow = '';
-    setTimeout(() => {
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-        modal.style.display = 'none';
-    }, 180);
+    document.documentElement.style.overflow = '';
 }
 
 function detailRow(label, value) {
@@ -461,9 +423,10 @@ function detailRow(label, value) {
 }
 
 function openDashboardProjectDetails(projectId) {
+    removeDashboardProjectDetailsModal();
     const project = projectsCache.find(item => item.id === projectId);
     if (!project) return;
-    ensureDashboardProjectDetailsModal();
+
     const section = getProjectSection(project);
     const sectionColor = getSectionColor(section);
     const sectionLabel = getSectionLabel(section);
@@ -474,60 +437,75 @@ function openDashboardProjectDetails(projectId) {
     const budgetPercent = percent(approvedBudget, toNumber(globalBudget || DEFAULT_TOTAL_BUDGET));
     const usedPercent = percent(usedBudget, approvedBudget);
     const statusText = project.status === 'pending' ? 'รออนุมัติ' : project.status === 'approved' ? 'อนุมัติแล้ว' : project.status === 'rejected' ? 'ไม่อนุมัติ' : project.status;
-    setText('dashboardProjectDetailsTitle', project.name || project.title || 'ไม่ระบุชื่อโครงการ');
-    const body = document.getElementById('dashboardProjectDetailsBody');
-    if (!body) return;
-    body.innerHTML = `
-        <div class="space-y-5">
-            <div class="rounded-3xl border p-5" style="border-color:${escapeAttr(sectionColor)}; background:linear-gradient(135deg, ${escapeAttr(sectionColor)}22, transparent)">
-                <div class="flex items-start gap-4">
-                    <div class="w-12 h-12 rounded-2xl text-white flex items-center justify-center font-extrabold shrink-0" style="background:${escapeAttr(sectionColor)}">${escapeHtml(project.code || 'งา')}</div>
-                    <div class="min-w-0">
-                        <h4 class="text-xl font-extrabold text-slate-900 dark:text-white">${escapeHtml(project.name || project.title || '-')}</h4>
-                        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">${escapeHtml(project.description || 'ไม่มีรายละเอียด')}</p>
-                        <div class="mt-3 inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold" style="background:${escapeAttr(sectionColor)}22;color:${escapeAttr(sectionColor)}">${escapeHtml(sectionLabel)}</div>
+
+    const modal = document.createElement('div');
+    modal.id = 'dashboardProjectDetailsModal';
+    modal.className = 'dashboard-project-modal fixed inset-0 z-[95] flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4';
+    modal.innerHTML = `
+        <div id="dashboardProjectDetailsContent" class="w-full max-w-3xl max-h-[88vh] overflow-hidden rounded-3xl border border-slate-200/20 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl">
+            <div class="flex items-start justify-between gap-4 px-6 py-5 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/70">
+                <div>
+                    <p class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">รายละเอียดโครงการ</p>
+                    <h3 class="text-lg font-extrabold text-slate-900 dark:text-white mt-1">${escapeHtml(project.name || project.title || 'ไม่ระบุชื่อโครงการ')}</h3>
+                </div>
+                <button id="closeDashboardProjectDetailsBtn" type="button" class="w-9 h-9 rounded-full flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-200 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-700 transition-colors">
+                    <i class="ph ph-x text-xl"></i>
+                </button>
+            </div>
+            <div class="p-6 overflow-y-auto max-h-[70vh]">
+                <div class="space-y-5">
+                    <div class="rounded-3xl border p-5" style="border-color:${escapeAttr(sectionColor)}; background:linear-gradient(135deg, ${escapeAttr(sectionColor)}22, transparent)">
+                        <div class="flex items-start gap-4">
+                            <div class="w-12 h-12 rounded-2xl text-white flex items-center justify-center font-extrabold shrink-0" style="background:${escapeAttr(sectionColor)}">${escapeHtml(project.code || 'งา')}</div>
+                            <div class="min-w-0">
+                                <h4 class="text-xl font-extrabold text-slate-900 dark:text-white">${escapeHtml(project.name || project.title || '-')}</h4>
+                                <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">${escapeHtml(project.description || 'ไม่มีรายละเอียด')}</p>
+                                <div class="mt-3 inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold" style="background:${escapeAttr(sectionColor)}22;color:${escapeAttr(sectionColor)}">${escapeHtml(sectionLabel)}</div>
+                            </div>
+                        </div>
                     </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        ${detailRow('งบที่อนุมัติ', baht(approvedBudget))}
+                        ${detailRow('งบที่เสนอขอ', baht(requestedBudget))}
+                        ${detailRow('งบที่ใช้จริง', baht(usedBudget))}
+                        ${detailRow('งบคงเหลือ', baht(remainingBudget))}
+                        ${detailRow('สัดส่วนงบที่อนุมัติ', `${budgetPercent}% ของงบรวมฝ่าย`)}
+                        ${detailRow('การใช้งบจากงบอนุมัติ', `${usedPercent}%`)}
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        ${detailRow('ผู้รับผิดชอบ', project.ownerName || project.owner || '-')}
+                        ${detailRow('อีเมลผู้รับผิดชอบ', project.ownerEmail || '-')}
+                        ${detailRow('ส่วนงาน', sectionLabel)}
+                        ${detailRow('สิทธิ์/บทบาท', project.ownerRole || '-')}
+                        ${detailRow('สถานะ', statusText)}
+                        ${detailRow('ระยะเวลา', project.durationLabel || '-')}
+                    </div>
+                    <div class="rounded-2xl border border-slate-200 dark:border-slate-700 p-4 bg-slate-50/70 dark:bg-slate-800/60">
+                        <div class="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
+                            <span>สัดส่วนงบที่อนุมัติเทียบงบรวมฝ่าย</span>
+                            <span>${budgetPercent}%</span>
+                        </div>
+                        <div class="progress-track"><div class="progress-fill" style="width:${clamp(budgetPercent)}%; background:${escapeAttr(sectionColor)}"></div></div>
+                    </div>
+                    ${project.managerComment ? `<div class="rounded-2xl border border-amber-400/30 bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-300"><b>คอมเมนต์หัวหน้า:</b> ${escapeHtml(project.managerComment)}</div>` : ''}
                 </div>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                ${detailRow('งบที่อนุมัติ', baht(approvedBudget))}
-                ${detailRow('งบที่เสนอขอ', baht(requestedBudget))}
-                ${detailRow('งบที่ใช้จริง', baht(usedBudget))}
-                ${detailRow('งบคงเหลือ', baht(remainingBudget))}
-                ${detailRow('สัดส่วนงบที่อนุมัติ', `${budgetPercent}% ของงบรวมฝ่าย`)}
-                ${detailRow('การใช้งบจากงบอนุมัติ', `${usedPercent}%`)}
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                ${detailRow('ผู้รับผิดชอบ', project.ownerName || project.owner || '-')}
-                ${detailRow('อีเมลผู้รับผิดชอบ', project.ownerEmail || '-')}
-                ${detailRow('ส่วนงาน', sectionLabel)}
-                ${detailRow('สิทธิ์/บทบาท', project.ownerRole || '-')}
-                ${detailRow('สถานะ', statusText)}
-                ${detailRow('ระยะเวลา', project.durationLabel || '-')}
-            </div>
-            <div class="rounded-2xl border border-slate-200 dark:border-slate-700 p-4 bg-slate-50/70 dark:bg-slate-800/60">
-                <div class="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
-                    <span>สัดส่วนงบที่อนุมัติเทียบงบรวมฝ่าย</span>
-                    <span>${budgetPercent}%</span>
-                </div>
-                <div class="progress-track"><div class="progress-fill" style="width:${clamp(budgetPercent)}%; background:${escapeAttr(sectionColor)}"></div></div>
-            </div>
-            ${project.managerComment ? `<div class="rounded-2xl border border-amber-400/30 bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-300"><b>คอมเมนต์หัวหน้า:</b> ${escapeHtml(project.managerComment)}</div>` : ''}
         </div>
     `;
-    const modal = document.getElementById('dashboardProjectDetailsModal');
-    const content = document.getElementById('dashboardProjectDetailsContent');
-    modal.style.display = 'flex';
-    modal.style.pointerEvents = 'auto';
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
+    document.body.appendChild(modal);
     document.body.style.overflow = 'hidden';
-    requestAnimationFrame(() => {
-        modal.classList.remove('opacity-0');
-        content.classList.remove('scale-95');
+    document.documentElement.style.overflow = 'hidden';
+    document.getElementById('closeDashboardProjectDetailsBtn')?.addEventListener('click', removeDashboardProjectDetailsModal);
+    modal.addEventListener('click', (event) => {
+        if (event.target === modal) removeDashboardProjectDetailsModal();
     });
 }
+
 window.openDashboardProjectDetails = openDashboardProjectDetails;
+window.closeDashboardProjectDetailsModal = removeDashboardProjectDetailsModal;
+document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') removeDashboardProjectDetailsModal();
+});
 
 function renderProjects(projects) {
     const list = document.getElementById('projectList');
