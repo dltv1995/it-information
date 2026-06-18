@@ -1,7 +1,7 @@
 // assets/js/projects.js
 // Project workflow: Draft -> Submit -> Manager Approve / Reject / Request Edit
 // Auto-clean rejected projects older than 30 days when this page loads/listens
-// Version: projects-draft-review-autoclean-v7-fixed
+// Version: projects-owner-section-v8
 
 import { db, auth } from './firebase-config.js';
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -9,6 +9,7 @@ import {
   collection,
   doc,
   getDoc,
+  getDocs,
   addDoc,
   updateDoc,
   setDoc,
@@ -17,12 +18,25 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-console.log('projects.js loaded: projects-draft-review-autoclean-v7-fixed');
+console.log('projects.js loaded: projects-owner-section-v8');
 
 const DEFAULT_TOTAL_BUDGET = 1500000;
 const PROJECTS_COLLECTION = 'projects';
 const BUDGET_REF = doc(db, 'settings', 'budget');
 const REJECTED_AUTO_DELETE_DAYS = 30;
+const USERS_COLLECTION = 'users';
+const SECTION_LABELS = {
+  technical: 'งานเทคนิค',
+  information: 'งานสารสนเทศ',
+  corporate_communication: 'งานสื่อสารองค์กร'
+};
+const ROLE_LABELS = {
+  admin: 'ผู้ดูแลระบบ',
+  manager: 'หัวหน้างาน',
+  secretary: 'เลขาฯ',
+  staff: 'พนักงานทั่วไป',
+  employee: 'พนักงานทั่วไป'
+};
 
 let currentUser = null;
 let currentUserUid = null;
@@ -35,6 +49,7 @@ let unsubscribeBudget = null;
 let currentActionProjectId = null;
 let currentActionProject = null;
 let currentEditProjectId = null;
+let usersCache = [];
 
 window.projectsMap = new Map();
 
@@ -117,6 +132,7 @@ async function initPage() {
   setupUserHeader();
 
   canApprove = await canApproveBudgetAndProjects();
+  await loadProjectUsers();
 
   if (canCreateProject()) document.getElementById('createProjectBtn')?.classList.remove('hidden');
 
@@ -196,6 +212,95 @@ async function canApproveBudgetAndProjects() {
 
   const visibleRole = document.getElementById('userRole')?.textContent || '';
   return isAllowedRole(visibleRole);
+}
+
+
+async function loadProjectUsers() {
+  try {
+    const snap = await getDocs(collection(db, USERS_COLLECTION));
+    usersCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    usersCache.sort((a, b) => String(a.name || a.email || '').localeCompare(String(b.name || b.email || ''), 'th'));
+  } catch (error) {
+    console.warn('Load project users failed:', error);
+    usersCache = [];
+  }
+}
+
+function getSectionLabel(section) {
+  return SECTION_LABELS[section] || section || '-';
+}
+
+function getRoleLabel(role) {
+  return ROLE_LABELS[role] || role || '-';
+}
+
+function getOwnerId(project) {
+  return project?.ownerId || project?.createdBy || '';
+}
+
+function isProjectVisibleToCurrentUser(project) {
+  if (canApprove) return true;
+  return getOwnerId(project) === currentUserUid;
+}
+
+function getCurrentOwnerPayload() {
+  return {
+    ownerId: currentUserUid,
+    ownerName: currentUser?.name || currentUser?.email || 'Unknown',
+    ownerEmail: currentUser?.email || '',
+    ownerSection: currentUser?.section || '',
+    ownerRole: currentUser?.role || ''
+  };
+}
+
+function getSelectedOwnerPayload() {
+  const select = document.getElementById('projectOwnerSelect');
+  const selectedId = select?.value || getOwnerId(currentActionProject) || currentUserUid;
+  const user = usersCache.find(u => u.id === selectedId);
+  if (user) {
+    return {
+      ownerId: user.id,
+      ownerName: user.name || user.email || 'Unknown',
+      ownerEmail: user.email || '',
+      ownerSection: user.section || '',
+      ownerRole: user.role || ''
+    };
+  }
+  return {
+    ownerId: selectedId,
+    ownerName: currentActionProject?.ownerName || currentActionProject?.creatorName || 'Unknown',
+    ownerEmail: currentActionProject?.ownerEmail || '',
+    ownerSection: currentActionProject?.ownerSection || '',
+    ownerRole: currentActionProject?.ownerRole || ''
+  };
+}
+
+function ensureOwnerSelectField() {
+  if (!canApprove) return;
+  if (document.getElementById('projectOwnerSelect')) return;
+  const approveBudget = document.getElementById('approveBudget');
+  const target = approveBudget?.closest('div');
+  if (!target) return;
+  const wrapper = document.createElement('div');
+  wrapper.id = 'projectOwnerSelectWrapper';
+  wrapper.innerHTML = `
+    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">ผู้รับผิดชอบโครงการ</label>
+    <select id="projectOwnerSelect" class="w-full px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none"></select>
+    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">แอดมิน/หัวหน้าสามารถเปลี่ยนผู้รับผิดชอบได้ เมื่อเปลี่ยนแล้วรายการจะไปอยู่กับผู้ใช้นั้น</p>
+  `;
+  target.insertAdjacentElement('beforebegin', wrapper);
+}
+
+function populateOwnerSelect(project) {
+  const select = document.getElementById('projectOwnerSelect');
+  if (!select) return;
+  const currentOwnerId = getOwnerId(project);
+  const options = usersCache.map(u => {
+    const label = `${u.name || u.email || 'Unknown'} • ${getSectionLabel(u.section)} • ${getRoleLabel(u.role)}`;
+    return `<option value="${escapeHtml(u.id)}">${escapeHtml(label)}</option>`;
+  }).join('');
+  select.innerHTML = options || `<option value="${escapeHtml(currentOwnerId)}">${escapeHtml(project.ownerName || project.creatorName || 'Unknown')}</option>`;
+  select.value = currentOwnerId || currentUserUid;
 }
 
 // ---------- UI injection ----------
@@ -519,7 +624,7 @@ async function submitProjectForm(nextStatus) {
         status: nextStatus,
         createdBy: currentUserUid,
         creatorName: currentUser?.name || currentUser?.email || 'Unknown',
-        ownerName: currentUser?.name || currentUser?.email || 'Unknown',
+        ...getCurrentOwnerPayload(),
         createdAt: serverTimestamp(),
         submittedAt: nextStatus === 'pending' ? serverTimestamp() : null
       });
@@ -559,6 +664,7 @@ function setupActionModal() {
 
   window.openActionModal = (id) => {
     ensureActionBudgetFields();
+    ensureOwnerSelectField();
     const project = window.projectsMap.get(id);
     if (!project) return;
 
@@ -574,6 +680,7 @@ function setupActionModal() {
 
     const note = document.getElementById('approveNote');
     if (note) note.value = project.managerComment || project.approveNote || '';
+    populateOwnerSelect(project);
 
     modal.classList.remove('hidden');
     setTimeout(() => {
@@ -618,6 +725,7 @@ async function approveProject(closeModal) {
       usedBudget: Number(currentActionProject?.usedBudget || currentActionProject?.budgetSpent || 0),
       approverId: currentUserUid,
       approverName: currentUser?.name || currentUser?.email || 'Unknown',
+      ...ownerPayload,
       managerComment: comment,
       approvedAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
@@ -647,6 +755,7 @@ async function rejectProject(closeModal) {
       budgetAllocated: 0,
       approverId: currentUserUid,
       approverName: currentUser?.name || currentUser?.email || 'Unknown',
+      ...ownerPayload,
       managerComment: comment,
       rejectedAt: serverTimestamp(),
       autoDeleteAt: autoDeleteAtDate,
@@ -664,11 +773,13 @@ async function requestEditProject(closeModal) {
   if (!canApprove) return alert('บัญชีนี้ไม่มีสิทธิ์ขอแก้ไขโครงการ');
 
   const comment = document.getElementById('approveNote')?.value.trim() || '';
+  const ownerPayload = getSelectedOwnerPayload();
   if (!comment) return alert('กรุณาใส่คอมเมนต์เพื่อแจ้งพนักงานว่าต้องแก้ไขอะไร');
 
   try {
     await updateDoc(doc(db, PROJECTS_COLLECTION, currentActionProjectId), {
       status: 'revision_requested',
+      ...ownerPayload,
       managerComment: comment,
       revisionRequestedBy: currentUserUid,
       revisionRequestedByName: currentUser?.name || currentUser?.email || 'Unknown',
@@ -798,6 +909,7 @@ function listenProjects() {
         }
       }
 
+      if (!isProjectVisibleToCurrentUser(data)) continue;
       items.push(data);
     }
 
@@ -840,6 +952,11 @@ function normalizeProjectDoc(id, data) {
     budgetAllocated: approvedBudget,
     budgetSpent: Number(data.budgetSpent || data.usedBudget || 0),
     creatorName: data.creatorName || data.ownerName || 'Unknown',
+    ownerId: data.ownerId || data.createdBy || '',
+    ownerName: data.ownerName || data.creatorName || 'Unknown',
+    ownerEmail: data.ownerEmail || '',
+    ownerSection: data.ownerSection || '',
+    ownerRole: data.ownerRole || '',
     noDeadline: Boolean(data.noDeadline),
     startDate: data.startDate || null,
     endDate: data.endDate || null,
@@ -873,10 +990,10 @@ function createProjectCard(id, data) {
         <button onclick="window.openProjectEditModal('${id}')" class="py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-white text-sm font-medium rounded-lg transition-colors">แก้ไข</button>
         <button onclick="window.submitSavedProject('${id}')" class="py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors">ส่งโครงการ</button>
       </div>`;
-  } else if (canApprove && ['pending', 'approved'].includes(data.status)) {
+  } else if (canApprove && ['draft', 'pending', 'revision_requested', 'approved'].includes(data.status)) {
     actionButton = `
       <div class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700/50">
-        <button onclick="window.openActionModal('${id}')" class="w-full py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-white text-sm font-medium rounded-lg transition-colors">${data.status === 'approved' ? 'แก้ไขงบประมาณ' : 'พิจารณาโครงการ'}</button>
+        <button onclick="window.openActionModal('${id}')" class="w-full py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-white text-sm font-medium rounded-lg transition-colors">${data.status === 'approved' ? 'แก้ไขงบประมาณ/ผู้รับผิดชอบ' : 'พิจารณา/แก้ไขผู้รับผิดชอบ'}</button>
       </div>`;
   }
 
@@ -893,6 +1010,8 @@ function createProjectCard(id, data) {
         <div><div class="text-xs text-slate-500 dark:text-slate-400 mb-1">งบประมาณที่ขอ</div><div class="text-lg font-bold text-brand-600 dark:text-sky-400">${formatNumber(data.requestedBudget)} <span class="text-xs font-normal">THB</span></div></div>
         <div><div class="text-xs text-slate-500 dark:text-slate-400 mb-1">งบประมาณที่อนุมัติ</div><div class="text-base font-bold text-emerald-600 dark:text-emerald-400">${formatNumber(data.totalBudget || data.budgetAllocated || 0)} <span class="text-xs font-normal">THB</span></div></div>
         <div class="text-xs text-slate-400 mt-1">ผู้เสนอ: ${escapeHtml(data.creatorName || 'Unknown')}</div>
+        <div class="text-xs text-slate-400 mt-1">ผู้รับผิดชอบ: ${escapeHtml(data.ownerName || data.creatorName || 'Unknown')}</div>
+        <div class="text-xs text-slate-400 mt-1">ส่วนงาน: ${escapeHtml(getSectionLabel(data.ownerSection))} • สิทธิ์: ${escapeHtml(getRoleLabel(data.ownerRole))}</div>
         <div class="text-xs text-slate-400 mt-1">ระยะเวลา: ${escapeHtml(data.durationLabel || getProjectDurationText(data))}</div>
         ${autoDeleteText}
       </div>
