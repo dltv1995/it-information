@@ -1,7 +1,7 @@
 // assets/js/projects.js
 // Project workflow: Draft -> Submit -> Manager Approve / Reject / Request Edit
 // Auto-clean rejected projects older than 30 days when this page loads/listens
-// Version: projects-owner-editor-v9
+// Version: projects-global-budget-visible-v10
 
 import { db, auth } from './firebase-config.js';
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -18,7 +18,7 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-console.log('projects.js loaded: projects-owner-editor-v9');
+console.log('projects.js loaded: projects-global-budget-visible-v10');
 
 const DEFAULT_TOTAL_BUDGET = 1500000;
 const PROJECTS_COLLECTION = 'projects';
@@ -896,8 +896,12 @@ function listenProjects() {
   unsubscribeProjects = onSnapshot(collection(db, PROJECTS_COLLECTION), async (snapshot) => {
     grid.innerHTML = '';
     window.projectsMap = new Map();
-    let approvedTotal = 0;
-    const items = [];
+
+    // สำคัญ: งบอนุมัติรวมต้องคำนวณจาก "ทุกโครงการที่อนุมัติแล้ว"
+    // เพื่อให้เจ้าหน้าที่ทุกคนเห็นงบรวม/งบคงเหลือจริงของฝ่าย
+    // แต่รายการการ์ดด้านล่างยังคงกรองให้เห็นเฉพาะของตนเอง ยกเว้น admin/manager เห็นทุกคน
+    let allApprovedBudgetTotal = 0;
+    const visibleItems = [];
 
     for (const docSnap of snapshot.docs) {
       const data = normalizeProjectDoc(docSnap.id, docSnap.data());
@@ -911,23 +915,27 @@ function listenProjects() {
         }
       }
 
-      if (!isProjectVisibleToCurrentUser(data)) continue;
-      items.push(data);
+      if (data.status === 'approved') {
+        allApprovedBudgetTotal += Number(data.totalBudget || data.budgetAllocated || 0);
+      }
+
+      if (isProjectVisibleToCurrentUser(data)) {
+        visibleItems.push(data);
+      }
     }
 
-    items.sort((a, b) => getTime(b.createdAt) - getTime(a.createdAt));
+    visibleItems.sort((a, b) => getTime(b.createdAt) - getTime(a.createdAt));
 
-    if (!items.length) {
-      grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-500">ยังไม่มีโครงการในระบบ</div>`;
+    if (!visibleItems.length) {
+      grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-500">${canApprove ? 'ยังไม่มีโครงการในระบบ' : 'ยังไม่มีโครงการของคุณในระบบ'}</div>`;
     }
 
-    items.forEach((data) => {
+    visibleItems.forEach((data) => {
       window.projectsMap.set(data.id, data);
-      if (data.status === 'approved') approvedTotal += Number(data.totalBudget || data.budgetAllocated || 0);
       grid.insertAdjacentHTML('beforeend', createProjectCard(data.id, data));
     });
 
-    updateGlobalBudget(approvedTotal);
+    updateGlobalBudget(allApprovedBudgetTotal);
   }, (error) => {
     console.error('Projects listener error:', error);
     grid.innerHTML = `
@@ -937,6 +945,7 @@ function listenProjects() {
       </div>`;
   });
 }
+
 
 function normalizeProjectDoc(id, data) {
   const title = data.title || data.name || 'ไม่ระบุชื่อโครงการ';
