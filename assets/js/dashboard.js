@@ -1,7 +1,7 @@
 // assets/js/dashboard.js
 // Firebase-only Dashboard + Global Budget from Firestore settings/budget
 // แก้ปัญหา "ช่องงบประมาณรวมเป็น 0" โดยอ่านงบรวมจาก settings/budget.totalBudget
-// Version: dashboard-section-pie-v6
+// Version: dashboard-section-pie-v7-force
 
 import { auth, db } from './firebase-config.js';
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -12,7 +12,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-console.log('dashboard.js loaded: dashboard-section-pie-v6');
+console.log('dashboard.js loaded: dashboard-section-pie-v7-force');
 
 const DEFAULT_TOTAL_BUDGET = 1500000;
 const SECTION_LABELS = {
@@ -244,7 +244,6 @@ function listenTasks() {
     });
 }
 
-
 function getSectionLabel(section) {
     return SECTION_LABELS[section] || section || 'ไม่ระบุส่วนงาน';
 }
@@ -382,7 +381,6 @@ function renderDashboard(data) {
 function renderProjects(projects) {
     const list = document.getElementById('projectList');
     if (!list) return;
-
     if (!projects.length) {
         list.innerHTML = `<div class="rounded-2xl border border-slate-200/80 dark:border-slate-700/80 p-5 text-sm text-slate-500 dark:text-slate-400">ยังไม่มีข้อมูลโครงการใน Firebase</div>`;
         return;
@@ -392,16 +390,18 @@ function renderProjects(projects) {
         const usedPercent = percent(project.used, project.total);
         const progress = toNumber(project.progress);
         const statusText = project.status === 'pending' ? 'รออนุมัติ' : project.status === 'approved' ? 'อนุมัติแล้ว' : project.status === 'rejected' ? 'ไม่อนุมัติ' : project.status;
-
+        const section = getProjectSection(project);
+        const sectionColor = getSectionColor(section);
+        const sectionLabel = getSectionLabel(section);
         return `
             <article class="rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-white/60 dark:bg-slate-900/55 p-5">
                 <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
                     <div class="flex items-start gap-3 min-w-0">
-                        <div class="w-10 h-10 rounded-xl text-white flex items-center justify-center font-bold shrink-0 shadow-sm" style="background:${escapeAttr(getSectionColor(getProjectSection(project)))}" title="${escapeAttr(getSectionLabel(getProjectSection(project)))}">${escapeHtml(project.code || 'งา')}</div>
+                        <div class="w-10 h-10 rounded-xl text-white flex items-center justify-center font-bold shrink-0 shadow-sm" style="background:${escapeAttr(sectionColor)}" title="${escapeAttr(sectionLabel)}">${escapeHtml(project.code || 'งา')}</div>
                         <div class="min-w-0">
                             <h4 class="font-bold text-slate-900 dark:text-white truncate">${escapeHtml(project.name)}</h4>
                             <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">${escapeHtml(project.owner)}</p>
-                            <p class="text-xs font-semibold mt-1" style="color:${escapeAttr(getSectionColor(getProjectSection(project)))}">ส่วนงาน: ${escapeHtml(getSectionLabel(getProjectSection(project)))}</p>
+                            <p class="text-xs font-semibold mt-1" style="color:${escapeAttr(sectionColor)}">ส่วนงาน: ${escapeHtml(sectionLabel)}</p>
                             <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">สถานะ: ${escapeHtml(statusText)} • ระยะเวลา: ${escapeHtml(project.durationLabel || '-')}</p>
                         </div>
                     </div>
@@ -410,7 +410,6 @@ function renderProjects(projects) {
                         <span class="text-slate-500 dark:text-slate-400"> / ${baht(project.total)}</span>
                     </div>
                 </div>
-
                 <div class="mt-4 space-y-3">
                     <div>
                         <div class="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
@@ -477,13 +476,13 @@ function renderBudgetChart(projects) {
 
     approvedProjects.forEach(project => {
         const section = getProjectSection(project);
-        const current = sectionTotals.get(section) || 0;
-        sectionTotals.set(section, current + toNumber(project.total));
+        sectionTotals.set(section, (sectionTotals.get(section) || 0) + toNumber(project.total));
     });
 
-    const labels = Array.from(sectionTotals.keys()).map(getSectionLabel);
+    const sectionKeys = Array.from(sectionTotals.keys());
+    const labels = sectionKeys.map(getSectionLabel);
     const values = Array.from(sectionTotals.values());
-    const colors = Array.from(sectionTotals.keys()).map(getSectionColor);
+    const colors = sectionKeys.map(getSectionColor);
 
     if (budgetChart) budgetChart.destroy();
 
@@ -514,11 +513,7 @@ function chartPieOptions() {
         plugins: {
             legend: {
                 position: 'top',
-                labels: {
-                    color: isDark ? '#cbd5e1' : '#475569',
-                    boxWidth: 18,
-                    usePointStyle: true
-                }
+                labels: { color: isDark ? '#cbd5e1' : '#475569', boxWidth: 18, usePointStyle: true }
             },
             tooltip: {
                 callbacks: {
@@ -681,7 +676,7 @@ function getFallbackDashboardHtml() {
             </div>
             <div class="grid grid-cols-1 2xl:grid-cols-7 gap-5">
                 <section class="dashboard-card rounded-2xl 2xl:col-span-4 overflow-hidden"><div class="px-6 py-5 border-b border-slate-200/70 dark:border-slate-700/70"><h3 class="font-bold text-slate-900 dark:text-white">สถานะงบประมาณโครงการย่อย</h3></div><div id="projectList" class="p-5 space-y-4 max-h-[390px] overflow-y-auto soft-scroll"></div></section>
-                <section class="dashboard-card rounded-2xl 2xl:col-span-3 overflow-hidden"><div class="px-6 py-5 border-b border-slate-200/70 dark:border-slate-700/70"><h3 class="font-bold text-slate-900 dark:text-white">สัดส่วนงบประมาณตามส่วนงาน</h3></div><div class="p-5 chart-box"><canvas id="budgetChart"></canvas></div></section>
+                <section class="dashboard-card rounded-2xl 2xl:col-span-3 overflow-hidden"><div class="px-6 py-5 border-b border-slate-200/70 dark:border-slate-700/70"><h3 class="font-bold text-slate-900 dark:text-white">สัดส่วนการใช้งบประมาณ</h3></div><div class="p-5 chart-box"><canvas id="budgetChart"></canvas></div></section>
             </div>
             <div class="grid grid-cols-1 2xl:grid-cols-2 gap-5">
                 <section class="dashboard-card rounded-2xl overflow-hidden"><div class="px-6 py-5 border-b border-slate-200/70 dark:border-slate-700/70"><h3 class="font-bold text-slate-900 dark:text-white">ภาระงานของทีมงานรายบุคคล</h3></div><div class="p-5 chart-box"><canvas id="workloadChart"></canvas></div></section>

@@ -66,7 +66,5 @@ body {
 }
 
 
-/* === Dashboard Section Colors v6 === */
-.section-chip-technical { background: rgba(59,130,246,.14); color: #60a5fa; }
-.section-chip-information { background: rgba(16,185,129,.14); color: #34d399; }
-.section-chip-corporate_communication { background: rgba(245,158,11,.16); color: #fbbf24; }
+/* === Dashboard Section Pie v7 Force === */
+.chart-box canvas#budgetChart { max-height: 315px; }
