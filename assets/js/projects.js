@@ -1,7 +1,7 @@
 // assets/js/projects.js
 // Project workflow: Draft -> Submit -> Manager Approve / Reject / Request Edit
 // Auto-clean rejected projects older than 30 days when this page loads/listens
-// Version: projects-global-budget-visible-v10
+// Version: projects-global-budget-summary-v11
 
 import { db, auth } from './firebase-config.js';
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -18,7 +18,7 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-console.log('projects.js loaded: projects-global-budget-visible-v10');
+console.log('projects.js loaded: projects-global-budget-summary-v11');
 
 const DEFAULT_TOTAL_BUDGET = 1500000;
 const PROJECTS_COLLECTION = 'projects';
@@ -897,10 +897,11 @@ function listenProjects() {
     grid.innerHTML = '';
     window.projectsMap = new Map();
 
-    // สำคัญ: งบอนุมัติรวมต้องคำนวณจาก "ทุกโครงการที่อนุมัติแล้ว"
-    // เพื่อให้เจ้าหน้าที่ทุกคนเห็นงบรวม/งบคงเหลือจริงของฝ่าย
-    // แต่รายการการ์ดด้านล่างยังคงกรองให้เห็นเฉพาะของตนเอง ยกเว้น admin/manager เห็นทุกคน
-    let allApprovedBudgetTotal = 0;
+    // ทุกคนต้องเห็น "ยอดอนุมัติรวมทั้งฝ่าย" และ "งบคงเหลือทั้งฝ่าย"
+    // แต่รายการการ์ดด้านล่างยังคงกรองสิทธิ์การมองเห็น:
+    // - เจ้าหน้าที่ทั่วไปเห็นเฉพาะโครงการของตัวเอง
+    // - admin/manager/ผู้มีสิทธิ์อนุมัติเห็นทุกโครงการ
+    let departmentApprovedTotal = 0;
     const visibleItems = [];
 
     for (const docSnap of snapshot.docs) {
@@ -915,10 +916,12 @@ function listenProjects() {
         }
       }
 
+      // คำนวณยอดรวมจากทุกโครงการที่อนุมัติแล้ว ไม่ว่าโครงการนั้นเป็นของใคร
       if (data.status === 'approved') {
-        allApprovedBudgetTotal += Number(data.totalBudget || data.budgetAllocated || 0);
+        departmentApprovedTotal += Number(data.totalBudget || data.budgetAllocated || 0);
       }
 
+      // ส่วนรายการด้านล่างยังคงซ่อนโครงการของคนอื่นสำหรับเจ้าหน้าที่ทั่วไป
       if (isProjectVisibleToCurrentUser(data)) {
         visibleItems.push(data);
       }
@@ -935,7 +938,8 @@ function listenProjects() {
       grid.insertAdjacentHTML('beforeend', createProjectCard(data.id, data));
     });
 
-    updateGlobalBudget(allApprovedBudgetTotal);
+    // อัปเดตกล่องงบด้านบนด้วยยอดรวมของทั้งฝ่าย เพื่อให้ทุกคนรู้ว่าเหลืองบเท่าไร
+    updateGlobalBudget(departmentApprovedTotal);
   }, (error) => {
     console.error('Projects listener error:', error);
     grid.innerHTML = `
@@ -1068,7 +1072,7 @@ function updateGlobalBudget(spent) {
   const title = findBudgetTitle();
   if (title) {
     title.id = 'globalBudgetTitle';
-    title.textContent = `ภาพรวมงบประมาณฝ่ายปีปัจจุบัน (${formatNumber(totalBudgetLimit)} THB)`;
+    title.textContent = `ภาพรวมงบประมาณรวมทั้งฝ่ายปีปัจจุบัน (${formatNumber(totalBudgetLimit)} THB)`;
   }
 
   setText('globalSpent', formatNumber(lastApprovedBudgetTotal));
