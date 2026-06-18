@@ -7,7 +7,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/style.css">
-  <link rel="stylesheet" href="assets/css/header.css?v=simple-header-v4-self-mount">
+  <link rel="stylesheet" href="assets/css/header.css?v=leave-include-header-v5">
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
   <script>
     if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.classList.add('dark');
@@ -15,10 +15,11 @@
     tailwind.config = { darkMode:'class', theme:{ extend:{ fontFamily:{ sans:['Prompt','sans-serif'] }, colors:{ brand:{50:'#f0f9ff',100:'#e0f2fe',500:'#0ea5e9',600:'#0284c7',700:'#0369a1',800:'#075985',900:'#0f172a'} } } } };
   </script>
 </head>
-<body id="appBody" data-template="leaveTemplate" data-title="ระบบจัดการวันลา" data-subtitle="ยื่นใบลา ตรวจสอบสถานะ และอนุมัติการลา" data-active-menu="leave" class="bg-slate-50 dark:bg-slate-950 transition-theme font-sans text-slate-700 dark:text-slate-300 hidden m-0">
+<body id="appBody" data-title="ระบบจัดการวันลา" data-subtitle="ยื่นใบลา ตรวจสอบสถานะ และอนุมัติการลา" data-active-menu="leave" class="bg-slate-50 dark:bg-slate-950 transition-theme font-sans text-slate-700 dark:text-slate-300 hidden m-0">
   <div id="layoutRoot" class="flex h-screen overflow-hidden"></div>
 
-  <template id="leaveTemplate">
+  <!-- เนื้อหาหน้านี้อยู่ตรงนี้ ไม่ใช้ template แล้ว header.js จะย้ายเข้า #pageContent ให้อัตโนมัติ -->
+  <div id="pageContentSource" class="hidden">
     <section class="space-y-6">
       <div id="pageAlert" class="hidden rounded-2xl border px-4 py-3 text-sm"></div>
 
@@ -71,7 +72,7 @@
         </div>
       </div>
     </section>
-  </template>
+  </div>
 
   <div id="leaveModal" class="fixed inset-0 bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm z-[80] hidden items-center justify-center p-4 opacity-0 transition-opacity duration-200">
     <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg border border-slate-200 dark:border-slate-700 overflow-hidden transform scale-95 transition-transform duration-200" id="leaveModalContent">
@@ -80,7 +81,7 @@
     </div>
   </div>
 
-  <script src="assets/js/header.js?v=simple-header-v4-self-mount"></script>
-  <script type="module" src="assets/js/leave.js?v=simple-header-v4-self-mount"></script>
+  <script src="assets/js/header.js?v=leave-include-header-v5"></script>
+  <script type="module" src="assets/js/leave.js?v=leave-include-header-v5"></script>
 </body>
 </html>

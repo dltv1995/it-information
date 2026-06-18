@@ -1,427 +1,198 @@
-// Version: simple-header-v4-self-mount
 // assets/js/leave.js
+// Version: leave-include-header-v5
 import { db, auth } from './firebase-config.js';
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { collection, getDocs, doc, getDoc, addDoc, updateDoc, query, where, orderBy, Timestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { collection, getDocs, doc, getDoc, addDoc, updateDoc, query, where, Timestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-console.log('leave.js loaded: simple-header-v4-self-mount');
+console.log('leave.js loaded: leave-include-header-v5');
 
-// Shared UI Logic
-const setupSharedUI = () => {
-    const themeToggleBtn = document.getElementById('themeToggleBtn');
-    if (themeToggleBtn) {
-        themeToggleBtn.addEventListener('click', () => {
-            document.documentElement.classList.toggle('dark');
-            localStorage.setItem('color-theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
-        });
-    }
+const TYPES = { annual: 'ลาพักร้อน', sick: 'ลาป่วย', personal: 'ลากิจ' };
+const ROLE_LABELS = { admin: 'ผู้ดูแลระบบ', manager: 'หัวหน้างาน', secretary: 'เลขาฯ', staff: 'เจ้าหน้าที่', employee: 'เจ้าหน้าที่' };
+let currentUser = null;
+let currentUserUid = null;
+let isMockMode = false;
+let canApprove = false;
 
-    const mobileMenuBtn = document.getElementById('mobileMenuBtn');
-    const closeSidebarBtn = document.getElementById('closeSidebarBtn');
-    const sidebar = document.getElementById('sidebar');
-    const mobileOverlay = document.getElementById('mobileOverlay');
+const byId = (id) => document.getElementById(id);
+const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
+const setText = (id, value) => { const el = byId(id); if (el) el.textContent = value ?? '-'; };
+const quota = (user, type) => user?.leaveQuota?.[type] ?? user?.leave_quota?.[type] ?? (type === 'annual' ? 10 : 30);
 
-    const toggleMenu = () => {
-        sidebar.classList.toggle('-translate-x-full');
-        mobileOverlay.classList.toggle('hidden');
-        setTimeout(() => mobileOverlay.classList.toggle('opacity-0'), 10);
-    };
-
-    if(mobileMenuBtn) mobileMenuBtn.addEventListener('click', toggleMenu);
-    if(closeSidebarBtn) closeSidebarBtn.addEventListener('click', toggleMenu);
-    if(mobileOverlay) mobileOverlay.addEventListener('click', toggleMenu);
-};
-
-
-function ensureLeaveTemplateMounted() {
-  if (document.getElementById('tabMyLeaves') && document.getElementById('requestLeaveBtn')) return true;
-  const template = document.getElementById('leaveTemplate');
-  if (!template) return false;
-  let target = document.getElementById('pageContent');
+function ensureContentMounted() {
+  if (byId('tabMyLeaves') && byId('requestLeaveBtn') && byId('myLeavesTableBody')) return true;
+  const source = byId('pageContentSource');
+  if (!source) return false;
+  let target = byId('pageContent');
   if (!target) {
     const main = document.querySelector('main');
-    if (main) {
-      target = document.createElement('div');
-      target.id = 'pageContent';
-      target.className = 'flex-1 overflow-y-auto p-6 lg:p-8 z-10';
-      main.appendChild(target);
-    }
-  }
-  if (!target) {
-    const root = document.getElementById('layoutRoot') || document.body;
     target = document.createElement('div');
     target.id = 'pageContent';
     target.className = 'flex-1 overflow-y-auto p-6 lg:p-8 z-10';
-    root.appendChild(target);
+    (main || byId('layoutRoot') || document.body).appendChild(target);
   }
-  if (!target.querySelector('#tabMyLeaves')) {
-    target.innerHTML = '';
-    target.appendChild(template.content.cloneNode(true));
+  target.innerHTML = '';
+  source.classList.remove('hidden');
+  while (source.firstChild) target.appendChild(source.firstChild);
+  source.remove();
+  return Boolean(byId('tabMyLeaves') && byId('requestLeaveBtn') && byId('myLeavesTableBody'));
+}
+
+async function waitForLayout() {
+  for (let i = 0; i < 60; i++) {
+    if (ensureContentMounted()) return true;
+    await new Promise(r => setTimeout(r, 50));
   }
-  return Boolean(document.getElementById('tabMyLeaves') && document.getElementById('requestLeaveBtn'));
+  return ensureContentMounted();
+}
+
+function showBody() { byId('appBody')?.classList.remove('hidden'); }
+function showAlert(message, type = 'info') {
+  const el = byId('pageAlert');
+  if (!el) { console.warn(message); return; }
+  const styles = {
+    info: 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-900/30 dark:text-sky-300 dark:border-sky-800',
+    success: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800',
+    error: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800'
+  };
+  el.className = `rounded-2xl border px-4 py-3 text-sm ${styles[type] || styles.info}`;
+  el.textContent = message;
+  el.classList.remove('hidden');
+  if (type !== 'error') setTimeout(() => el.classList.add('hidden'), 3500);
+}
+
+async function checkPermission(user, uid, action) {
+  if (isMockMode) return action === 'approve_leave' ? ['admin', 'manager'].includes(user.role) : true;
+  try {
+    const overrideSnap = await getDoc(doc(db, 'user_overrides', uid));
+    const override = overrideSnap.exists() ? overrideSnap.data()?.overrides?.[action] : null;
+    if (override === 'allow') return true;
+    if (override === 'deny') return false;
+  } catch (error) { console.warn('override check failed:', error); }
+  const roleDefaults = { admin: ['approve_leave', 'manage_users', 'create_project', 'approve_project'], manager: ['approve_leave', 'create_project'], secretary: ['create_project'], staff: ['create_project'], employee: ['create_project'] };
+  return (roleDefaults[user?.role] || []).includes(action);
+}
+
+async function initLeaveSystem(user, uid) {
+  showBody();
+  const ready = await waitForLayout();
+  if (!ready) { showAlert('โหลดหน้าไม่สมบูรณ์: ไม่พบเนื้อหาระบบวันลา', 'error'); return; }
+  setText('userName', user?.name || user?.email || 'ผู้ใช้งาน');
+  setText('userRole', ROLE_LABELS[user?.role] || user?.role || 'เจ้าหน้าที่');
+  if (user?.role === 'admin') byId('adminMenu')?.classList.remove('hidden');
+  const logoutBtn = byId('logoutBtn');
+  if (logoutBtn && !logoutBtn.dataset.bound) {
+    logoutBtn.dataset.bound = '1';
+    logoutBtn.addEventListener('click', async () => {
+      if (isMockMode) { localStorage.removeItem('mockUser'); window.location.href = 'login.html'; return; }
+      await signOut(auth); window.location.href = 'login.html';
+    });
+  }
+  setText('quotaAnnual', quota(user, 'annual'));
+  setText('quotaSick', quota(user, 'sick'));
+  canApprove = await checkPermission(user, uid, 'approve_leave');
+  if (canApprove) { byId('tabApprovals')?.classList.remove('hidden'); await loadPendingApprovals(); }
+  setupTabs(); setupLeaveModal(); await loadMyLeaves(uid);
+}
+
+function setupTabs() {
+  const tabMy = byId('tabMyLeaves'), tabAp = byId('tabApprovals'), viewMy = byId('viewMyLeaves'), viewAp = byId('viewApprovals');
+  if (!tabMy || !tabAp || !viewMy || !viewAp || tabMy.dataset.bound) return;
+  tabMy.dataset.bound = '1';
+  const active = ['text-brand-600','dark:text-sky-400','border-brand-600','dark:border-sky-400','bg-brand-50','dark:bg-slate-800/50'];
+  const inactive = ['text-slate-500','dark:text-slate-400','border-transparent','hover:text-slate-800','dark:hover:text-white'];
+  tabMy.addEventListener('click', () => { viewMy.classList.remove('hidden'); viewAp.classList.add('hidden'); tabMy.classList.add(...active); tabMy.classList.remove(...inactive); tabAp.classList.add(...inactive); tabAp.classList.remove(...active); });
+  tabAp.addEventListener('click', () => { viewMy.classList.add('hidden'); viewAp.classList.remove('hidden'); tabAp.classList.add(...active); tabAp.classList.remove(...inactive); tabMy.classList.add(...inactive); tabMy.classList.remove(...active); });
+}
+
+function setupLeaveModal() {
+  const modal = byId('leaveModal'), content = byId('leaveModalContent'), form = byId('leaveForm');
+  if (!modal || !content || !form || form.dataset.bound) return;
+  form.dataset.bound = '1';
+  const close = () => { modal.classList.add('opacity-0'); content.classList.add('scale-95'); document.body.style.overflow = ''; setTimeout(() => { modal.classList.add('hidden'); modal.classList.remove('flex'); }, 180); form.reset(); byId('leaveModalError')?.classList.add('hidden'); };
+  const open = () => { modal.classList.remove('hidden'); modal.classList.add('flex'); document.body.style.overflow = 'hidden'; requestAnimationFrame(() => { modal.classList.remove('opacity-0'); content.classList.remove('scale-95'); }); };
+  byId('requestLeaveBtn')?.addEventListener('click', open);
+  byId('closeLeaveModalBtn')?.addEventListener('click', close);
+  byId('cancelLeaveModalBtn')?.addEventListener('click', close);
+  modal.addEventListener('click', e => { if (e.target === modal) close(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.classList.contains('hidden')) close(); });
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const err = byId('leaveModalError'), btn = byId('saveLeaveBtn'), spinner = byId('saveLeaveSpinner');
+    err?.classList.add('hidden'); if (btn) btn.disabled = true; spinner?.classList.remove('hidden');
+    try {
+      const type = byId('leaveType')?.value, start = byId('leaveStart')?.value, end = byId('leaveEnd')?.value, reason = byId('leaveReason')?.value?.trim();
+      if (!type || !start || !end || !reason) throw new Error('กรุณากรอกข้อมูลให้ครบถ้วน');
+      const startDate = new Date(`${start}T00:00:00`), endDate = new Date(`${end}T00:00:00`);
+      if (endDate < startDate) throw new Error('วันที่สิ้นสุดต้องไม่น้อยกว่าวันที่เริ่มต้น');
+      const totalDays = Math.ceil(Math.abs(endDate - startDate) / 86400000) + 1;
+      if (isMockMode) { showAlert('Mock Mode: ส่งใบลาสำเร็จ', 'success'); close(); return; }
+      await addDoc(collection(db, 'leaves'), { userId: currentUserUid, userName: currentUser?.name || currentUser?.email || 'Unknown', userEmail: currentUser?.email || '', type, startDate: Timestamp.fromDate(startDate), endDate: Timestamp.fromDate(endDate), totalDays, reason, status: 'pending', createdAt: Timestamp.now() });
+      close(); showAlert('ส่งใบลาเรียบร้อยแล้ว', 'success'); await loadMyLeaves(currentUserUid);
+    } catch (error) { console.error('save leave error:', error); if (err) { err.textContent = error.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล'; err.classList.remove('hidden'); } } finally { if (btn) btn.disabled = false; spinner?.classList.add('hidden'); }
+  });
+}
+
+function statusBadge(status) {
+  const map = { pending: '<span class="inline-block px-3 py-1 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-xs font-medium border border-amber-200 dark:border-amber-800/50">รออนุมัติ</span>', approved: '<span class="inline-block px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 text-xs font-medium border border-emerald-200 dark:border-emerald-800/50">อนุมัติแล้ว</span>', rejected: '<span class="inline-block px-3 py-1 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 text-xs font-medium border border-red-200 dark:border-red-800/50">ไม่อนุมัติ</span>' };
+  return map[status] || escapeHtml(status);
+}
+function dateRange(data) { const s = data.startDate?.toDate ? data.startDate.toDate().toLocaleDateString('th-TH') : '-'; const e = data.endDate?.toDate ? data.endDate.toDate().toLocaleDateString('th-TH') : '-'; return s === e ? s : `${s} - ${e}`; }
+
+async function loadMyLeaves(uid) {
+  const tbody = byId('myLeavesTableBody'); if (!tbody) return;
+  if (isMockMode) { tbody.innerHTML = `<tr><td colspan="5" class="py-8 text-center text-slate-500">Mock Data Mode</td></tr>`; return; }
+  try {
+    const snap = await getDocs(query(collection(db, 'leaves'), where('userId', '==', uid)));
+    const leaves = []; snap.forEach(d => leaves.push({ id: d.id, ...d.data() }));
+    leaves.sort((a,b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+    if (!leaves.length) { tbody.innerHTML = `<tr><td colspan="5" class="py-10 text-center text-slate-500">ไม่มีประวัติการลา</td></tr>`; return; }
+    tbody.innerHTML = leaves.map(data => `<tr class="border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/20 transition-colors"><td class="py-4 px-4 font-medium">${escapeHtml(TYPES[data.type] || data.type)}</td><td class="py-4 px-4 text-slate-500 dark:text-slate-400">${escapeHtml(dateRange(data))}</td><td class="py-4 px-4 text-center">${escapeHtml(data.totalDays)}</td><td class="py-4 px-4 text-slate-500 dark:text-slate-400 max-w-xs truncate" title="${escapeHtml(data.reason)}">${escapeHtml(data.reason)}</td><td class="py-4 px-4 text-center">${statusBadge(data.status)}</td></tr>`).join('');
+  } catch (error) { console.error('load leaves error:', error); tbody.innerHTML = `<tr><td colspan="5" class="py-8 text-center text-red-500">เกิดข้อผิดพลาดในการโหลดข้อมูล</td></tr>`; }
+}
+
+async function loadPendingApprovals() {
+  if (isMockMode) return;
+  const tbody = byId('approvalsTableBody'), badge = byId('pendingBadge'); if (!tbody) return;
+  try {
+    const snap = await getDocs(query(collection(db, 'leaves'), where('status', '==', 'pending')));
+    const items = []; snap.forEach(d => items.push({ id: d.id, ...d.data() }));
+    items.sort((a,b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+    if (!items.length) { tbody.innerHTML = `<tr><td colspan="4" class="py-8 text-center text-slate-500">ไม่มีรายการรออนุมัติ</td></tr>`; badge?.classList.add('hidden'); return; }
+    if (badge) { badge.textContent = items.length; badge.classList.remove('hidden'); }
+    tbody.innerHTML = items.map(data => `<tr class="border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/20 transition-colors"><td class="py-4 px-4 font-medium">${escapeHtml(data.userName || 'Unknown')}</td><td class="py-4 px-4"><div class="font-medium text-slate-800 dark:text-white">${escapeHtml(TYPES[data.type] || data.type)} (${escapeHtml(data.totalDays)} วัน)</div><div class="text-xs text-slate-500 dark:text-slate-400">${escapeHtml(dateRange(data))}</div></td><td class="py-4 px-4 text-sm max-w-xs truncate" title="${escapeHtml(data.reason)}">${escapeHtml(data.reason)}</td><td class="py-4 px-4 text-right whitespace-nowrap"><button class="approve-btn bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:hover:bg-emerald-900/50 px-3 py-1.5 rounded-lg text-xs font-medium mr-2" data-id="${escapeHtml(data.id)}">อนุมัติ</button><button class="reject-btn bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 px-3 py-1.5 rounded-lg text-xs font-medium" data-id="${escapeHtml(data.id)}">ปฏิเสธ</button></td></tr>`).join('');
+    tbody.querySelectorAll('.approve-btn').forEach(btn => btn.addEventListener('click', () => handleApproval(btn.dataset.id, 'approved')));
+    tbody.querySelectorAll('.reject-btn').forEach(btn => btn.addEventListener('click', () => handleApproval(btn.dataset.id, 'rejected')));
+  } catch (error) { console.error('load approvals error:', error); tbody.innerHTML = `<tr><td colspan="4" class="py-8 text-center text-red-500">เกิดข้อผิดพลาด</td></tr>`; }
+}
+
+async function handleApproval(id, status) {
+  const text = status === 'approved' ? 'อนุมัติ' : 'ปฏิเสธ';
+  if (!confirm(`ยืนยันการ${text}ใบลา?`)) return;
+  try {
+    await updateDoc(doc(db, 'leaves', id), { status, approverId: currentUserUid, approverName: currentUser?.name || currentUser?.email || 'Unknown', updatedAt: Timestamp.now() });
+    if (status === 'approved') await deductQuota(id);
+    showAlert(`${text}ใบลาเรียบร้อยแล้ว`, 'success'); await loadPendingApprovals();
+  } catch (error) { console.error('approval error:', error); showAlert('เกิดข้อผิดพลาดในการอัปเดตสถานะ', 'error'); }
+}
+async function deductQuota(id) {
+  const leaveSnap = await getDoc(doc(db, 'leaves', id)); if (!leaveSnap.exists()) return;
+  const leave = leaveSnap.data(); const userRef = doc(db, 'users', leave.userId); const userSnap = await getDoc(userRef); if (!userSnap.exists()) return;
+  const user = userSnap.data();
+  if (leave.type === 'annual') { const next = Math.max(Number(quota(user, 'annual')) - Number(leave.totalDays || 0), 0); await updateDoc(userRef, { 'leaveQuota.annual': next, 'leave_quota.annual': next }); }
+  if (leave.type === 'sick') { const next = Math.max(Number(quota(user, 'sick')) - Number(leave.totalDays || 0), 0); await updateDoc(userRef, { 'leaveQuota.sick': next, 'leave_quota.sick': next }); }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    setupSharedUI();
-
-    const mockUserStr = localStorage.getItem('mockUser');
-    let currentUser = null;
-    let currentUserUid = null;
-    let canApprove = false;
-
-    if (mockUserStr) {
-        currentUser = JSON.parse(mockUserStr);
-        currentUserUid = "mock-uid";
-        initLeaveSystem(currentUser);
-    } else {
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                try {
-                    const userDoc = await getDoc(doc(db, "users", user.uid));
-                    if (userDoc.exists()) {
-                        currentUser = userDoc.data();
-                        currentUserUid = user.uid;
-                        await initLeaveSystem(currentUser, user.uid);
-                    } else {
-                        window.location.href = 'login.html';
-                    }
-                } catch(e) {
-                    console.error("Auth Error:", e);
-                    window.location.href = 'login.html';
-                }
-            } else {
-                window.location.href = 'login.html';
-            }
-        });
-    }
-
-    async function checkPermission(user, uid, action) {
-        if(mockUserStr) {
-            if(action === 'approve_leave') return ['admin', 'manager'].includes(user.role);
-            return true;
-        }
-        
-        try {
-            const overrideDoc = await getDoc(doc(db, "user_overrides", uid));
-            if(overrideDoc.exists() && overrideDoc.data().overrides && overrideDoc.data().overrides[action]) {
-                const override = overrideDoc.data().overrides[action];
-                if(override === 'deny') return false;
-                if(override === 'allow') return true;
-            }
-            
-            // Fallback to Role
-            const roleDefaults = {
-                'admin': ['approve_leave', 'manage_users', 'create_project', 'approve_project'],
-                'manager': ['approve_leave', 'create_project'],
-                'secretary': ['create_project'],
-                'staff': ['create_project']
-            };
-            return (roleDefaults[user.role] || []).includes(action);
-
-        } catch (e) {
-            console.error("Permission check error", e);
-            return false;
-        }
-    }
-
-    async function initLeaveSystem(user, uid) {
-        document.getElementById('appBody').classList.remove('hidden');
-        document.getElementById('userName').textContent = user.name;
-        
-        const roleDisplay = { 'admin': 'ผู้ดูแลระบบ', 'manager': 'หัวหน้าฝ่าย', 'secretary': 'เลขาฯ', 'staff': 'เจ้าหน้าที่' };
-        document.getElementById('userRole').textContent = roleDisplay[user.role] || user.role;
-
-        if (user.role === 'admin') {
-            document.getElementById('adminMenu').classList.remove('hidden');
-        }
-
-        document.getElementById('logoutBtn').addEventListener('click', () => {
-            if(mockUserStr) {
-                localStorage.removeItem('mockUser');
-                window.location.href = 'login.html';
-            } else {
-                signOut(auth).then(() => window.location.href = 'login.html');
-            }
-        });
-
-        // Setup Quota Display
-        document.getElementById('quotaAnnual').textContent = user.leave_quota?.annual ?? 10;
-        document.getElementById('quotaSick').textContent = user.leave_quota?.sick ?? 30;
-
-        // Check if user can approve leaves
-        canApprove = await checkPermission(user, uid, 'approve_leave');
-        
-        if (canApprove) {
-            document.getElementById('tabApprovals').classList.remove('hidden');
-            loadPendingApprovals();
-        }
-
-        setupTabs();
-        setupLeaveModal();
-        loadMyLeaves(uid);
-    }
-
-    function setupTabs() {
-        const tabMyLeaves = document.getElementById('tabMyLeaves');
-        const tabApprovals = document.getElementById('tabApprovals');
-        const viewMyLeaves = document.getElementById('viewMyLeaves');
-        const viewApprovals = document.getElementById('viewApprovals');
-
-        const activeClass = ['text-brand-600', 'dark:text-sky-400', 'border-brand-600', 'dark:border-sky-400'];
-        const inactiveClass = ['text-slate-500', 'dark:text-slate-400', 'border-transparent', 'hover:text-slate-800', 'dark:hover:text-white'];
-
-        tabMyLeaves.addEventListener('click', () => {
-            viewMyLeaves.classList.remove('hidden');
-            viewApprovals.classList.add('hidden');
-            tabMyLeaves.classList.add(...activeClass);
-            tabMyLeaves.classList.remove(...inactiveClass);
-            tabApprovals.classList.add(...inactiveClass);
-            tabApprovals.classList.remove(...activeClass);
-        });
-
-        tabApprovals.addEventListener('click', () => {
-            viewMyLeaves.classList.add('hidden');
-            viewApprovals.classList.remove('hidden');
-            tabApprovals.classList.add(...activeClass);
-            tabApprovals.classList.remove(...inactiveClass);
-            tabMyLeaves.classList.add(...inactiveClass);
-            tabMyLeaves.classList.remove(...activeClass);
-        });
-    }
-
-    function setupLeaveModal() {
-        const leaveModal = document.getElementById('leaveModal');
-        const leaveModalContent = document.getElementById('leaveModalContent');
-        const leaveForm = document.getElementById('leaveForm');
-
-        function toggleModal(show) {
-            if (show) {
-                leaveModal.classList.remove('hidden');
-                setTimeout(() => {
-                    leaveModal.classList.remove('opacity-0');
-                    leaveModalContent.classList.remove('scale-95');
-                }, 10);
-            } else {
-                leaveModal.classList.add('opacity-0');
-                leaveModalContent.classList.add('scale-95');
-                setTimeout(() => leaveModal.classList.add('hidden'), 300);
-                leaveForm.reset();
-                document.getElementById('leaveModalError').classList.add('hidden');
-            }
-        }
-
-        document.getElementById('requestLeaveBtn').addEventListener('click', () => toggleModal(true));
-        document.getElementById('closeLeaveModalBtn').addEventListener('click', () => toggleModal(false));
-        document.getElementById('cancelLeaveModalBtn').addEventListener('click', () => toggleModal(false));
-
-        leaveForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const errorMsg = document.getElementById('leaveModalError');
-            const saveBtn = document.getElementById('saveLeaveBtn');
-            const spinner = document.getElementById('saveLeaveSpinner');
-            
-            errorMsg.classList.add('hidden');
-            saveBtn.disabled = true;
-            spinner.classList.remove('hidden');
-
-            const type = document.getElementById('leaveType').value;
-            const start = document.getElementById('leaveStart').value;
-            const end = document.getElementById('leaveEnd').value;
-            const reason = document.getElementById('leaveReason').value;
-
-            const startDate = new Date(start);
-            const endDate = new Date(end);
-            
-            if(endDate < startDate) {
-                errorMsg.textContent = "วันที่สิ้นสุดต้องไม่น้อยกว่าวันที่เริ่มต้น";
-                errorMsg.classList.remove('hidden');
-                saveBtn.disabled = false;
-                spinner.classList.add('hidden');
-                return;
-            }
-
-            const diffTime = Math.abs(endDate - startDate);
-            const totalDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // Inclusive
-
-            if (mockUserStr) {
-                alert("Mock Mode: ส่งใบลาสำเร็จ (จำลอง)");
-                toggleModal(false);
-                saveBtn.disabled = false;
-                spinner.classList.add('hidden');
-                return;
-            }
-
-            try {
-                await addDoc(collection(db, "leaves"), {
-                    userId: currentUserUid,
-                    userName: currentUser.name,
-                    type: type,
-                    startDate: Timestamp.fromDate(startDate),
-                    endDate: Timestamp.fromDate(endDate),
-                    totalDays: totalDays,
-                    reason: reason,
-                    status: 'pending',
-                    createdAt: Timestamp.now()
-                });
-
-                toggleModal(false);
-                loadMyLeaves(currentUserUid);
-
-            } catch (error) {
-                console.error("Save Leave Error:", error);
-                errorMsg.textContent = "เกิดข้อผิดพลาดในการบันทึกข้อมูล";
-                errorMsg.classList.remove('hidden');
-            } finally {
-                saveBtn.disabled = false;
-                spinner.classList.add('hidden');
-            }
-        });
-    }
-
-    async function loadMyLeaves(uid) {
-        const tbody = document.getElementById('myLeavesTableBody');
-        
-        if (mockUserStr) {
-            tbody.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-slate-500">Mock Data Mode</td></tr>`;
-            return;
-        }
-
-        try {
-            const q = query(collection(db, "leaves"), where("userId", "==", uid));
-            const querySnapshot = await getDocs(q);
-            
-            tbody.innerHTML = '';
-            
-            if (querySnapshot.empty) {
-                tbody.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-slate-500">ไม่มีประวัติการลา</td></tr>`;
-                return;
-            }
-
-            // Client side sort for simplicity
-            const leaves = [];
-            querySnapshot.forEach((doc) => leaves.push({ id: doc.id, ...doc.data() }));
-            leaves.sort((a, b) => b.createdAt.toDate() - a.createdAt.toDate());
-
-            leaves.forEach((data) => {
-                const types = { 'annual': 'ลาพักร้อน', 'sick': 'ลาป่วย', 'personal': 'ลากิจ' };
-                const statuses = {
-                    'pending': '<span class="inline-block px-3 py-1 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-xs font-medium border border-amber-200 dark:border-amber-800/50">รออนุมัติ</span>',
-                    'approved': '<span class="inline-block px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 text-xs font-medium border border-emerald-200 dark:border-emerald-800/50">อนุมัติแล้ว</span>',
-                    'rejected': '<span class="inline-block px-3 py-1 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 text-xs font-medium border border-red-200 dark:border-red-800/50">ไม่อนุมัติ</span>'
-                };
-
-                const startStr = data.startDate.toDate().toLocaleDateString('th-TH');
-                const endStr = data.endDate.toDate().toLocaleDateString('th-TH');
-                const dateDisplay = startStr === endStr ? startStr : `${startStr} - ${endStr}`;
-
-                const tr = document.createElement('tr');
-                tr.className = "border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/20 transition-colors";
-                tr.innerHTML = `
-                    <td class="py-4 px-4 font-medium">${types[data.type] || data.type}</td>
-                    <td class="py-4 px-4 text-slate-500 dark:text-slate-400">${dateDisplay}</td>
-                    <td class="py-4 px-4 text-center">${data.totalDays}</td>
-                    <td class="py-4 px-4 text-center">${statuses[data.status] || data.status}</td>
-                `;
-                tbody.appendChild(tr);
-            });
-
-        } catch (error) {
-            console.error("Error loading leaves:", error);
-            tbody.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-red-500">เกิดข้อผิดพลาดในการโหลดข้อมูล</td></tr>`;
-        }
-    }
-
-    async function loadPendingApprovals() {
-        if(mockUserStr) return;
-        const tbody = document.getElementById('approvalsTableBody');
-        const badge = document.getElementById('pendingBadge');
-
-        try {
-            const q = query(collection(db, "leaves"), where("status", "==", "pending"));
-            const querySnapshot = await getDocs(q);
-            
-            tbody.innerHTML = '';
-            
-            if (querySnapshot.empty) {
-                tbody.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-slate-500">ไม่มีรายการรออนุมัติ</td></tr>`;
-                badge.classList.add('hidden');
-                return;
-            }
-
-            badge.textContent = querySnapshot.size;
-            badge.classList.remove('hidden');
-
-            querySnapshot.forEach((docSnap) => {
-                const data = docSnap.data();
-                const types = { 'annual': 'ลาพักร้อน', 'sick': 'ลาป่วย', 'personal': 'ลากิจ' };
-                const startStr = data.startDate.toDate().toLocaleDateString('th-TH');
-                const endStr = data.endDate.toDate().toLocaleDateString('th-TH');
-                const dateDisplay = startStr === endStr ? startStr : `${startStr} - ${endStr}`;
-
-                const tr = document.createElement('tr');
-                tr.className = "border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/20 transition-colors";
-                tr.innerHTML = `
-                    <td class="py-4 px-4 font-medium">${data.userName || 'Unknown'}</td>
-                    <td class="py-4 px-4">
-                        <div class="font-medium text-slate-800 dark:text-white">${types[data.type] || data.type} (${data.totalDays} วัน)</div>
-                        <div class="text-xs text-slate-500 dark:text-slate-400">${dateDisplay}</div>
-                    </td>
-                    <td class="py-4 px-4 text-sm">${data.reason}</td>
-                    <td class="py-4 px-4 text-right">
-                        <button class="approve-btn bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:hover:bg-emerald-900/50 px-3 py-1.5 rounded-lg text-xs font-medium mr-2 transition-colors" data-id="${docSnap.id}">อนุมัติ</button>
-                        <button class="reject-btn bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors" data-id="${docSnap.id}">ปฏิเสธ</button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-
-            // Bind Actions
-            document.querySelectorAll('.approve-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => handleApproval(e.target.getAttribute('data-id'), 'approved'));
-            });
-            document.querySelectorAll('.reject-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => handleApproval(e.target.getAttribute('data-id'), 'rejected'));
-            });
-
-        } catch (error) {
-            console.error("Error loading approvals:", error);
-            tbody.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-red-500">เกิดข้อผิดพลาด</td></tr>`;
-        }
-    }
-
-    async function handleApproval(leaveId, newStatus) {
-        if(confirm(`ยืนยันการ${newStatus === 'approved' ? 'อนุมัติ' : 'ปฏิเสธ'}ใบลา?`)) {
-            try {
-                await updateDoc(doc(db, "leaves", leaveId), {
-                    status: newStatus,
-                    approverId: currentUserUid,
-                    updatedAt: Timestamp.now()
-                });
-                // Deduct quota if approved (Simulated logic - should ideally run in Cloud Functions)
-                if(newStatus === 'approved') {
-                    const leaveDoc = await getDoc(doc(db, "leaves", leaveId));
-                    if(leaveDoc.exists()) {
-                        const lData = leaveDoc.data();
-                        const uDocRef = doc(db, "users", lData.userId);
-                        const uDoc = await getDoc(uDocRef);
-                        if(uDoc.exists()) {
-                            const uData = uDoc.data();
-                            if(lData.type === 'annual' && uData.leave_quota?.annual) {
-                                await updateDoc(uDocRef, { "leave_quota.annual": uData.leave_quota.annual - lData.totalDays });
-                            } else if (lData.type === 'sick' && uData.leave_quota?.sick) {
-                                await updateDoc(uDocRef, { "leave_quota.sick": uData.leave_quota.sick - lData.totalDays });
-                            }
-                        }
-                    }
-                }
-                
-                loadPendingApprovals();
-            } catch (e) {
-                console.error("Error updating status", e);
-                alert("เกิดข้อผิดพลาดในการอัปเดตสถานะ");
-            }
-        }
-    }
-
+  const mockUserStr = localStorage.getItem('mockUser');
+  if (mockUserStr) { isMockMode = true; currentUser = JSON.parse(mockUserStr); currentUserUid = 'mock-uid'; initLeaveSystem(currentUser, currentUserUid); return; }
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) { window.location.href = 'login.html'; return; }
+    currentUserUid = user.uid;
+    try {
+      const snap = await getDoc(doc(db, 'users', user.uid));
+      if (!snap.exists()) { window.location.href = 'login.html'; return; }
+      currentUser = { uid: user.uid, email: user.email, ...snap.data() };
+      await initLeaveSystem(currentUser, user.uid);
+    } catch (error) { console.error('auth error:', error); window.location.href = 'login.html'; }
+  });
 });
