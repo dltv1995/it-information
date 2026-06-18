@@ -31,9 +31,9 @@ const DEFAULT_PASSWORD = "password";
 const USERS_COLLECTION = "users";
 
 const ROLE_LABELS = {
-  staff: "พนักงานทั่วไป",
+  staff: "เจ้าหน้าที่",
   secretary: "เลขาฯ",
-  manager: "หัวหน้างาน",
+  manager: "หัวหน้าฝ่าย",
   admin: "ผู้ดูแลระบบ"
 };
 

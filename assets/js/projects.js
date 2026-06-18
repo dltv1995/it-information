@@ -32,10 +32,10 @@ const SECTION_LABELS = {
 };
 const ROLE_LABELS = {
   admin: 'ผู้ดูแลระบบ',
-  manager: 'หัวหน้างาน',
+  manager: 'หัวหน้าฝ่าย',
   secretary: 'เลขาฯ',
-  staff: 'พนักงานทั่วไป',
-  employee: 'พนักงานทั่วไป'
+  staff: 'เจ้าหน้าที่',
+  employee: 'เจ้าหน้าที่'
 };
 
 let currentUser = null;
@@ -61,7 +61,7 @@ const ALLOWED_ROLES = new Set([
 const CREATOR_ROLES = new Set([
   'admin', 'manager', 'administrator', 'head', 'department_head', 'head_department',
   'section_head', 'supervisor', 'director', 'secretary', 'staff', 'employee',
-  'ผู้ดูแลระบบ', 'หัวหน้าฝ่าย', 'หัวหน้างาน', 'เลขาฯ', 'พนักงานทั่วไป'
+  'ผู้ดูแลระบบ', 'หัวหน้าฝ่าย', 'หัวหน้างาน', 'เลขาฯ', 'เจ้าหน้าที่'
 ]);
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -152,12 +152,12 @@ async function initPage() {
 
 function setupUserHeader() {
   const roleDisplay = {
-    admin: 'ผู้ดูแลระบบ', manager: 'หัวหน้างาน', secretary: 'เลขาฯ',
-    staff: 'พนักงานทั่วไป', employee: 'พนักงานทั่วไป'
+    admin: 'ผู้ดูแลระบบ', manager: 'หัวหน้าฝ่าย', secretary: 'เลขาฯ',
+    staff: 'เจ้าหน้าที่', employee: 'เจ้าหน้าที่'
   };
 
   setText('userName', currentUser?.name || currentUser?.email || 'ผู้ใช้งานระบบ');
-  setText('userRole', roleDisplay[currentUser?.role] || currentUser?.role || 'พนักงานทั่วไป');
+  setText('userRole', roleDisplay[currentUser?.role] || currentUser?.role || 'เจ้าหน้าที่');
 
   if (isAdminLike(currentUser?.role)) document.getElementById('adminMenu')?.classList.remove('hidden');
 

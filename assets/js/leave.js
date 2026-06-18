@@ -96,7 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('appBody').classList.remove('hidden');
         document.getElementById('userName').textContent = user.name;
         
-        const roleDisplay = { 'admin': 'ผู้ดูแลระบบ', 'manager': 'หัวหน้างาน', 'secretary': 'เลขาฯ', 'staff': 'พนักงานทั่วไป' };
+        const roleDisplay = { 'admin': 'ผู้ดูแลระบบ', 'manager': 'หัวหน้าฝ่าย', 'secretary': 'เลขาฯ', 'staff': 'เจ้าหน้าที่' };
         document.getElementById('userRole').textContent = roleDisplay[user.role] || user.role;
 
         if (user.role === 'admin') {

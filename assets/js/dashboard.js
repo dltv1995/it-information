@@ -169,13 +169,13 @@ function initUserHeader(user, isMockUser) {
 
     const roleDisplay = {
         admin: 'ผู้ดูแลระบบ',
-        manager: 'หัวหน้างาน',
+        manager: 'หัวหน้าฝ่าย',
         secretary: 'เลขาฯ',
-        staff: 'พนักงานทั่วไป',
-        employee: 'พนักงานทั่วไป'
+        staff: 'เจ้าหน้าที่',
+        employee: 'เจ้าหน้าที่'
     };
 
-    if (userRole) userRole.textContent = roleDisplay[user.role] || user.role || 'พนักงานทั่วไป';
+    if (userRole) userRole.textContent = roleDisplay[user.role] || user.role || 'เจ้าหน้าที่';
     if (adminMenu && user.role === 'admin') adminMenu.classList.remove('hidden');
 
     if (logoutBtn) {

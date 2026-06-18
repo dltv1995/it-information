@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         localStorage.setItem('mockUser', JSON.stringify({ email: email, role: 'admin', name: 'ผู้ดูแลระบบสูงสุด' }));
                         window.location.href = 'dashboard.html';
                     } else if (email === "staff@company.com" && password === "password") {
-                        localStorage.setItem('mockUser', JSON.stringify({ email: email, role: 'staff', name: 'พนักงานทั่วไป' }));
+                        localStorage.setItem('mockUser', JSON.stringify({ email: email, role: 'staff', name: 'เจ้าหน้าที่' }));
                         window.location.href = 'dashboard.html';
                     } else {
                         throw new Error('อีเมลหรือรหัสผ่านไม่ถูกต้อง (ตัวอย่าง Mock: admin@company.com / password)');
