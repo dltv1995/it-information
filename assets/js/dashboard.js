@@ -1,7 +1,7 @@
 // assets/js/dashboard.js
 // Firebase-only Dashboard + Global Budget from Firestore settings/budget
 // แก้ปัญหา "ช่องงบประมาณรวมเป็น 0" โดยอ่านงบรวมจาก settings/budget.totalBudget
-// Version: dashboard-approved-budget-section-pie-v8
+// Version: dashboard-final-budget-v9
 
 import { auth, db } from './firebase-config.js';
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -12,7 +12,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-console.log('dashboard.js loaded: dashboard-approved-budget-section-pie-v8');
+console.log('dashboard.js loaded: dashboard-final-budget-v9');
 
 const DEFAULT_TOTAL_BUDGET = 1500000;
 const SECTION_LABELS = {
@@ -351,6 +351,28 @@ function buildWorkloads(tasks) {
     return Array.from(map.values());
 }
 
+function applyTopMetricCardColors() {
+    const cards = [
+        { id: 'totalBudget', key: 'total', color: '#2563eb', bg: 'rgba(37,99,235,.26)', darkBg: 'rgba(37,99,235,.34)' },
+        { id: 'usedBudget', key: 'used', color: '#f59e0b', bg: 'rgba(245,158,11,.28)', darkBg: 'rgba(245,158,11,.38)' },
+        { id: 'remainingBudget', key: 'remaining', color: '#10b981', bg: 'rgba(16,185,129,.28)', darkBg: 'rgba(16,185,129,.38)' }
+    ];
+    const dark = document.documentElement.classList.contains('dark');
+    cards.forEach(item => {
+        const valueEl = document.getElementById(item.id);
+        const card = valueEl?.closest('article');
+        if (!card) return;
+        card.style.setProperty('background', `linear-gradient(135deg, ${dark ? item.darkBg : item.bg}, rgba(15,23,42,.18))`, 'important');
+        card.style.setProperty('border-color', item.color, 'important');
+        card.style.setProperty('box-shadow', `inset 5px 0 0 ${item.color}, 0 16px 44px ${dark ? item.darkBg : item.bg}`, 'important');
+        const icon = card.querySelector('.w-12.h-12');
+        if (icon) {
+            icon.style.setProperty('background-color', dark ? item.darkBg : item.bg, 'important');
+            icon.style.setProperty('color', item.color, 'important');
+        }
+    });
+}
+
 function renderDashboard(data) {
     const projects = Array.isArray(data.projects) ? data.projects : [];
     const workloads = Array.isArray(data.workloads) ? data.workloads : [];
@@ -370,6 +392,7 @@ function renderDashboard(data) {
     renderUrgentTasks(urgentTasks);
     renderBudgetChart(projects);
     renderWorkloadChart(workloads);
+    applyTopMetricCardColors();
 
     if (!projects.length && !tasksCache.length) {
         showFirebaseStatus('ยังไม่มีข้อมูลโครงการใน Firebase แต่ระบบอ่านงบประมาณรวมจาก settings/budget แล้ว', 'info');
@@ -387,7 +410,7 @@ function renderProjects(projects) {
     }
 
     list.innerHTML = projects.map(project => {
-        const approvedBudget = toNumber(project.total);
+        const approvedBudget = toNumber(project.total || project.totalBudget || project.budgetAllocated || 0);
         const budgetPercent = percent(approvedBudget, toNumber(globalBudget || DEFAULT_TOTAL_BUDGET));
         const statusText = project.status === 'pending' ? 'รออนุมัติ' : project.status === 'approved' ? 'อนุมัติแล้ว' : project.status === 'rejected' ? 'ไม่อนุมัติ' : project.status;
         const section = getProjectSection(project);
@@ -465,10 +488,10 @@ function renderBudgetChart(projects) {
 
     const approvedProjects = projects.filter(project => project.status === 'approved');
     const sectionTotals = new Map();
-
     approvedProjects.forEach(project => {
         const section = getProjectSection(project);
-        sectionTotals.set(section, (sectionTotals.get(section) || 0) + toNumber(project.total));
+        const approvedBudget = toNumber(project.total || project.totalBudget || project.budgetAllocated || 0);
+        sectionTotals.set(section, (sectionTotals.get(section) || 0) + approvedBudget);
     });
 
     const sectionKeys = Array.from(sectionTotals.keys());
@@ -477,20 +500,17 @@ function renderBudgetChart(projects) {
     const colors = sectionKeys.map(getSectionColor);
 
     if (budgetChart) budgetChart.destroy();
-
     budgetChart = new Chart(canvas, {
         type: 'pie',
         data: {
             labels: labels.length ? labels : ['ยังไม่มีงบอนุมัติ'],
-            datasets: [
-                {
-                    label: 'งบที่อนุมัติแล้วตามส่วนงาน (บาท)',
-                    data: values.length ? values : [1],
-                    backgroundColor: labels.length ? colors : ['rgba(100,116,139,.35)'],
-                    borderColor: 'rgba(255,255,255,.18)',
-                    borderWidth: 2
-                }
-            ]
+            datasets: [{
+                label: 'งบที่อนุมัติแล้วตามส่วนงาน (บาท)',
+                data: values.length ? values : [1],
+                backgroundColor: labels.length ? colors : ['rgba(100,116,139,.35)'],
+                borderColor: 'rgba(255,255,255,.18)',
+                borderWidth: 2
+            }]
         },
         options: chartPieOptions()
     });
@@ -504,16 +524,12 @@ function chartPieOptions() {
         animation: false,
         plugins: {
             legend: { position: 'top', labels: { color: isDark ? '#cbd5e1' : '#475569', boxWidth: 18, usePointStyle: true } },
-            tooltip: {
-                callbacks: {
-                    label: (context) => {
-                        const value = Number(context.raw || 0);
-                        const total = context.dataset.data.reduce((sum, item) => sum + Number(item || 0), 0);
-                        const pct = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
-                        return `${context.label}: ${baht(value)} (${pct}%)`;
-                    }
-                }
-            }
+            tooltip: { callbacks: { label: (context) => {
+                const value = Number(context.raw || 0);
+                const total = context.dataset.data.reduce((sum, item) => sum + Number(item || 0), 0);
+                const pct = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
+                return `${context.label}: ${baht(value)} (${pct}%)`;
+            } } }
         }
     };
 }
