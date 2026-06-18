@@ -1,7 +1,7 @@
 // assets/js/dashboard.js
 // Firebase-only Dashboard + Global Budget from Firestore settings/budget
 // แก้ปัญหา "ช่องงบประมาณรวมเป็น 0" โดยอ่านงบรวมจาก settings/budget.totalBudget
-// Version: dashboard-popup-details-v10
+// Version: dashboard-popup-fix-v11
 
 import { auth, db } from './firebase-config.js';
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -12,7 +12,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-console.log('dashboard.js loaded: dashboard-popup-details-v10');
+console.log('dashboard.js loaded: dashboard-popup-fix-v11');
 
 const DEFAULT_TOTAL_BUDGET = 1500000;
 const SECTION_LABELS = {
@@ -411,6 +411,7 @@ function ensureDashboardProjectDetailsModal() {
     const modal = document.createElement('div');
     modal.id = 'dashboardProjectDetailsModal';
     modal.className = 'fixed inset-0 z-[95] hidden items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4 opacity-0 transition-opacity duration-200';
+    modal.style.pointerEvents = 'none';
     modal.innerHTML = `
         <div id="dashboardProjectDetailsContent" class="w-full max-w-3xl max-h-[88vh] overflow-hidden rounded-3xl border border-slate-200/20 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl transform scale-95 transition-transform duration-200">
             <div class="flex items-start justify-between gap-4 px-6 py-5 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/70">
@@ -418,7 +419,7 @@ function ensureDashboardProjectDetailsModal() {
                     <p class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">รายละเอียดโครงการ</p>
                     <h3 id="dashboardProjectDetailsTitle" class="text-lg font-extrabold text-slate-900 dark:text-white mt-1">-</h3>
                 </div>
-                <button id="closeDashboardProjectDetailsBtn" class="w-9 h-9 rounded-full flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-200 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-700 transition-colors">
+                <button id="closeDashboardProjectDetailsBtn" type="button" class="w-9 h-9 rounded-full flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-200 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-700 transition-colors">
                     <i class="ph ph-x text-xl"></i>
                 </button>
             </div>
@@ -430,6 +431,9 @@ function ensureDashboardProjectDetailsModal() {
         if (event.target === modal) closeDashboardProjectDetailsModal();
     });
     document.getElementById('closeDashboardProjectDetailsBtn')?.addEventListener('click', closeDashboardProjectDetailsModal);
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && !modal.classList.contains('hidden')) closeDashboardProjectDetailsModal();
+    });
 }
 
 function closeDashboardProjectDetailsModal() {
@@ -438,7 +442,13 @@ function closeDashboardProjectDetailsModal() {
     if (!modal || !content) return;
     modal.classList.add('opacity-0');
     content.classList.add('scale-95');
-    setTimeout(() => modal.classList.add('hidden'), 180);
+    modal.style.pointerEvents = 'none';
+    document.body.style.overflow = '';
+    setTimeout(() => {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        modal.style.display = 'none';
+    }, 180);
 }
 
 function detailRow(label, value) {
@@ -454,7 +464,6 @@ function openDashboardProjectDetails(projectId) {
     const project = projectsCache.find(item => item.id === projectId);
     if (!project) return;
     ensureDashboardProjectDetailsModal();
-
     const section = getProjectSection(project);
     const sectionColor = getSectionColor(section);
     const sectionLabel = getSectionLabel(section);
@@ -465,11 +474,9 @@ function openDashboardProjectDetails(projectId) {
     const budgetPercent = percent(approvedBudget, toNumber(globalBudget || DEFAULT_TOTAL_BUDGET));
     const usedPercent = percent(usedBudget, approvedBudget);
     const statusText = project.status === 'pending' ? 'รออนุมัติ' : project.status === 'approved' ? 'อนุมัติแล้ว' : project.status === 'rejected' ? 'ไม่อนุมัติ' : project.status;
-
     setText('dashboardProjectDetailsTitle', project.name || project.title || 'ไม่ระบุชื่อโครงการ');
     const body = document.getElementById('dashboardProjectDetailsBody');
     if (!body) return;
-
     body.innerHTML = `
         <div class="space-y-5">
             <div class="rounded-3xl border p-5" style="border-color:${escapeAttr(sectionColor)}; background:linear-gradient(135deg, ${escapeAttr(sectionColor)}22, transparent)">
@@ -482,7 +489,6 @@ function openDashboardProjectDetails(projectId) {
                     </div>
                 </div>
             </div>
-
             <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                 ${detailRow('งบที่อนุมัติ', baht(approvedBudget))}
                 ${detailRow('งบที่เสนอขอ', baht(requestedBudget))}
@@ -491,7 +497,6 @@ function openDashboardProjectDetails(projectId) {
                 ${detailRow('สัดส่วนงบที่อนุมัติ', `${budgetPercent}% ของงบรวมฝ่าย`)}
                 ${detailRow('การใช้งบจากงบอนุมัติ', `${usedPercent}%`)}
             </div>
-
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                 ${detailRow('ผู้รับผิดชอบ', project.ownerName || project.owner || '-')}
                 ${detailRow('อีเมลผู้รับผิดชอบ', project.ownerEmail || '-')}
@@ -500,7 +505,6 @@ function openDashboardProjectDetails(projectId) {
                 ${detailRow('สถานะ', statusText)}
                 ${detailRow('ระยะเวลา', project.durationLabel || '-')}
             </div>
-
             <div class="rounded-2xl border border-slate-200 dark:border-slate-700 p-4 bg-slate-50/70 dark:bg-slate-800/60">
                 <div class="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
                     <span>สัดส่วนงบที่อนุมัติเทียบงบรวมฝ่าย</span>
@@ -508,21 +512,21 @@ function openDashboardProjectDetails(projectId) {
                 </div>
                 <div class="progress-track"><div class="progress-fill" style="width:${clamp(budgetPercent)}%; background:${escapeAttr(sectionColor)}"></div></div>
             </div>
-
             ${project.managerComment ? `<div class="rounded-2xl border border-amber-400/30 bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-300"><b>คอมเมนต์หัวหน้า:</b> ${escapeHtml(project.managerComment)}</div>` : ''}
         </div>
     `;
-
     const modal = document.getElementById('dashboardProjectDetailsModal');
     const content = document.getElementById('dashboardProjectDetailsContent');
+    modal.style.display = 'flex';
+    modal.style.pointerEvents = 'auto';
     modal.classList.remove('hidden');
     modal.classList.add('flex');
+    document.body.style.overflow = 'hidden';
     requestAnimationFrame(() => {
         modal.classList.remove('opacity-0');
         content.classList.remove('scale-95');
     });
 }
-
 window.openDashboardProjectDetails = openDashboardProjectDetails;
 
 function renderProjects(projects) {
@@ -532,7 +536,6 @@ function renderProjects(projects) {
         list.innerHTML = `<div class="rounded-2xl border border-slate-200/80 dark:border-slate-700/80 p-5 text-sm text-slate-500 dark:text-slate-400">ยังไม่มีข้อมูลโครงการใน Firebase</div>`;
         return;
     }
-
     list.innerHTML = projects.map(project => {
         const approvedBudget = getProjectApprovedBudget(project);
         const budgetPercent = percent(approvedBudget, toNumber(globalBudget || DEFAULT_TOTAL_BUDGET));
@@ -557,7 +560,6 @@ function renderProjects(projects) {
                         <strong class="text-slate-900 dark:text-white">${baht(approvedBudget)}</strong>
                     </div>
                 </div>
-
                 <div class="mt-4">
                     <div class="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
                         <span>สัดส่วนงบที่อนุมัติ</span>
@@ -609,7 +611,6 @@ function renderUrgentTasks(tasks) {
 function renderBudgetChart(projects) {
     const canvas = document.getElementById('budgetChart');
     if (!canvas || typeof Chart === 'undefined') return;
-
     const approvedProjects = projects.filter(project => project.status === 'approved');
     const sectionTotals = new Map();
     approvedProjects.forEach(project => {
@@ -617,24 +618,16 @@ function renderBudgetChart(projects) {
         const approvedBudget = getProjectApprovedBudget(project);
         sectionTotals.set(section, (sectionTotals.get(section) || 0) + approvedBudget);
     });
-
     const sectionKeys = Array.from(sectionTotals.keys());
     const labels = sectionKeys.map(getSectionLabel);
     const values = Array.from(sectionTotals.values());
     const colors = sectionKeys.map(getSectionColor);
-
     if (budgetChart) budgetChart.destroy();
     budgetChart = new Chart(canvas, {
         type: 'pie',
         data: {
             labels: labels.length ? labels : ['ยังไม่มีงบอนุมัติ'],
-            datasets: [{
-                label: 'งบที่อนุมัติแล้วตามส่วนงาน (บาท)',
-                data: values.length ? values : [1],
-                backgroundColor: labels.length ? colors : ['rgba(100,116,139,.35)'],
-                borderColor: 'rgba(255,255,255,.18)',
-                borderWidth: 2
-            }]
+            datasets: [{ label: 'งบที่อนุมัติแล้วตามส่วนงาน (บาท)', data: values.length ? values : [1], backgroundColor: labels.length ? colors : ['rgba(100,116,139,.35)'], borderColor: 'rgba(255,255,255,.18)', borderWidth: 2 }]
         },
         options: chartPieOptions()
     });
@@ -642,20 +635,7 @@ function renderBudgetChart(projects) {
 
 function chartPieOptions() {
     const isDark = document.documentElement.classList.contains('dark');
-    return {
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: false,
-        plugins: {
-            legend: { position: 'top', labels: { color: isDark ? '#cbd5e1' : '#475569', boxWidth: 18, usePointStyle: true } },
-            tooltip: { callbacks: { label: (context) => {
-                const value = Number(context.raw || 0);
-                const total = context.dataset.data.reduce((sum, item) => sum + Number(item || 0), 0);
-                const pct = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
-                return `${context.label}: ${baht(value)} (${pct}%)`;
-            } } }
-        }
-    };
+    return { responsive: true, maintainAspectRatio: false, animation: false, plugins: { legend: { position: 'top', labels: { color: isDark ? '#cbd5e1' : '#475569', boxWidth: 18, usePointStyle: true } }, tooltip: { callbacks: { label: (context) => { const value = Number(context.raw || 0); const total = context.dataset.data.reduce((sum, item) => sum + Number(item || 0), 0); const pct = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0'; return `${context.label}: ${baht(value)} (${pct}%)`; } } } } };
 }
 
 function renderWorkloadChart(workloads) {
