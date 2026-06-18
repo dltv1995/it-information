@@ -1,7 +1,7 @@
 // assets/js/projects.js
 // Project workflow: Draft -> Submit -> Manager Approve / Reject / Request Edit
 // Auto-clean rejected projects older than 30 days when this page loads/listens
-// Version: projects-owner-section-v8
+// Version: projects-owner-editor-v9
 
 import { db, auth } from './firebase-config.js';
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -18,7 +18,7 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-console.log('projects.js loaded: projects-owner-section-v8');
+console.log('projects.js loaded: projects-owner-editor-v9');
 
 const DEFAULT_TOTAL_BUDGET = 1500000;
 const PROJECTS_COLLECTION = 'projects';
@@ -286,13 +286,15 @@ function ensureOwnerSelectField() {
   wrapper.innerHTML = `
     <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">ผู้รับผิดชอบโครงการ</label>
     <select id="projectOwnerSelect" class="w-full px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none"></select>
-    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">แอดมิน/หัวหน้าสามารถเปลี่ยนผู้รับผิดชอบได้ เมื่อเปลี่ยนแล้วรายการจะไปอยู่กับผู้ใช้นั้น</p>
+    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">แอดมิน/หัวหน้าสามารถเปลี่ยนผู้รับผิดชอบได้ รายการจะย้ายไปอยู่กับผู้ใช้ใหม่</p>
   `;
   target.insertAdjacentElement('beforebegin', wrapper);
 }
 
 function populateOwnerSelect(project) {
   const select = document.getElementById('projectOwnerSelect');
+  const wrapper = document.getElementById('projectOwnerSelectWrapper');
+  if (wrapper) wrapper.classList.toggle('hidden', !canApprove);
   if (!select) return;
   const currentOwnerId = getOwnerId(project);
   const options = usersCache.map(u => {
