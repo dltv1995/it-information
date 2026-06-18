@@ -145,6 +145,7 @@
                                 <tr class="text-sm text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-700/30 transition-theme">
                                     <th class="py-3 px-4 font-medium w-1/3">ชื่อ-นามสกุล / อีเมล</th>
                                     <th class="py-3 px-4 font-medium w-1/5">บทบาท (Role)</th>
+                                    <th class="py-3 px-4 font-medium w-1/5">ส่วนงาน</th>
                                     <th class="py-3 px-4 font-medium text-center">โควตาวันลา (พัก/ป่วย)</th>
                                     <th class="py-3 px-4 font-medium text-center">สิทธิ์พิเศษ</th>
                                     <th class="py-3 px-4 font-medium text-right">การจัดการ</th>
@@ -152,7 +153,7 @@
                             </thead>
                             <tbody id="userTableBody" class="text-sm text-slate-600 dark:text-slate-300 transition-theme">
                                 <tr>
-                                    <td colspan="5" class="py-10 text-center text-slate-400">
+                                    <td colspan="6" class="py-10 text-center text-slate-400">
                                         <div class="inline-block animate-spin rounded-full h-6 w-6 border-2 border-slate-300 dark:border-slate-600 border-t-sky-500 mb-2"></div>
                                         <p>กำลังดึงข้อมูล...</p>
                                     </td>
@@ -195,6 +196,15 @@
                                 <option value="manager">หัวหน้างาน (Manager)</option>
                                 <option value="admin">ผู้ดูแลระบบ (Admin)</option>
                             </select>
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">ส่วนงาน</label>
+                            <select id="userSectionSelect" required class="w-full px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none">
+                                <option value="technical">งานเทคนิค</option>
+                                <option value="information">งานสารสนเทศ</option>
+                                <option value="corporate_communication">งานสื่อสารองค์กร</option>
+                            </select>
+                            <p class="text-xs text-slate-500 mt-1">ใช้ระบุว่าสังกัดส่วนงานใดในแผนกสารสนเทศ</p>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">โควตาลาพักร้อน (วัน)</label>
@@ -244,7 +254,7 @@
                 showBody();
                 const tableBody = document.getElementById('userTableBody');
                 if (tableBody) {
-                    tableBody.innerHTML = `<tr><td colspan="5" class="py-10 px-4 text-center text-red-500">โหลดหน้าไม่สำเร็จ: ${message}<br><span class="text-xs text-slate-400">เปิด F12 > Console เพื่อตรวจสอบรายละเอียด</span></td></tr>`;
+                    tableBody.innerHTML = `<tr><td colspan="6" class="py-10 px-4 text-center text-red-500">โหลดหน้าไม่สำเร็จ: ${message}<br><span class="text-xs text-slate-400">เปิด F12 > Console เพื่อตรวจสอบรายละเอียด</span></td></tr>`;
                 }
             };
             window.addEventListener('error', (event) => showFatal(event.message || 'JavaScript error'));
@@ -256,6 +266,6 @@
             }, 3500);
         })();
     </script>
-    <script type="module" src="assets/js/admin.js"></script>
+    <script type="module" src="assets/js/admin.js?v=admin-section-v2"></script>
 </body>
 </html>
