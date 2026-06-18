@@ -1,7 +1,7 @@
 // assets/js/dashboard.js
 // Firebase-only Dashboard + Global Budget from Firestore settings/budget
 // แก้ปัญหา "ช่องงบประมาณรวมเป็น 0" โดยอ่านงบรวมจาก settings/budget.totalBudget
-// Version: dashboard-section-pie-v7-force
+// Version: dashboard-approved-budget-section-pie-v8
 
 import { auth, db } from './firebase-config.js';
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -12,7 +12,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-console.log('dashboard.js loaded: dashboard-section-pie-v7-force');
+console.log('dashboard.js loaded: dashboard-approved-budget-section-pie-v8');
 
 const DEFAULT_TOTAL_BUDGET = 1500000;
 const SECTION_LABELS = {
@@ -387,8 +387,8 @@ function renderProjects(projects) {
     }
 
     list.innerHTML = projects.map(project => {
-        const usedPercent = percent(project.used, project.total);
-        const progress = toNumber(project.progress);
+        const approvedBudget = toNumber(project.total);
+        const budgetPercent = percent(approvedBudget, toNumber(globalBudget || DEFAULT_TOTAL_BUDGET));
         const statusText = project.status === 'pending' ? 'รออนุมัติ' : project.status === 'approved' ? 'อนุมัติแล้ว' : project.status === 'rejected' ? 'ไม่อนุมัติ' : project.status;
         const section = getProjectSection(project);
         const sectionColor = getSectionColor(section);
@@ -406,25 +406,17 @@ function renderProjects(projects) {
                         </div>
                     </div>
                     <div class="text-right shrink-0">
-                        <strong class="text-slate-900 dark:text-white">${baht(project.used)}</strong>
-                        <span class="text-slate-500 dark:text-slate-400"> / ${baht(project.total)}</span>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400 font-semibold">งบที่อนุมัติ</p>
+                        <strong class="text-slate-900 dark:text-white">${baht(approvedBudget)}</strong>
                     </div>
                 </div>
-                <div class="mt-4 space-y-3">
-                    <div>
-                        <div class="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
-                            <span>การใช้งบประมาณ</span>
-                            <span>${usedPercent}%</span>
-                        </div>
-                        <div class="progress-track"><div class="progress-fill bg-amber-400" style="width:${clamp(usedPercent)}%"></div></div>
+
+                <div class="mt-4">
+                    <div class="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
+                        <span>สัดส่วนงบที่อนุมัติ</span>
+                        <span>${budgetPercent}%</span>
                     </div>
-                    <div>
-                        <div class="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
-                            <span>ความคืบหน้างาน</span>
-                            <span>${progress.toFixed(1)}%</span>
-                        </div>
-                        <div class="progress-track"><div class="progress-fill bg-emerald-500" style="width:${clamp(progress)}%"></div></div>
-                    </div>
+                    <div class="progress-track"><div class="progress-fill" style="width:${clamp(budgetPercent)}%; background:${escapeAttr(sectionColor)}"></div></div>
                 </div>
             </article>
         `;
@@ -511,10 +503,7 @@ function chartPieOptions() {
         maintainAspectRatio: false,
         animation: false,
         plugins: {
-            legend: {
-                position: 'top',
-                labels: { color: isDark ? '#cbd5e1' : '#475569', boxWidth: 18, usePointStyle: true }
-            },
+            legend: { position: 'top', labels: { color: isDark ? '#cbd5e1' : '#475569', boxWidth: 18, usePointStyle: true } },
             tooltip: {
                 callbacks: {
                     label: (context) => {
