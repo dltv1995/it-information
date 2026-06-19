@@ -403,7 +403,7 @@ function ensureActionBudgetFields() {
       <input type="number" id="approveBudget" min="0" step="1000" class="w-full px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none">
     </div>
     <div>
-      <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">คอมเมนต์ถึงพนักงาน</label>
+      <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">คอมเมนต์ถึงเจ้าหน้าที่</label>
       <textarea id="approveNote" rows="3" placeholder="ใช้เมื่อขอแก้ไขหรือแจ้งเหตุผลไม่อนุมัติ" class="w-full px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none"></textarea>
     </div>
   `;
@@ -776,7 +776,7 @@ async function requestEditProject(closeModal) {
 
   const comment = document.getElementById('approveNote')?.value.trim() || '';
   const ownerPayload = getSelectedOwnerPayload();
-  if (!comment) return alert('กรุณาใส่คอมเมนต์เพื่อแจ้งพนักงานว่าต้องแก้ไขอะไร');
+  if (!comment) return alert('กรุณาใส่คอมเมนต์เพื่อแจ้งเจ้าหน้าที่ว่าต้องแก้ไขอะไร');
 
   try {
     await updateDoc(doc(db, PROJECTS_COLLECTION, currentActionProjectId), {

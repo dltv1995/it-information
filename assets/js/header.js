@@ -162,7 +162,7 @@ function loadUserInfo() {
         admin: 'ผู้ดูแลระบบ',
         manager: 'ผู้จัดการ',
         secretary: 'เลขานุการ',
-        employee: 'พนักงาน'
+        employee: 'เจ้าหน้าที่'
     };
 
     if (userName) {
