@@ -8,7 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/style.css">
     <link rel="stylesheet" href="assets/css/header.css">
-    <link rel="stylesheet" href="assets/css/dashboard.css?v=dashboard-popup-remove-v12">
+    <link rel="stylesheet" href="assets/css/dashboard.css">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
@@ -99,7 +99,7 @@
 
                 <section class="dashboard-card rounded-2xl 2xl:col-span-3 overflow-hidden">
                     <div class="px-6 py-5 border-b border-slate-200/70 dark:border-slate-700/70">
-                        <h3 class="font-bold text-slate-900 dark:text-white">สัดส่วนงบประมาณตามส่วนงาน</h3>
+                        <h3 class="font-bold text-slate-900 dark:text-white">สัดส่วนการใช้งบประมาณ</h3>
                     </div>
                     <div class="p-5 chart-box">
                         <canvas id="budgetChart"></canvas>
@@ -127,7 +127,8 @@
         </section>
     </template>
 
-    <script src="assets/js/header.js?v=dashboard-popup-remove-v12"></script>
-    <script type="module" src="assets/js/dashboard.js?v=dashboard-popup-remove-v12"></script>
+    <script src="assets/js/header.js?v=dashboard-global-budget-v3"></script>
+      <script src="assets/js/embed-page.js?v=app-shell-frame-v1"></script>
+  <script type="module" src="assets/js/dashboard.js?v=app-shell-frame-v1"></script>
 </body>
 </html>

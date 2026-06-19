@@ -1,7 +1,7 @@
 // assets/js/dashboard.js
 // Firebase-only Dashboard + Global Budget from Firestore settings/budget
 // แก้ปัญหา "ช่องงบประมาณรวมเป็น 0" โดยอ่านงบรวมจาก settings/budget.totalBudget
-// Version: dashboard-popup-remove-v12
+// Version: dashboard-metric-soft-colors-v4
 
 import { auth, db } from './firebase-config.js';
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -12,20 +12,9 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-console.log('dashboard.js loaded: dashboard-popup-remove-v12');
+console.log('dashboard.js loaded: dashboard-metric-soft-colors-v4');
 
 const DEFAULT_TOTAL_BUDGET = 1500000;
-const SECTION_LABELS = {
-    technical: 'งานเทคนิค',
-    information: 'งานสารสนเทศ',
-    corporate_communication: 'งานสื่อสารองค์กร'
-};
-const SECTION_COLORS = {
-    technical: '#3b82f6',
-    information: '#10b981',
-    corporate_communication: '#f59e0b',
-    unknown: '#64748b'
-};
 const BUDGET_REF = doc(db, 'settings', 'budget');
 
 let budgetChart = null;
@@ -244,22 +233,6 @@ function listenTasks() {
     });
 }
 
-function getSectionLabel(section) {
-    return SECTION_LABELS[section] || section || 'ไม่ระบุส่วนงาน';
-}
-
-function getSectionColor(section) {
-    return SECTION_COLORS[section] || SECTION_COLORS.unknown;
-}
-
-function getProjectSection(project) {
-    return project.ownerSection || project.section || project.departmentSection || project.userSection || 'unknown';
-}
-
-function getProjectApprovedBudget(project) {
-    return toNumber(project.total || project.totalBudget || project.budgetAllocated || project.approvedBudget || 0);
-}
-
 function normalizeProject(id, data) {
     const total = toNumber(data.totalBudget ?? data.total ?? data.budgetAllocated ?? data.budget ?? 0);
     const used = toNumber(data.usedBudget ?? data.used ?? data.budgetSpent ?? data.spent ?? 0);
@@ -269,11 +242,6 @@ function normalizeProject(id, data) {
         code: data.code || 'งา',
         name: data.name || data.title || data.projectName || 'ไม่ระบุชื่อโครงการ',
         owner: data.ownerName || data.creatorName || data.owner || data.managerName || 'ไม่ระบุผู้รับผิดชอบ',
-        ownerId: data.ownerId || data.createdBy || '',
-        ownerName: data.ownerName || data.creatorName || data.owner || data.managerName || 'ไม่ระบุผู้รับผิดชอบ',
-        ownerEmail: data.ownerEmail || data.email || '',
-        ownerSection: data.ownerSection || data.section || data.departmentSection || '',
-        ownerRole: data.ownerRole || data.role || '',
         total,
         used,
         progress: toNumber(data.progress ?? 0),
@@ -356,28 +324,6 @@ function buildWorkloads(tasks) {
     return Array.from(map.values());
 }
 
-function applyTopMetricCardColors() {
-    const cards = [
-        { id: 'totalBudget', color: '#2563eb', bg: 'rgba(37,99,235,.26)', darkBg: 'rgba(37,99,235,.34)' },
-        { id: 'usedBudget', color: '#f59e0b', bg: 'rgba(245,158,11,.28)', darkBg: 'rgba(245,158,11,.38)' },
-        { id: 'remainingBudget', color: '#10b981', bg: 'rgba(16,185,129,.28)', darkBg: 'rgba(16,185,129,.38)' }
-    ];
-    const dark = document.documentElement.classList.contains('dark');
-    cards.forEach(item => {
-        const valueEl = document.getElementById(item.id);
-        const card = valueEl?.closest('article');
-        if (!card) return;
-        card.style.setProperty('background', `linear-gradient(135deg, ${dark ? item.darkBg : item.bg}, rgba(15,23,42,.18))`, 'important');
-        card.style.setProperty('border-color', item.color, 'important');
-        card.style.setProperty('box-shadow', `inset 5px 0 0 ${item.color}, 0 16px 44px ${dark ? item.darkBg : item.bg}`, 'important');
-        const icon = card.querySelector('.w-12.h-12');
-        if (icon) {
-            icon.style.setProperty('background-color', dark ? item.darkBg : item.bg, 'important');
-            icon.style.setProperty('color', item.color, 'important');
-        }
-    });
-}
-
 function renderDashboard(data) {
     const projects = Array.isArray(data.projects) ? data.projects : [];
     const workloads = Array.isArray(data.workloads) ? data.workloads : [];
@@ -397,7 +343,6 @@ function renderDashboard(data) {
     renderUrgentTasks(urgentTasks);
     renderBudgetChart(projects);
     renderWorkloadChart(workloads);
-    applyTopMetricCardColors();
 
     if (!projects.length && !tasksCache.length) {
         showFirebaseStatus('ยังไม่มีข้อมูลโครงการใน Firebase แต่ระบบอ่านงบประมาณรวมจาก settings/budget แล้ว', 'info');
@@ -406,144 +351,52 @@ function renderDashboard(data) {
     }
 }
 
-function removeDashboardProjectDetailsModal() {
-    const modal = document.getElementById('dashboardProjectDetailsModal');
-    if (modal) modal.remove();
-    document.body.style.overflow = '';
-    document.documentElement.style.overflow = '';
-}
-
-function detailRow(label, value) {
-    return `
-        <div class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/60 p-4">
-            <div class="text-xs text-slate-500 dark:text-slate-400 mb-1">${escapeHtml(label)}</div>
-            <div class="font-bold text-slate-900 dark:text-white break-words">${escapeHtml(value ?? '-')}</div>
-        </div>
-    `;
-}
-
-function openDashboardProjectDetails(projectId) {
-    removeDashboardProjectDetailsModal();
-    const project = projectsCache.find(item => item.id === projectId);
-    if (!project) return;
-
-    const section = getProjectSection(project);
-    const sectionColor = getSectionColor(section);
-    const sectionLabel = getSectionLabel(section);
-    const approvedBudget = getProjectApprovedBudget(project);
-    const requestedBudget = toNumber(project.requestedBudget || project.total || 0);
-    const usedBudget = toNumber(project.used || project.usedBudget || project.budgetSpent || 0);
-    const remainingBudget = Math.max(approvedBudget - usedBudget, 0);
-    const budgetPercent = percent(approvedBudget, toNumber(globalBudget || DEFAULT_TOTAL_BUDGET));
-    const usedPercent = percent(usedBudget, approvedBudget);
-    const statusText = project.status === 'pending' ? 'รออนุมัติ' : project.status === 'approved' ? 'อนุมัติแล้ว' : project.status === 'rejected' ? 'ไม่อนุมัติ' : project.status;
-
-    const modal = document.createElement('div');
-    modal.id = 'dashboardProjectDetailsModal';
-    modal.className = 'dashboard-project-modal fixed inset-0 z-[95] flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4';
-    modal.innerHTML = `
-        <div id="dashboardProjectDetailsContent" class="w-full max-w-3xl max-h-[88vh] overflow-hidden rounded-3xl border border-slate-200/20 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl">
-            <div class="flex items-start justify-between gap-4 px-6 py-5 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/70">
-                <div>
-                    <p class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">รายละเอียดโครงการ</p>
-                    <h3 class="text-lg font-extrabold text-slate-900 dark:text-white mt-1">${escapeHtml(project.name || project.title || 'ไม่ระบุชื่อโครงการ')}</h3>
-                </div>
-                <button id="closeDashboardProjectDetailsBtn" type="button" class="w-9 h-9 rounded-full flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-200 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-700 transition-colors">
-                    <i class="ph ph-x text-xl"></i>
-                </button>
-            </div>
-            <div class="p-6 overflow-y-auto max-h-[70vh]">
-                <div class="space-y-5">
-                    <div class="rounded-3xl border p-5" style="border-color:${escapeAttr(sectionColor)}; background:linear-gradient(135deg, ${escapeAttr(sectionColor)}22, transparent)">
-                        <div class="flex items-start gap-4">
-                            <div class="w-12 h-12 rounded-2xl text-white flex items-center justify-center font-extrabold shrink-0" style="background:${escapeAttr(sectionColor)}">${escapeHtml(project.code || 'งา')}</div>
-                            <div class="min-w-0">
-                                <h4 class="text-xl font-extrabold text-slate-900 dark:text-white">${escapeHtml(project.name || project.title || '-')}</h4>
-                                <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">${escapeHtml(project.description || 'ไม่มีรายละเอียด')}</p>
-                                <div class="mt-3 inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold" style="background:${escapeAttr(sectionColor)}22;color:${escapeAttr(sectionColor)}">${escapeHtml(sectionLabel)}</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        ${detailRow('งบที่อนุมัติ', baht(approvedBudget))}
-                        ${detailRow('งบที่เสนอขอ', baht(requestedBudget))}
-                        ${detailRow('งบที่ใช้จริง', baht(usedBudget))}
-                        ${detailRow('งบคงเหลือ', baht(remainingBudget))}
-                        ${detailRow('สัดส่วนงบที่อนุมัติ', `${budgetPercent}% ของงบรวมฝ่าย`)}
-                        ${detailRow('การใช้งบจากงบอนุมัติ', `${usedPercent}%`)}
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        ${detailRow('ผู้รับผิดชอบ', project.ownerName || project.owner || '-')}
-                        ${detailRow('อีเมลผู้รับผิดชอบ', project.ownerEmail || '-')}
-                        ${detailRow('ส่วนงาน', sectionLabel)}
-                        ${detailRow('สิทธิ์/บทบาท', project.ownerRole || '-')}
-                        ${detailRow('สถานะ', statusText)}
-                        ${detailRow('ระยะเวลา', project.durationLabel || '-')}
-                    </div>
-                    <div class="rounded-2xl border border-slate-200 dark:border-slate-700 p-4 bg-slate-50/70 dark:bg-slate-800/60">
-                        <div class="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
-                            <span>สัดส่วนงบที่อนุมัติเทียบงบรวมฝ่าย</span>
-                            <span>${budgetPercent}%</span>
-                        </div>
-                        <div class="progress-track"><div class="progress-fill" style="width:${clamp(budgetPercent)}%; background:${escapeAttr(sectionColor)}"></div></div>
-                    </div>
-                    ${project.managerComment ? `<div class="rounded-2xl border border-amber-400/30 bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-300"><b>คอมเมนต์หัวหน้า:</b> ${escapeHtml(project.managerComment)}</div>` : ''}
-                </div>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(modal);
-    document.body.style.overflow = 'hidden';
-    document.documentElement.style.overflow = 'hidden';
-    document.getElementById('closeDashboardProjectDetailsBtn')?.addEventListener('click', removeDashboardProjectDetailsModal);
-    modal.addEventListener('click', (event) => {
-        if (event.target === modal) removeDashboardProjectDetailsModal();
-    });
-}
-
-window.openDashboardProjectDetails = openDashboardProjectDetails;
-window.closeDashboardProjectDetailsModal = removeDashboardProjectDetailsModal;
-document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') removeDashboardProjectDetailsModal();
-});
-
 function renderProjects(projects) {
     const list = document.getElementById('projectList');
     if (!list) return;
+
     if (!projects.length) {
         list.innerHTML = `<div class="rounded-2xl border border-slate-200/80 dark:border-slate-700/80 p-5 text-sm text-slate-500 dark:text-slate-400">ยังไม่มีข้อมูลโครงการใน Firebase</div>`;
         return;
     }
+
     list.innerHTML = projects.map(project => {
-        const approvedBudget = getProjectApprovedBudget(project);
-        const budgetPercent = percent(approvedBudget, toNumber(globalBudget || DEFAULT_TOTAL_BUDGET));
+        const usedPercent = percent(project.used, project.total);
+        const progress = toNumber(project.progress);
         const statusText = project.status === 'pending' ? 'รออนุมัติ' : project.status === 'approved' ? 'อนุมัติแล้ว' : project.status === 'rejected' ? 'ไม่อนุมัติ' : project.status;
-        const section = getProjectSection(project);
-        const sectionColor = getSectionColor(section);
-        const sectionLabel = getSectionLabel(section);
+
         return `
-            <article onclick="window.openDashboardProjectDetails('${escapeAttr(project.id)}')" class="cursor-pointer rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-white/60 dark:bg-slate-900/55 p-5 hover:border-sky-400/70 hover:shadow-lg transition-all">
+            <article class="rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-white/60 dark:bg-slate-900/55 p-5">
                 <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
                     <div class="flex items-start gap-3 min-w-0">
-                        <div class="w-10 h-10 rounded-xl text-white flex items-center justify-center font-bold shrink-0 shadow-sm" style="background:${escapeAttr(sectionColor)}" title="${escapeAttr(sectionLabel)}">${escapeHtml(project.code || 'งา')}</div>
+                        <div class="w-10 h-10 rounded-xl text-white flex items-center justify-center font-bold shrink-0" style="background:${escapeAttr(project.accent || '#3b82f6')}">${escapeHtml(project.code || 'งา')}</div>
                         <div class="min-w-0">
                             <h4 class="font-bold text-slate-900 dark:text-white truncate">${escapeHtml(project.name)}</h4>
                             <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">${escapeHtml(project.owner)}</p>
-                            <p class="text-xs font-semibold mt-1" style="color:${escapeAttr(sectionColor)}">ส่วนงาน: ${escapeHtml(sectionLabel)}</p>
                             <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">สถานะ: ${escapeHtml(statusText)} • ระยะเวลา: ${escapeHtml(project.durationLabel || '-')}</p>
                         </div>
                     </div>
                     <div class="text-right shrink-0">
-                        <p class="text-[11px] text-slate-500 dark:text-slate-400 font-semibold">งบที่อนุมัติ</p>
-                        <strong class="text-slate-900 dark:text-white">${baht(approvedBudget)}</strong>
+                        <strong class="text-slate-900 dark:text-white">${baht(project.used)}</strong>
+                        <span class="text-slate-500 dark:text-slate-400"> / ${baht(project.total)}</span>
                     </div>
                 </div>
-                <div class="mt-4">
-                    <div class="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
-                        <span>สัดส่วนงบที่อนุมัติ</span>
-                        <span>${budgetPercent}%</span>
+
+                <div class="mt-4 space-y-3">
+                    <div>
+                        <div class="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
+                            <span>การใช้งบประมาณ</span>
+                            <span>${usedPercent}%</span>
+                        </div>
+                        <div class="progress-track"><div class="progress-fill bg-amber-400" style="width:${clamp(usedPercent)}%"></div></div>
                     </div>
-                    <div class="progress-track"><div class="progress-fill" style="width:${clamp(budgetPercent)}%; background:${escapeAttr(sectionColor)}"></div></div>
+                    <div>
+                        <div class="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
+                            <span>ความคืบหน้างาน</span>
+                            <span>${progress.toFixed(1)}%</span>
+                        </div>
+                        <div class="progress-track"><div class="progress-fill bg-emerald-500" style="width:${clamp(progress)}%"></div></div>
+                    </div>
                 </div>
             </article>
         `;
@@ -589,31 +442,26 @@ function renderUrgentTasks(tasks) {
 function renderBudgetChart(projects) {
     const canvas = document.getElementById('budgetChart');
     if (!canvas || typeof Chart === 'undefined') return;
-    const approvedProjects = projects.filter(project => project.status === 'approved');
-    const sectionTotals = new Map();
-    approvedProjects.forEach(project => {
-        const section = getProjectSection(project);
-        const approvedBudget = getProjectApprovedBudget(project);
-        sectionTotals.set(section, (sectionTotals.get(section) || 0) + approvedBudget);
-    });
-    const sectionKeys = Array.from(sectionTotals.keys());
-    const labels = sectionKeys.map(getSectionLabel);
-    const values = Array.from(sectionTotals.values());
-    const colors = sectionKeys.map(getSectionColor);
-    if (budgetChart) budgetChart.destroy();
-    budgetChart = new Chart(canvas, {
-        type: 'pie',
-        data: {
-            labels: labels.length ? labels : ['ยังไม่มีงบอนุมัติ'],
-            datasets: [{ label: 'งบที่อนุมัติแล้วตามส่วนงาน (บาท)', data: values.length ? values : [1], backgroundColor: labels.length ? colors : ['rgba(100,116,139,.35)'], borderColor: 'rgba(255,255,255,.18)', borderWidth: 2 }]
-        },
-        options: chartPieOptions()
-    });
-}
 
-function chartPieOptions() {
-    const isDark = document.documentElement.classList.contains('dark');
-    return { responsive: true, maintainAspectRatio: false, animation: false, plugins: { legend: { position: 'top', labels: { color: isDark ? '#cbd5e1' : '#475569', boxWidth: 18, usePointStyle: true } }, tooltip: { callbacks: { label: (context) => { const value = Number(context.raw || 0); const total = context.dataset.data.reduce((sum, item) => sum + Number(item || 0), 0); const pct = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0'; return `${context.label}: ${baht(value)} (${pct}%)`; } } } } };
+    const approvedProjects = projects.filter(project => project.status === 'approved');
+    const labels = approvedProjects.map(p => p.name);
+    const usedData = approvedProjects.map(p => toNumber(p.used));
+    const remainingData = approvedProjects.map(p => Math.max(toNumber(p.total) - toNumber(p.used), 0));
+
+    if (budgetChart) budgetChart.destroy();
+
+    budgetChart = new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [
+                { label: 'งบที่อนุมัติแล้ว (บาท)', data: approvedProjects.map(p => toNumber(p.total)), backgroundColor: '#3b6fc8', borderRadius: 3 },
+                { label: 'งบใช้จริง (บาท)', data: usedData, backgroundColor: '#15986e', borderRadius: 3 },
+                { label: 'งบคงเหลือในโครงการ (บาท)', data: remainingData, backgroundColor: '#c8820f', borderRadius: 3 }
+            ]
+        },
+        options: chartBaseOptions(false)
+    });
 }
 
 function renderWorkloadChart(workloads) {
