@@ -1,55 +1,7 @@
 // assets/js/app-shell-auth.js
-// Version: app-shell-frame-v1
+// Version: app-shell-fetch-v2
 import { auth, db } from './firebase-config.js';
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-console.log('app-shell-auth.js loaded: app-shell-frame-v1');
-
-const roleDisplay = { admin: 'ผู้ดูแลระบบ', manager: 'หัวหน้าฝ่าย', secretary: 'เลขาฯ', staff: 'เจ้าหน้าที่', employee: 'เจ้าหน้าที่' };
-
-function setText(id, value) {
-  const el = document.getElementById(id);
-  if (el) el.textContent = value || '-';
-}
-
-function showAdminMenu(role) {
-  const adminLike = ['admin', 'administrator', 'ผู้ดูแลระบบ'].includes(String(role || '').trim().toLowerCase()) || role === 'ผู้ดูแลระบบ';
-  if (adminLike) document.getElementById('adminMenu')?.classList.remove('hidden');
-}
-
-const mockUserStr = localStorage.getItem('mockUser');
-if (mockUserStr) {
-  const user = JSON.parse(mockUserStr);
-  setText('userName', user.name || user.email || 'ผู้ใช้งาน');
-  setText('userRole', roleDisplay[user.role] || user.role || 'เจ้าหน้าที่');
-  showAdminMenu(user.role);
-} else {
-  onAuthStateChanged(auth, async (user) => {
-    if (!user) {
-      window.location.href = 'login.html';
-      return;
-    }
-    try {
-      const snap = await getDoc(doc(db, 'users', user.uid));
-      const profile = snap.exists() ? snap.data() : { email: user.email, role: '' };
-      setText('userName', profile.name || user.email || 'ผู้ใช้งาน');
-      setText('userRole', roleDisplay[profile.role] || profile.role || 'เจ้าหน้าที่');
-      showAdminMenu(profile.role);
-    } catch (error) {
-      console.warn('โหลดข้อมูลผู้ใช้บน shell ไม่สำเร็จ:', error);
-      setText('userName', user.email || 'ผู้ใช้งาน');
-      setText('userRole', 'เจ้าหน้าที่');
-    }
-  });
-}
-
-document.getElementById('logoutBtn')?.addEventListener('click', async () => {
-  if (localStorage.getItem('mockUser')) {
-    localStorage.removeItem('mockUser');
-    window.location.href = 'login.html';
-    return;
-  }
-  await signOut(auth);
-  window.location.href = 'login.html';
-});
+console.log('app-shell-auth.js loaded: app-shell-fetch-v2');
+const roleDisplay={admin:'ผู้ดูแลระบบ',manager:'หัวหน้าฝ่าย',secretary:'เลขาฯ',staff:'เจ้าหน้าที่',employee:'เจ้าหน้าที่'};const setText=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v||'-';};function showAdmin(role){if(['admin','administrator','ผู้ดูแลระบบ'].includes(String(role||'').trim().toLowerCase())||role==='ผู้ดูแลระบบ')document.getElementById('adminMenu')?.classList.remove('hidden');}const mock=localStorage.getItem('mockUser');if(mock){const u=JSON.parse(mock);setText('userName',u.name||u.email||'ผู้ใช้งาน');setText('userRole',roleDisplay[u.role]||u.role||'เจ้าหน้าที่');showAdmin(u.role);}else{onAuthStateChanged(auth,async user=>{if(!user){location.href='login.html';return;}try{const snap=await getDoc(doc(db,'users',user.uid));const p=snap.exists()?snap.data():{email:user.email,role:''};setText('userName',p.name||user.email||'ผู้ใช้งาน');setText('userRole',roleDisplay[p.role]||p.role||'เจ้าหน้าที่');showAdmin(p.role);}catch(e){console.warn(e);setText('userName',user.email||'ผู้ใช้งาน');setText('userRole','เจ้าหน้าที่');}});}document.getElementById('logoutBtn')?.addEventListener('click',async()=>{if(localStorage.getItem('mockUser')){localStorage.removeItem('mockUser');location.href='login.html';return;}await signOut(auth);location.href='login.html';});
