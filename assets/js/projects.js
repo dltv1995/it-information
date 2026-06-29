@@ -1,8 +1,7 @@
 // assets/js/projects.js
 // Project workflow: Draft -> Submit -> Manager Approve / Reject / Request Edit
 // Auto-clean rejected projects older than 30 days when this page loads/listens
-// Version: projects-permission-fix-v12
-//
+// Version: projects-owner-update-v13
 
 import { db, auth } from './firebase-config.js';
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -19,7 +18,7 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-console.log('projects.js loaded: projects-permission-fix-v12');
+console.log('projects.js loaded: projects-owner-update-v13');
 
 const DEFAULT_TOTAL_BUDGET = 1500000;
 const PROJECTS_COLLECTION = 'projects';
@@ -287,7 +286,12 @@ function ensureOwnerSelectField() {
   wrapper.innerHTML = `
     <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">ผู้รับผิดชอบโครงการ</label>
     <select id="projectOwnerSelect" class="w-full px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none"></select>
-    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">แอดมิน/หัวหน้าสามารถเปลี่ยนผู้รับผิดชอบได้ รายการจะย้ายไปอยู่กับผู้ใช้ใหม่</p>
+    <div class="mt-3 flex justify-end">
+      <button type="button" id="btnUpdateOwnerOnly" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-sky-50 text-sky-700 hover:bg-sky-100 dark:bg-sky-900/30 dark:text-sky-300 dark:hover:bg-sky-900/50 text-xs font-semibold transition-colors">
+        <i class="ph ph-user-switch"></i><span>บันทึกผู้รับผิดชอบ</span>
+      </button>
+    </div>
+    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">แอดมิน/หัวหน้าสามารถเปลี่ยนผู้รับผิดชอบได้ รายการจะย้ายไปอยู่กับผู้ใช้ใหม่ โดยไม่จำเป็นต้องกดอนุมัติซ้ำ</p>
   `;
   target.insertAdjacentElement('beforebegin', wrapper);
 }
@@ -668,6 +672,11 @@ function setupActionModal() {
   window.openActionModal = (id) => {
     ensureActionBudgetFields();
     ensureOwnerSelectField();
+    const updateOwnerOnlyBtn = document.getElementById('btnUpdateOwnerOnly');
+    if (updateOwnerOnlyBtn && !updateOwnerOnlyBtn.dataset.bound) {
+      updateOwnerOnlyBtn.dataset.bound = '1';
+      updateOwnerOnlyBtn.addEventListener('click', updateProjectOwnerOnly);
+    }
     const project = window.projectsMap.get(id);
     if (!project) return;
 
@@ -711,12 +720,46 @@ function closeActionModal() {
   currentActionProject = null;
 }
 
+async function updateProjectOwnerOnly() {
+  if (!currentActionProjectId) return;
+  if (!canApprove) return alert('บัญชีนี้ไม่มีสิทธิ์เปลี่ยนผู้รับผิดชอบโครงการ');
+
+  const ownerPayload = getSelectedOwnerPayload();
+  const oldOwnerId = getOwnerId(currentActionProject);
+
+  if (!ownerPayload.ownerId) {
+    return alert('กรุณาเลือกผู้รับผิดชอบโครงการ');
+  }
+
+  if (ownerPayload.ownerId === oldOwnerId) {
+    return alert('ผู้รับผิดชอบโครงการเป็นคนเดิมอยู่แล้ว');
+  }
+
+  try {
+    await updateDoc(doc(db, PROJECTS_COLLECTION, currentActionProjectId), {
+      ...ownerPayload,
+      updatedAt: serverTimestamp()
+    });
+
+    currentActionProject = {
+      ...currentActionProject,
+      ...ownerPayload
+    };
+
+    alert('บันทึกผู้รับผิดชอบโครงการเรียบร้อยแล้ว');
+  } catch (error) {
+    console.error('Update owner error:', error);
+    alert(`อัปเดตผู้รับผิดชอบไม่สำเร็จ: ${error.code || error.message || error}`);
+  }
+}
+
 async function approveProject(closeModal) {
   if (!currentActionProjectId) return;
   if (!canApprove) return alert('บัญชีนี้ไม่มีสิทธิ์อนุมัติหรือแก้งบประมาณ');
 
   const budget = Number(document.getElementById('approveBudget')?.value || 0);
   const comment = document.getElementById('approveNote')?.value.trim() || '';
+  const ownerPayload = getSelectedOwnerPayload();
 
   if (budget < 0) return alert('งบประมาณต้องไม่ติดลบ');
 
@@ -747,6 +790,7 @@ async function rejectProject(closeModal) {
   if (!canApprove) return alert('บัญชีนี้ไม่มีสิทธิ์ไม่อนุมัติโครงการ');
 
   const comment = document.getElementById('approveNote')?.value.trim() || '';
+  const ownerPayload = getSelectedOwnerPayload();
 
   try {
     const rejectedAtDate = new Date();
