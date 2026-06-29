@@ -1,7 +1,6 @@
 // assets/js/projects.js
-// Project workflow: Draft -> Submit -> Manager Approve / Reject / Request Edit
-// Auto-clean rejected projects older than 30 days when this page loads/listens
-// Version: projects-owner-update-v13
+// Ready-to-replace file: Projects + Fiscal Year + Section Filter + Delete permissions
+// Version: projects-full-ready-v17
 
 import { db, auth } from './firebase-config.js';
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -18,25 +17,46 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-console.log('projects.js loaded: projects-owner-update-v13');
+console.log('projects.js loaded: projects-full-ready-v17');
 
 const DEFAULT_TOTAL_BUDGET = 1500000;
 const PROJECTS_COLLECTION = 'projects';
+const FISCAL_YEARS_COLLECTION = 'fiscal_years';
+const USERS_COLLECTION = 'users';
 const BUDGET_REF = doc(db, 'settings', 'budget');
 const REJECTED_AUTO_DELETE_DAYS = 30;
-const USERS_COLLECTION = 'users';
+
 const SECTION_LABELS = {
   technical: 'งานเทคนิค',
   information: 'งานสารสนเทศ',
   corporate_communication: 'งานสื่อสารองค์กร'
 };
+
 const ROLE_LABELS = {
   admin: 'ผู้ดูแลระบบ',
+  administrator: 'ผู้ดูแลระบบ',
   manager: 'หัวหน้าฝ่าย',
+  head: 'หัวหน้าฝ่าย',
+  department_head: 'หัวหน้าฝ่าย',
+  head_department: 'หัวหน้าฝ่าย',
+  section_head: 'หัวหน้างาน',
+  supervisor: 'หัวหน้างาน',
+  director: 'หัวหน้าฝ่าย',
   secretary: 'เลขาฯ',
   staff: 'เจ้าหน้าที่',
   employee: 'เจ้าหน้าที่'
 };
+
+const ALLOWED_ROLES = new Set([
+  'admin', 'administrator', 'manager', 'head', 'department_head', 'head_department',
+  'section_head', 'supervisor', 'director', 'ผู้ดูแลระบบ', 'หัวหน้าฝ่าย', 'หัวหน้างาน'
+]);
+
+const CREATOR_ROLES = new Set([
+  'admin', 'administrator', 'manager', 'head', 'department_head', 'head_department',
+  'section_head', 'supervisor', 'director', 'secretary', 'staff', 'employee',
+  'ผู้ดูแลระบบ', 'หัวหน้าฝ่าย', 'หัวหน้างาน', 'เลขาฯ', 'เจ้าหน้าที่'
+]);
 
 let currentUser = null;
 let currentUserUid = null;
@@ -46,32 +66,41 @@ let totalBudgetLimit = DEFAULT_TOTAL_BUDGET;
 let lastApprovedBudgetTotal = 0;
 let unsubscribeProjects = null;
 let unsubscribeBudget = null;
+let unsubscribeFiscalYears = null;
 let currentActionProjectId = null;
 let currentActionProject = null;
 let currentEditProjectId = null;
 let usersCache = [];
+let fiscalYearsCache = [];
+let selectedFiscalYear = localStorage.getItem('selectedFiscalYear') || getDefaultFiscalYear();
+let selectedSectionFilter = localStorage.getItem('selectedProjectSectionFilter') || 'all';
 
 window.projectsMap = new Map();
 
-const ALLOWED_ROLES = new Set([
-  'admin', 'manager', 'administrator', 'head', 'department_head', 'head_department',
-  'section_head', 'supervisor', 'director', 'ผู้ดูแลระบบ', 'หัวหน้าฝ่าย', 'หัวหน้างาน'
-]);
+bootProjectsPage();
 
-const CREATOR_ROLES = new Set([
-  'admin', 'manager', 'administrator', 'head', 'department_head', 'head_department',
-  'section_head', 'supervisor', 'director', 'secretary', 'staff', 'employee',
-  'ผู้ดูแลระบบ', 'หัวหน้าฝ่าย', 'หัวหน้างาน', 'เลขาฯ', 'เจ้าหน้าที่'
-]);
+function bootProjectsPage() {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      setupSharedUI();
+      initAuth();
+    }, { once: true });
+  } else {
+    setupSharedUI();
+    initAuth();
+  }
+}
 
-document.addEventListener('DOMContentLoaded', () => {
-  setupSharedUI();
-  initAuth();
-});
+window.addEventListener('app:navigate-away', () => {
+  if (unsubscribeProjects) { unsubscribeProjects(); unsubscribeProjects = null; }
+  if (unsubscribeBudget) { unsubscribeBudget(); unsubscribeBudget = null; }
+  if (unsubscribeFiscalYears) { unsubscribeFiscalYears(); unsubscribeFiscalYears = null; }
+}, { once: true });
 
 function setupSharedUI() {
   const themeToggleBtn = document.getElementById('themeToggleBtn');
-  if (themeToggleBtn) {
+  if (themeToggleBtn && !themeToggleBtn.dataset.boundProjects) {
+    themeToggleBtn.dataset.boundProjects = '1';
     themeToggleBtn.addEventListener('click', () => {
       document.documentElement.classList.toggle('dark');
       localStorage.setItem('color-theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
@@ -82,17 +111,24 @@ function setupSharedUI() {
   const closeSidebarBtn = document.getElementById('closeSidebarBtn');
   const sidebar = document.getElementById('sidebar');
   const mobileOverlay = document.getElementById('mobileOverlay');
-
   function toggleMenu() {
     if (!sidebar || !mobileOverlay) return;
     sidebar.classList.toggle('-translate-x-full');
     mobileOverlay.classList.toggle('hidden');
     setTimeout(() => mobileOverlay.classList.toggle('opacity-0'), 10);
   }
-
-  mobileMenuBtn?.addEventListener('click', toggleMenu);
-  closeSidebarBtn?.addEventListener('click', toggleMenu);
-  mobileOverlay?.addEventListener('click', toggleMenu);
+  if (mobileMenuBtn && !mobileMenuBtn.dataset.boundProjects) {
+    mobileMenuBtn.dataset.boundProjects = '1';
+    mobileMenuBtn.addEventListener('click', toggleMenu);
+  }
+  if (closeSidebarBtn && !closeSidebarBtn.dataset.boundProjects) {
+    closeSidebarBtn.dataset.boundProjects = '1';
+    closeSidebarBtn.addEventListener('click', toggleMenu);
+  }
+  if (mobileOverlay && !mobileOverlay.dataset.boundProjects) {
+    mobileOverlay.dataset.boundProjects = '1';
+    mobileOverlay.addEventListener('click', toggleMenu);
+  }
 }
 
 async function initAuth() {
@@ -100,7 +136,7 @@ async function initAuth() {
   if (mockUserStr) {
     isMockMode = true;
     currentUser = JSON.parse(mockUserStr);
-    currentUserUid = 'mock-uid';
+    currentUserUid = currentUser.uid || 'mock-uid';
     initPage();
     return;
   }
@@ -110,9 +146,7 @@ async function initAuth() {
       window.location.href = 'login.html';
       return;
     }
-
     currentUserUid = user.uid;
-
     try {
       const userSnap = await getDoc(doc(db, 'users', user.uid));
       currentUser = userSnap.exists()
@@ -122,7 +156,6 @@ async function initAuth() {
       console.error('Load user profile error:', error);
       currentUser = { uid: user.uid, email: user.email, role: '' };
     }
-
     initPage();
   });
 }
@@ -130,37 +163,33 @@ async function initAuth() {
 async function initPage() {
   document.getElementById('appBody')?.classList.remove('hidden');
   setupUserHeader();
-
   canApprove = await canApproveBudgetAndProjects();
   await loadProjectUsers();
 
   if (canCreateProject()) document.getElementById('createProjectBtn')?.classList.remove('hidden');
 
+  ensureProjectFiscalYearField();
   ensureProjectDurationFields();
   ensureProjectFormButtons();
   ensureActionBudgetFields();
   ensureGlobalBudgetButtonAndModal();
+  ensureFiscalYearAndFilterControls();
+  updateFiscalControlsVisibility();
 
   if (canApprove) document.getElementById('editGlobalBudgetBtn')?.classList.remove('hidden');
 
   setupProjectModal();
   setupActionModal();
   setupGlobalBudgetModal();
+  listenFiscalYears();
   listenGlobalBudget();
   listenProjects();
 }
 
 function setupUserHeader() {
-  const roleDisplay = {
-    admin: 'ผู้ดูแลระบบ', manager: 'หัวหน้าฝ่าย', secretary: 'เลขาฯ',
-    staff: 'เจ้าหน้าที่', employee: 'เจ้าหน้าที่'
-  };
-
   setText('userName', currentUser?.name || currentUser?.email || 'ผู้ใช้งานระบบ');
-  setText('userRole', roleDisplay[currentUser?.role] || currentUser?.role || 'เจ้าหน้าที่');
-
+  setText('userRole', getRoleLabel(currentUser?.role) || 'เจ้าหน้าที่');
   if (isAdminLike(currentUser?.role)) document.getElementById('adminMenu')?.classList.remove('hidden');
-
   const logoutBtn = document.getElementById('logoutBtn');
   if (logoutBtn) {
     logoutBtn.onclick = () => {
@@ -198,7 +227,6 @@ function canCreateProject() {
 
 async function canApproveBudgetAndProjects() {
   if (isAllowedRole(currentUser?.role)) return true;
-
   try {
     if (!isMockMode && currentUserUid) {
       const overrideSnap = await getDoc(doc(db, 'user_overrides', currentUserUid));
@@ -209,11 +237,9 @@ async function canApproveBudgetAndProjects() {
   } catch (error) {
     console.warn('Override permission check error:', error);
   }
-
   const visibleRole = document.getElementById('userRole')?.textContent || '';
   return isAllowedRole(visibleRole);
 }
-
 
 async function loadProjectUsers() {
   try {
@@ -275,6 +301,161 @@ function getSelectedOwnerPayload() {
   };
 }
 
+function getDefaultFiscalYear() {
+  const now = new Date();
+  const thaiYear = now.getFullYear() + 543;
+  return String(now.getMonth() >= 9 ? thaiYear + 1 : thaiYear);
+}
+
+function getSelectedFiscalYear() {
+  return selectedFiscalYear || getDefaultFiscalYear();
+}
+
+function ensureFiscalYearAndFilterControls() {
+  if (document.getElementById('projectFiscalControls')) return;
+  const grid = document.getElementById('projectsGrid');
+  const card = grid?.closest('.clean-card');
+  if (!card) return;
+
+  const controls = document.createElement('div');
+  controls.id = 'projectFiscalControls';
+  controls.className = 'mb-6 grid grid-cols-1 lg:grid-cols-3 gap-4 items-end';
+  controls.innerHTML = `
+    <div>
+      <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">ปีงบประมาณ</label>
+      <select id="fiscalYearFilter" class="w-full px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none"></select>
+    </div>
+    <div id="sectionFilterWrapper" class="hidden">
+      <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">กรองโครงการตามส่วนงาน</label>
+      <select id="projectSectionFilter" class="w-full px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none">
+        <option value="all">ทั้งหมด</option>
+        <option value="information">สารสนเทศ</option>
+        <option value="technical">เทคนิค</option>
+        <option value="corporate_communication">สื่อสารองค์กร</option>
+      </select>
+    </div>
+    <div id="fiscalYearCreateWrapper" class="hidden lg:justify-self-end">
+      <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">เพิ่มปีงบประมาณ</label>
+      <div class="flex gap-2">
+        <input type="number" id="newFiscalYearInput" placeholder="เช่น 2569" class="w-32 px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none">
+        <button type="button" id="addFiscalYearBtn" class="px-4 py-2.5 rounded-lg bg-brand-600 hover:bg-brand-700 dark:bg-sky-600 dark:hover:bg-sky-700 text-white text-sm font-semibold shadow-sm">สร้างปี</button>
+      </div>
+    </div>
+  `;
+  card.insertBefore(controls, grid);
+
+  document.getElementById('fiscalYearFilter')?.addEventListener('change', (event) => {
+    selectedFiscalYear = event.target.value || getDefaultFiscalYear();
+    localStorage.setItem('selectedFiscalYear', selectedFiscalYear);
+    populateFiscalYearSelects();
+    listenProjects();
+  });
+
+  const sectionSelect = document.getElementById('projectSectionFilter');
+  if (sectionSelect) {
+    sectionSelect.value = selectedSectionFilter;
+    sectionSelect.addEventListener('change', () => {
+      selectedSectionFilter = sectionSelect.value || 'all';
+      localStorage.setItem('selectedProjectSectionFilter', selectedSectionFilter);
+      listenProjects();
+    });
+  }
+
+  document.getElementById('addFiscalYearBtn')?.addEventListener('click', addFiscalYearFromInput);
+  updateFiscalControlsVisibility();
+  populateFiscalYearSelects();
+}
+
+function updateFiscalControlsVisibility() {
+  document.getElementById('sectionFilterWrapper')?.classList.toggle('hidden', !canApprove);
+  document.getElementById('fiscalYearCreateWrapper')?.classList.toggle('hidden', !canApprove);
+}
+
+function ensureProjectFiscalYearField() {
+  if (document.getElementById('projFiscalYear')) return;
+  const budgetInput = document.getElementById('projBudget');
+  const budgetWrapper = budgetInput?.closest('div');
+  if (!budgetWrapper) return;
+  const wrapper = document.createElement('div');
+  wrapper.innerHTML = `
+    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">ปีงบประมาณ</label>
+    <select id="projFiscalYear" required class="w-full px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none"></select>
+  `;
+  budgetWrapper.insertAdjacentElement('beforebegin', wrapper);
+  populateFiscalYearSelects();
+}
+
+function populateFiscalYearSelects() {
+  const defaultYear = getDefaultFiscalYear();
+  const years = [...new Set([defaultYear, selectedFiscalYear, ...fiscalYearsCache.map(y => String(y.year || y.id || y))])]
+    .filter(Boolean)
+    .sort((a, b) => Number(b) - Number(a));
+  const options = years.map(y => `<option value="${escapeHtml(y)}">ปีงบประมาณ ${escapeHtml(y)}</option>`).join('');
+
+  const fiscalYearFilter = document.getElementById('fiscalYearFilter');
+  if (fiscalYearFilter) {
+    fiscalYearFilter.innerHTML = options;
+    fiscalYearFilter.value = selectedFiscalYear || defaultYear;
+  }
+
+  const projFiscalYear = document.getElementById('projFiscalYear');
+  if (projFiscalYear) {
+    const current = projFiscalYear.value || selectedFiscalYear || defaultYear;
+    projFiscalYear.innerHTML = options;
+    projFiscalYear.value = current;
+  }
+}
+
+function listenFiscalYears() {
+  if (unsubscribeFiscalYears) unsubscribeFiscalYears();
+  unsubscribeFiscalYears = onSnapshot(collection(db, FISCAL_YEARS_COLLECTION), (snapshot) => {
+    fiscalYearsCache = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (!fiscalYearsCache.length) fiscalYearsCache = [{ id: getDefaultFiscalYear(), year: getDefaultFiscalYear() }];
+    populateFiscalYearSelects();
+  }, (error) => {
+    console.warn('Fiscal year listener error:', error);
+    fiscalYearsCache = [{ id: getDefaultFiscalYear(), year: getDefaultFiscalYear() }];
+    populateFiscalYearSelects();
+  });
+}
+
+async function addFiscalYearFromInput() {
+  if (!canApprove) return alert('บัญชีนี้ไม่มีสิทธิ์สร้างปีงบประมาณ');
+  const input = document.getElementById('newFiscalYearInput');
+  const year = String(input?.value || '').trim();
+  if (!/^\d{4}$/.test(year)) return alert('กรุณาระบุปีงบประมาณเป็นตัวเลข 4 หลัก เช่น 2569');
+  try {
+    await setDoc(doc(db, FISCAL_YEARS_COLLECTION, year), {
+      year,
+      label: `ปีงบประมาณ ${year}`,
+      createdBy: currentUserUid,
+      createdByName: currentUser?.name || currentUser?.email || 'Unknown',
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+    selectedFiscalYear = year;
+    localStorage.setItem('selectedFiscalYear', selectedFiscalYear);
+    if (input) input.value = '';
+    populateFiscalYearSelects();
+    listenProjects();
+  } catch (error) {
+    console.error('Add fiscal year error:', error);
+    alert(`สร้างปีงบประมาณไม่สำเร็จ: ${error.code || error.message || error}`);
+  }
+}
+
+function projectMatchesFiscalYear(project) {
+  const targetYear = getSelectedFiscalYear();
+  const projectYear = String(project.fiscalYear || targetYear);
+  return projectYear === targetYear;
+}
+
+function projectMatchesSectionFilter(project) {
+  if (!canApprove) return true;
+  if (!selectedSectionFilter || selectedSectionFilter === 'all') return true;
+  return String(project.ownerSection || project.section || '') === selectedSectionFilter;
+}
+
 function ensureOwnerSelectField() {
   if (!canApprove) return;
   if (document.getElementById('projectOwnerSelect')) return;
@@ -310,14 +491,11 @@ function populateOwnerSelect(project) {
   select.value = currentOwnerId || currentUserUid;
 }
 
-// ---------- UI injection ----------
 function ensureProjectDurationFields() {
   if (document.getElementById('projNoDeadline')) return;
-
   const budgetInput = document.getElementById('projBudget');
   const budgetWrapper = budgetInput?.closest('div');
   if (!budgetWrapper) return;
-
   const box = document.createElement('div');
   box.className = 'space-y-4';
   box.innerHTML = `
@@ -337,19 +515,15 @@ function ensureProjectDurationFields() {
     </label>
   `;
   budgetWrapper.insertAdjacentElement('afterend', box);
-
   document.getElementById('projNoDeadline')?.addEventListener('change', toggleProjectDates);
 }
 
 function ensureProjectFormButtons() {
   const saveBtn = document.getElementById('saveProjectBtn');
   if (!saveBtn) return;
-
-  // เปลี่ยนปุ่มเดิมให้เป็นบันทึกร่าง
   saveBtn.dataset.action = 'draft';
   const span = saveBtn.querySelector('span');
   if (span) span.textContent = 'บันทึกร่าง';
-
   let existingSubmitBtn = document.getElementById('submitProjectNowBtn');
   if (existingSubmitBtn) {
     if (!existingSubmitBtn.dataset.bound) {
@@ -358,14 +532,12 @@ function ensureProjectFormButtons() {
     }
     return;
   }
-
   const submitBtn = document.createElement('button');
   submitBtn.type = 'button';
   submitBtn.id = 'submitProjectNowBtn';
   submitBtn.className = 'px-5 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition-colors flex items-center';
   submitBtn.innerHTML = '<span>บันทึกและส่ง</span>';
   submitBtn.addEventListener('click', () => submitProjectForm('pending'));
-
   saveBtn.insertAdjacentElement('afterend', submitBtn);
 }
 
@@ -373,35 +545,21 @@ function toggleProjectDates() {
   const checked = document.getElementById('projNoDeadline')?.checked;
   const start = document.getElementById('projStartDate');
   const end = document.getElementById('projEndDate');
-  if (start) {
-    start.disabled = Boolean(checked);
-    if (checked) start.value = '';
-  }
-  if (end) {
-    end.disabled = Boolean(checked);
-    if (checked) end.value = '';
-  }
+  if (start) { start.disabled = Boolean(checked); if (checked) start.value = ''; }
+  if (end) { end.disabled = Boolean(checked); if (checked) end.value = ''; }
 }
 
 function ensureActionBudgetFields() {
   if (document.getElementById('approveBudget')) return;
-
   const actionProjName = document.getElementById('actionProjName');
   const buttonRow = document.getElementById('btnRejectProj')?.parentElement;
   if (!actionProjName || !buttonRow) return;
-
   const box = document.createElement('div');
   box.className = 'text-left space-y-4 my-5';
   box.innerHTML = `
     <div class="rounded-xl bg-slate-50 dark:bg-slate-900/50 p-4 space-y-2">
-      <div>
-        <div class="text-xs text-slate-500 dark:text-slate-400 mb-1">งบประมาณที่ผู้เสนอขอ</div>
-        <div class="font-bold text-brand-600 dark:text-sky-400"><span id="actionRequestedBudget">0</span> THB</div>
-      </div>
-      <div>
-        <div class="text-xs text-slate-500 dark:text-slate-400 mb-1">ระยะเวลาโครงการ</div>
-        <div class="font-medium text-slate-700 dark:text-slate-200" id="actionProjectDuration">-</div>
-      </div>
+      <div><div class="text-xs text-slate-500 dark:text-slate-400 mb-1">งบประมาณที่ผู้เสนอขอ</div><div class="font-bold text-brand-600 dark:text-sky-400"><span id="actionRequestedBudget">0</span> THB</div></div>
+      <div><div class="text-xs text-slate-500 dark:text-slate-400 mb-1">ระยะเวลาโครงการ</div><div class="font-medium text-slate-700 dark:text-slate-200" id="actionProjectDuration">-</div></div>
     </div>
     <div>
       <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">งบประมาณที่หัวหน้าอนุมัติ / ปรับแก้ (บาท)</label>
@@ -412,15 +570,11 @@ function ensureActionBudgetFields() {
       <textarea id="approveNote" rows="3" placeholder="ใช้เมื่อขอแก้ไขหรือแจ้งเหตุผลไม่อนุมัติ" class="w-full px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none"></textarea>
     </div>
   `;
-
   buttonRow.insertAdjacentElement('beforebegin', box);
-
   const approveBtn = document.getElementById('btnApproveProj');
   const rejectBtn = document.getElementById('btnRejectProj');
-
   if (approveBtn) approveBtn.textContent = 'อนุมัติ';
   if (rejectBtn) rejectBtn.textContent = 'ไม่อนุมัติ';
-
   if (!document.getElementById('btnRequestEditProj')) {
     const requestEditBtn = document.createElement('button');
     requestEditBtn.id = 'btnRequestEditProj';
@@ -439,21 +593,16 @@ function ensureGlobalBudgetButtonAndModal() {
 
 function ensureGlobalBudgetButton() {
   if (document.getElementById('editGlobalBudgetBtn')) return;
-
   const title = findBudgetTitle();
   if (!title) return;
-
   title.id = 'globalBudgetTitle';
-
   const row = document.createElement('div');
   row.id = 'globalBudgetTitleRow';
   row.className = 'relative z-10 flex justify-between items-start gap-4 flex-wrap mb-6';
-
   const parent = title.parentElement;
   parent.insertBefore(row, title);
   row.appendChild(title);
   title.classList.remove('mb-6');
-
   const btn = document.createElement('button');
   btn.id = 'editGlobalBudgetBtn';
   btn.type = 'button';
@@ -466,12 +615,11 @@ function findBudgetTitle() {
   const idEl = document.getElementById('globalBudgetTitle');
   if (idEl) return idEl;
   return Array.from(document.querySelectorAll('h1,h2,h3,h4,p,div'))
-    .find(el => String(el.textContent || '').includes('ภาพรวมงบประมาณฝ่าย')) || null;
+    .find(el => String(el.textContent || '').includes('ภาพรวมงบประมาณ')) || null;
 }
 
 function ensureGlobalBudgetModal() {
   if (document.getElementById('globalBudgetModal')) return;
-
   const modal = document.createElement('div');
   modal.id = 'globalBudgetModal';
   modal.className = 'fixed inset-0 bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm z-[90] hidden flex items-center justify-center p-4 opacity-0 transition-opacity duration-300';
@@ -484,16 +632,13 @@ function ensureGlobalBudgetModal() {
       <div class="p-6 space-y-4">
         <div id="globalBudgetError" class="hidden bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-sm p-3 rounded-lg border border-red-100 dark:border-red-800/50"></div>
         <div>
-          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">งบประมาณรวมฝ่ายปีปัจจุบัน (บาท)</label>
+          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">งบประมาณรวมฝ่ายปีที่เลือก (บาท)</label>
           <input type="number" id="globalBudgetInput" min="0" step="1000" class="w-full px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none">
         </div>
         <p class="text-xs text-slate-500 dark:text-slate-400">บันทึกที่ Firestore: <code>settings/budget.totalBudget</code></p>
         <div class="pt-2 flex justify-end gap-3">
           <button type="button" id="cancelGlobalBudgetBtn" class="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors">ยกเลิก</button>
-          <button type="button" id="saveGlobalBudgetBtn" class="px-5 py-2 text-sm font-medium text-white bg-sky-600 hover:bg-sky-700 rounded-lg shadow-sm transition-colors flex items-center gap-2">
-            <span>บันทึกงบรวม</span>
-            <span id="saveGlobalBudgetSpinner" class="hidden inline-block animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
-          </button>
+          <button type="button" id="saveGlobalBudgetBtn" class="px-5 py-2 text-sm font-medium text-white bg-sky-600 hover:bg-sky-700 rounded-lg shadow-sm transition-colors flex items-center gap-2"><span>บันทึกงบรวม</span><span id="saveGlobalBudgetSpinner" class="hidden inline-block animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span></button>
         </div>
       </div>
     </div>
@@ -501,23 +646,19 @@ function ensureGlobalBudgetModal() {
   document.body.appendChild(modal);
 }
 
-// ---------- project modal ----------
 function setupProjectModal() {
   const modal = document.getElementById('projectModal');
   const content = document.getElementById('projectModalContent');
   const form = document.getElementById('projectForm');
-
   function toggle(show, project = null) {
     if (!modal || !content || !form) return;
     if (show) {
+      ensureProjectFiscalYearField();
       ensureProjectDurationFields();
       ensureProjectFormButtons();
       fillProjectForm(project);
       modal.classList.remove('hidden');
-      setTimeout(() => {
-        modal.classList.remove('opacity-0');
-        content.classList.remove('scale-95');
-      }, 10);
+      setTimeout(() => { modal.classList.remove('opacity-0'); content.classList.remove('scale-95'); }, 10);
     } else {
       modal.classList.add('opacity-0');
       content.classList.add('scale-95');
@@ -531,18 +672,15 @@ function setupProjectModal() {
       if (end) end.disabled = false;
     }
   }
-
   window.openProjectDraftModal = () => toggle(true, null);
   window.openProjectEditModal = (id) => {
     const project = window.projectsMap.get(id);
     if (!project) return;
     toggle(true, project);
   };
-
   document.getElementById('createProjectBtn')?.addEventListener('click', () => toggle(true, null));
   document.getElementById('closeProjectModalBtn')?.addEventListener('click', () => toggle(false));
   document.getElementById('cancelProjectModalBtn')?.addEventListener('click', () => toggle(false));
-
   form?.addEventListener('submit', async (event) => {
     event.preventDefault();
     await submitProjectForm('draft');
@@ -554,6 +692,7 @@ function fillProjectForm(project) {
   setValue('projTitle', project?.title || '');
   setValue('projDesc', project?.description || '');
   setValue('projBudget', project?.requestedBudget || '');
+  setValue('projFiscalYear', project?.fiscalYear || getSelectedFiscalYear());
   setValue('projStartDate', project?.startDate || '');
   setValue('projEndDate', project?.endDate || '');
   const noDeadline = document.getElementById('projNoDeadline');
@@ -566,7 +705,6 @@ async function submitProjectForm(nextStatus) {
   const saveBtn = document.getElementById('saveProjectBtn');
   const submitBtn = document.getElementById('submitProjectNowBtn');
   const spinner = document.getElementById('saveProjectSpinner');
-
   errorEl?.classList.add('hidden');
   if (saveBtn) saveBtn.disabled = true;
   if (submitBtn) submitBtn.disabled = true;
@@ -575,6 +713,7 @@ async function submitProjectForm(nextStatus) {
   const title = document.getElementById('projTitle')?.value.trim();
   const description = document.getElementById('projDesc')?.value.trim();
   const requestedBudget = Number(document.getElementById('projBudget')?.value || 0);
+  const fiscalYear = document.getElementById('projFiscalYear')?.value || getSelectedFiscalYear();
   const noDeadline = Boolean(document.getElementById('projNoDeadline')?.checked);
   const startDate = document.getElementById('projStartDate')?.value || '';
   const endDate = document.getElementById('projEndDate')?.value || '';
@@ -584,13 +723,16 @@ async function submitProjectForm(nextStatus) {
     resetSubmit(saveBtn, submitBtn, spinner);
     return;
   }
-
+  if (!fiscalYear) {
+    showFormError(errorEl, 'กรุณาเลือกปีงบประมาณ');
+    resetSubmit(saveBtn, submitBtn, spinner);
+    return;
+  }
   if (!noDeadline && (!startDate || !endDate)) {
     showFormError(errorEl, 'กรุณาระบุวันที่เริ่มต้นและวันที่สิ้นสุด หรือเลือกไม่มีกำหนดเวลา');
     resetSubmit(saveBtn, submitBtn, spinner);
     return;
   }
-
   if (!noDeadline && startDate > endDate) {
     showFormError(errorEl, 'วันที่สิ้นสุดต้องไม่น้อยกว่าวันที่เริ่มต้น');
     resetSubmit(saveBtn, submitBtn, spinner);
@@ -602,6 +744,7 @@ async function submitProjectForm(nextStatus) {
     name: title,
     description,
     requestedBudget,
+    fiscalYear,
     noDeadline,
     startDate: noDeadline ? null : startDate,
     endDate: noDeadline ? null : endDate,
@@ -636,7 +779,6 @@ async function submitProjectForm(nextStatus) {
         submittedAt: nextStatus === 'pending' ? serverTimestamp() : null
       });
     }
-
     closeProjectModal();
   } catch (error) {
     console.error('Save project error:', error);
@@ -664,11 +806,9 @@ function resetSubmit(saveBtn, submitBtn, spinner) {
   spinner?.classList.add('hidden');
 }
 
-// ---------- action modal ----------
 function setupActionModal() {
   const modal = document.getElementById('actionModal');
   const content = document.getElementById('actionModalContent');
-
   window.openActionModal = (id) => {
     ensureActionBudgetFields();
     ensureOwnerSelectField();
@@ -679,30 +819,20 @@ function setupActionModal() {
     }
     const project = window.projectsMap.get(id);
     if (!project) return;
-
     currentActionProjectId = id;
     currentActionProject = project;
-
     setText('actionProjName', project.title || project.name || 'ไม่ระบุชื่อโครงการ');
     setText('actionRequestedBudget', formatNumber(project.requestedBudget || 0));
     setText('actionProjectDuration', project.durationLabel || getProjectDurationText(project));
-
     const approveBudget = document.getElementById('approveBudget');
     if (approveBudget) approveBudget.value = Number(project.totalBudget || project.budgetAllocated || project.requestedBudget || 0);
-
     const note = document.getElementById('approveNote');
     if (note) note.value = project.managerComment || project.approveNote || '';
     populateOwnerSelect(project);
-
     modal.classList.remove('hidden');
-    setTimeout(() => {
-      modal.classList.remove('opacity-0');
-      content.classList.remove('scale-95');
-    }, 10);
+    setTimeout(() => { modal.classList.remove('opacity-0'); content.classList.remove('scale-95'); }, 10);
   };
-
   window.closeActionModal = closeActionModal;
-
   document.getElementById('closeActionModal')?.addEventListener('click', closeActionModal);
   document.getElementById('btnApproveProj')?.addEventListener('click', () => approveProject(closeActionModal));
   document.getElementById('btnRejectProj')?.addEventListener('click', () => rejectProject(closeActionModal));
@@ -723,29 +853,16 @@ function closeActionModal() {
 async function updateProjectOwnerOnly() {
   if (!currentActionProjectId) return;
   if (!canApprove) return alert('บัญชีนี้ไม่มีสิทธิ์เปลี่ยนผู้รับผิดชอบโครงการ');
-
   const ownerPayload = getSelectedOwnerPayload();
   const oldOwnerId = getOwnerId(currentActionProject);
-
-  if (!ownerPayload.ownerId) {
-    return alert('กรุณาเลือกผู้รับผิดชอบโครงการ');
-  }
-
-  if (ownerPayload.ownerId === oldOwnerId) {
-    return alert('ผู้รับผิดชอบโครงการเป็นคนเดิมอยู่แล้ว');
-  }
-
+  if (!ownerPayload.ownerId) return alert('กรุณาเลือกผู้รับผิดชอบโครงการ');
+  if (ownerPayload.ownerId === oldOwnerId) return alert('ผู้รับผิดชอบโครงการเป็นคนเดิมอยู่แล้ว');
   try {
     await updateDoc(doc(db, PROJECTS_COLLECTION, currentActionProjectId), {
       ...ownerPayload,
       updatedAt: serverTimestamp()
     });
-
-    currentActionProject = {
-      ...currentActionProject,
-      ...ownerPayload
-    };
-
+    currentActionProject = { ...currentActionProject, ...ownerPayload };
     alert('บันทึกผู้รับผิดชอบโครงการเรียบร้อยแล้ว');
   } catch (error) {
     console.error('Update owner error:', error);
@@ -756,13 +873,10 @@ async function updateProjectOwnerOnly() {
 async function approveProject(closeModal) {
   if (!currentActionProjectId) return;
   if (!canApprove) return alert('บัญชีนี้ไม่มีสิทธิ์อนุมัติหรือแก้งบประมาณ');
-
   const budget = Number(document.getElementById('approveBudget')?.value || 0);
   const comment = document.getElementById('approveNote')?.value.trim() || '';
   const ownerPayload = getSelectedOwnerPayload();
-
   if (budget < 0) return alert('งบประมาณต้องไม่ติดลบ');
-
   try {
     await updateDoc(doc(db, PROJECTS_COLLECTION, currentActionProjectId), {
       status: 'approved',
@@ -788,14 +902,11 @@ async function approveProject(closeModal) {
 async function rejectProject(closeModal) {
   if (!currentActionProjectId) return;
   if (!canApprove) return alert('บัญชีนี้ไม่มีสิทธิ์ไม่อนุมัติโครงการ');
-
   const comment = document.getElementById('approveNote')?.value.trim() || '';
   const ownerPayload = getSelectedOwnerPayload();
-
   try {
     const rejectedAtDate = new Date();
     const autoDeleteAtDate = addDays(rejectedAtDate, REJECTED_AUTO_DELETE_DAYS);
-
     await updateDoc(doc(db, PROJECTS_COLLECTION, currentActionProjectId), {
       status: 'rejected',
       totalBudget: 0,
@@ -818,11 +929,9 @@ async function rejectProject(closeModal) {
 async function requestEditProject(closeModal) {
   if (!currentActionProjectId) return;
   if (!canApprove) return alert('บัญชีนี้ไม่มีสิทธิ์ขอแก้ไขโครงการ');
-
   const comment = document.getElementById('approveNote')?.value.trim() || '';
   const ownerPayload = getSelectedOwnerPayload();
   if (!comment) return alert('กรุณาใส่คอมเมนต์เพื่อแจ้งเจ้าหน้าที่ว่าต้องแก้ไขอะไร');
-
   try {
     await updateDoc(doc(db, PROJECTS_COLLECTION, currentActionProjectId), {
       status: 'revision_requested',
@@ -842,7 +951,6 @@ async function requestEditProject(closeModal) {
   }
 }
 
-// ---------- global budget ----------
 function setupGlobalBudgetModal() {
   document.getElementById('editGlobalBudgetBtn')?.addEventListener('click', openGlobalBudgetModal);
   document.getElementById('closeGlobalBudgetModalBtn')?.addEventListener('click', closeGlobalBudgetModal);
@@ -856,15 +964,10 @@ function openGlobalBudgetModal() {
   const content = document.getElementById('globalBudgetModalContent');
   const input = document.getElementById('globalBudgetInput');
   const error = document.getElementById('globalBudgetError');
-
   if (input) input.value = Number(totalBudgetLimit || DEFAULT_TOTAL_BUDGET);
   error?.classList.add('hidden');
-
   modal.classList.remove('hidden');
-  setTimeout(() => {
-    modal.classList.remove('opacity-0');
-    content.classList.remove('scale-95');
-  }, 10);
+  setTimeout(() => { modal.classList.remove('opacity-0'); content.classList.remove('scale-95'); }, 10);
 }
 
 function closeGlobalBudgetModal() {
@@ -881,27 +984,22 @@ async function saveGlobalBudget() {
     showGlobalBudgetError('บัญชีนี้ไม่มีสิทธิ์แก้ไขงบประมาณรวม');
     return;
   }
-
   const value = Number(document.getElementById('globalBudgetInput')?.value || 0);
   const saveBtn = document.getElementById('saveGlobalBudgetBtn');
   const spinner = document.getElementById('saveGlobalBudgetSpinner');
-
   if (!Number.isFinite(value) || value < 0) {
     showGlobalBudgetError('กรุณาระบุงบประมาณรวมให้ถูกต้อง');
     return;
   }
-
   try {
     if (saveBtn) saveBtn.disabled = true;
     spinner?.classList.remove('hidden');
-
     await setDoc(BUDGET_REF, {
       totalBudget: value,
       updatedBy: currentUserUid,
       updatedByName: currentUser?.name || currentUser?.email || 'Unknown',
       updatedAt: serverTimestamp()
     }, { merge: true });
-
     closeGlobalBudgetModal();
   } catch (error) {
     console.error('Save global budget error:', error);
@@ -921,7 +1019,6 @@ function showGlobalBudgetError(message) {
 
 function listenGlobalBudget() {
   if (unsubscribeBudget) unsubscribeBudget();
-
   unsubscribeBudget = onSnapshot(BUDGET_REF, (snap) => {
     totalBudgetLimit = snap.exists() ? Number(snap.data().totalBudget || DEFAULT_TOTAL_BUDGET) : DEFAULT_TOTAL_BUDGET;
     updateGlobalBudget(lastApprovedBudgetTotal);
@@ -931,27 +1028,19 @@ function listenGlobalBudget() {
   });
 }
 
-// ---------- list ----------
 function listenProjects() {
   const grid = document.getElementById('projectsGrid');
   if (!grid) return;
-
   if (unsubscribeProjects) unsubscribeProjects();
 
   unsubscribeProjects = onSnapshot(collection(db, PROJECTS_COLLECTION), async (snapshot) => {
     grid.innerHTML = '';
     window.projectsMap = new Map();
-
-    // ทุกคนต้องเห็น "ยอดอนุมัติรวมทั้งฝ่าย" และ "งบคงเหลือทั้งฝ่าย"
-    // แต่รายการการ์ดด้านล่างยังคงกรองสิทธิ์การมองเห็น:
-    // - เจ้าหน้าที่ทั่วไปเห็นเฉพาะโครงการของตัวเอง
-    // - admin/manager/ผู้มีสิทธิ์อนุมัติเห็นทุกโครงการ
     let departmentApprovedTotal = 0;
     const visibleItems = [];
 
     for (const docSnap of snapshot.docs) {
       const data = normalizeProjectDoc(docSnap.id, docSnap.data());
-
       if (shouldAutoDeleteRejected(data)) {
         try {
           await deleteDoc(doc(db, PROJECTS_COLLECTION, docSnap.id));
@@ -960,30 +1049,20 @@ function listenProjects() {
           console.warn('Auto delete rejected project failed:', error);
         }
       }
-
-      // คำนวณยอดรวมจากทุกโครงการที่อนุมัติแล้ว ไม่ว่าโครงการนั้นเป็นของใคร
-      if (data.status === 'approved') {
-        departmentApprovedTotal += Number(data.totalBudget || data.budgetAllocated || 0);
-      }
-
-      // ส่วนรายการด้านล่างยังคงซ่อนโครงการของคนอื่นสำหรับเจ้าหน้าที่ทั่วไป
-      if (isProjectVisibleToCurrentUser(data)) {
-        visibleItems.push(data);
-      }
+      if (!projectMatchesFiscalYear(data)) continue;
+      if (data.status === 'approved') departmentApprovedTotal += Number(data.totalBudget || data.budgetAllocated || 0);
+      if (isProjectVisibleToCurrentUser(data) && projectMatchesSectionFilter(data)) visibleItems.push(data);
     }
 
     visibleItems.sort((a, b) => getTime(b.createdAt) - getTime(a.createdAt));
-
     if (!visibleItems.length) {
-      grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-500">${canApprove ? 'ยังไม่มีโครงการในระบบ' : 'ยังไม่มีโครงการของคุณในระบบ'}</div>`;
+      const sectionText = canApprove && selectedSectionFilter !== 'all' ? ` ในหมวด${getSectionLabel(selectedSectionFilter)}` : '';
+      grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-500">${canApprove ? `ยังไม่มีโครงการปีงบประมาณ ${getSelectedFiscalYear()}${sectionText}` : `ยังไม่มีโครงการของคุณในปีงบประมาณ ${getSelectedFiscalYear()}`}</div>`;
     }
-
     visibleItems.forEach((data) => {
       window.projectsMap.set(data.id, data);
       grid.insertAdjacentHTML('beforeend', createProjectCard(data.id, data));
     });
-
-    // อัปเดตกล่องงบด้านบนด้วยยอดรวมของทั้งฝ่าย เพื่อให้ทุกคนรู้ว่าเหลืองบเท่าไร
     updateGlobalBudget(departmentApprovedTotal);
   }, (error) => {
     console.error('Projects listener error:', error);
@@ -995,12 +1074,10 @@ function listenProjects() {
   });
 }
 
-
 function normalizeProjectDoc(id, data) {
   const title = data.title || data.name || 'ไม่ระบุชื่อโครงการ';
   const requestedBudget = Number(data.requestedBudget ?? data.budgetRequested ?? data.budgetAllocated ?? data.totalBudget ?? 0);
   const approvedBudget = Number(data.totalBudget ?? data.budgetAllocated ?? 0);
-
   return {
     id,
     ...data,
@@ -1015,8 +1092,9 @@ function normalizeProjectDoc(id, data) {
     ownerId: data.ownerId || data.createdBy || '',
     ownerName: data.ownerName || data.creatorName || 'Unknown',
     ownerEmail: data.ownerEmail || '',
-    ownerSection: data.ownerSection || '',
+    ownerSection: data.ownerSection || data.section || '',
     ownerRole: data.ownerRole || '',
+    fiscalYear: String(data.fiscalYear || getDefaultFiscalYear()),
     noDeadline: Boolean(data.noDeadline),
     startDate: data.startDate || null,
     endDate: data.endDate || null,
@@ -1034,50 +1112,58 @@ function createProjectCard(id, data) {
     approved: { label: 'อนุมัติแล้ว', class: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/50' },
     rejected: { label: 'ไม่อนุมัติ', class: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-800/50' }
   };
-
   const statusInfo = statusMap[data.status] || statusMap.draft;
   const dateStr = data.createdAt?.toDate ? data.createdAt.toDate().toLocaleDateString('th-TH') : '';
-  const isOwner = data.createdBy === currentUserUid;
+  const isOwner = getOwnerId(data) === currentUserUid || data.createdBy === currentUserUid;
+  const projectFiscalYear = data.fiscalYear || getDefaultFiscalYear();
+
   const commentHtml = data.managerComment
-    ? `<div class="mt-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 p-3 text-xs text-amber-700 dark:text-amber-300"><b>คอมเมนต์หัวหน้า:</b> ${escapeHtml(data.managerComment)}</div>`
+    ? '<div class="mt-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 p-3 text-xs text-amber-700 dark:text-amber-300"><b>คอมเมนต์หัวหน้า:</b> ' + escapeHtml(data.managerComment) + '</div>'
     : '';
 
   let actionButton = '';
-
   if (isOwner && ['draft', 'revision_requested'].includes(data.status)) {
-    actionButton = `
-      <div class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700/50 grid grid-cols-2 gap-2">
-        <button onclick="window.openProjectEditModal('${id}')" class="py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-white text-sm font-medium rounded-lg transition-colors">แก้ไข</button>
-        <button onclick="window.submitSavedProject('${id}')" class="py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors">ส่งโครงการ</button>
-      </div>`;
-  } else if (canApprove && ['draft', 'pending', 'revision_requested', 'approved'].includes(data.status)) {
-    actionButton = `
-      <div class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700/50">
-        <button onclick="window.openActionModal('${id}')" class="w-full py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-white text-sm font-medium rounded-lg transition-colors">${data.status === 'approved' ? 'แก้ไขงบประมาณ/ผู้รับผิดชอบ' : 'พิจารณา/แก้ไขผู้รับผิดชอบ'}</button>
-      </div>`;
+    const colsClass = data.status === 'draft' ? 'grid-cols-3' : 'grid-cols-2';
+    const deleteBtn = data.status === 'draft'
+      ? '<button onclick="window.deleteProjectById(\'' + id + '\')" class="py-2 bg-red-50 hover:bg-red-100 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 text-sm font-medium rounded-lg transition-colors">ลบ</button>'
+      : '';
+    actionButton = ''
+      + '<div class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700/50 grid ' + colsClass + ' gap-2">'
+      + '<button onclick="window.openProjectEditModal(\'' + id + '\')" class="py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-white text-sm font-medium rounded-lg transition-colors">แก้ไข</button>'
+      + '<button onclick="window.submitSavedProject(\'' + id + '\')" class="py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors">ส่งโครงการ</button>'
+      + deleteBtn
+      + '</div>';
+  } else if (canApprove && ['draft', 'pending', 'revision_requested', 'approved', 'rejected'].includes(data.status)) {
+    const actionLabel = data.status === 'approved' ? 'แก้ไขงบประมาณ/ผู้รับผิดชอบ' : 'พิจารณา/แก้ไขผู้รับผิดชอบ';
+    actionButton = ''
+      + '<div class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700/50 grid grid-cols-1 gap-2">'
+      + '<button onclick="window.openActionModal(\'' + id + '\')" class="w-full py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-white text-sm font-medium rounded-lg transition-colors">' + actionLabel + '</button>'
+      + '<button onclick="window.deleteProjectById(\'' + id + '\')" class="w-full py-2 bg-red-50 hover:bg-red-100 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 text-sm font-medium rounded-lg transition-colors">ลบโครงการ</button>'
+      + '</div>';
   }
 
   const autoDeleteText = data.status === 'rejected'
-    ? `<div class="text-xs text-red-400 mt-1">จะลบอัตโนมัติหลังครบ ${REJECTED_AUTO_DELETE_DAYS} วัน หากไม่มีการเปลี่ยนสถานะ</div>`
+    ? '<div class="text-xs text-red-400 mt-1">จะลบอัตโนมัติหลังครบ ' + REJECTED_AUTO_DELETE_DAYS + ' วัน หากไม่มีการเปลี่ยนสถานะ</div>'
     : '';
 
-  return `
-    <div class="border border-slate-200 dark:border-slate-700 rounded-xl p-5 bg-white dark:bg-slate-800 shadow-sm hover:shadow-md transition-shadow flex flex-col h-full">
-      <div class="flex justify-between items-start mb-3"><span class="inline-block px-2.5 py-1 rounded-full text-[10px] font-bold border ${statusInfo.class}">${statusInfo.label}</span><span class="text-xs text-slate-400">${dateStr}</span></div>
-      <h4 class="text-base font-bold text-slate-800 dark:text-white mb-2 line-clamp-2">${escapeHtml(data.title)}</h4>
-      <p class="text-sm text-slate-500 dark:text-slate-400 mb-4 line-clamp-3 flex-grow">${escapeHtml(data.description)}</p>
-      <div class="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-3 mt-auto space-y-2">
-        <div><div class="text-xs text-slate-500 dark:text-slate-400 mb-1">งบประมาณที่ขอ</div><div class="text-lg font-bold text-brand-600 dark:text-sky-400">${formatNumber(data.requestedBudget)} <span class="text-xs font-normal">THB</span></div></div>
-        <div><div class="text-xs text-slate-500 dark:text-slate-400 mb-1">งบประมาณที่อนุมัติ</div><div class="text-base font-bold text-emerald-600 dark:text-emerald-400">${formatNumber(data.totalBudget || data.budgetAllocated || 0)} <span class="text-xs font-normal">THB</span></div></div>
-        <div class="text-xs text-slate-400 mt-1">ผู้เสนอ: ${escapeHtml(data.creatorName || 'Unknown')}</div>
-        <div class="text-xs text-slate-400 mt-1">ผู้รับผิดชอบ: ${escapeHtml(data.ownerName || data.creatorName || 'Unknown')}</div>
-        <div class="text-xs text-slate-400 mt-1">ส่วนงาน: ${escapeHtml(getSectionLabel(data.ownerSection))} • สิทธิ์: ${escapeHtml(getRoleLabel(data.ownerRole))}</div>
-        <div class="text-xs text-slate-400 mt-1">ระยะเวลา: ${escapeHtml(data.durationLabel || getProjectDurationText(data))}</div>
-        ${autoDeleteText}
-      </div>
-      ${commentHtml}
-      ${actionButton}
-    </div>`;
+  return ''
+    + '<div class="border border-slate-200 dark:border-slate-700 rounded-xl p-5 bg-white dark:bg-slate-800 shadow-sm hover:shadow-md transition-shadow flex flex-col h-full">'
+    + '<div class="flex justify-between items-start mb-3"><span class="inline-block px-2.5 py-1 rounded-full text-[10px] font-bold border ' + statusInfo.class + '">' + statusInfo.label + '</span><span class="text-xs text-slate-400">' + dateStr + '</span></div>'
+    + '<h4 class="text-base font-bold text-slate-800 dark:text-white mb-2 line-clamp-2">' + escapeHtml(data.title) + '</h4>'
+    + '<p class="text-sm text-slate-500 dark:text-slate-400 mb-4 line-clamp-3 flex-grow">' + escapeHtml(data.description) + '</p>'
+    + '<div class="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-3 mt-auto space-y-2">'
+    + '<div><div class="text-xs text-slate-500 dark:text-slate-400 mb-1">งบประมาณที่ขอ</div><div class="text-lg font-bold text-brand-600 dark:text-sky-400">' + formatNumber(data.requestedBudget) + ' <span class="text-xs font-normal">THB</span></div></div>'
+    + '<div><div class="text-xs text-slate-500 dark:text-slate-400 mb-1">งบประมาณที่อนุมัติ</div><div class="text-base font-bold text-emerald-600 dark:text-emerald-400">' + formatNumber(data.totalBudget || data.budgetAllocated || 0) + ' <span class="text-xs font-normal">THB</span></div></div>'
+    + '<div class="text-xs text-slate-400 mt-1">ผู้เสนอ: ' + escapeHtml(data.creatorName || 'Unknown') + '</div>'
+    + '<div class="text-xs text-slate-400 mt-1">ผู้รับผิดชอบ: ' + escapeHtml(data.ownerName || data.creatorName || 'Unknown') + '</div>'
+    + '<div class="text-xs text-slate-400 mt-1">ส่วนงาน: ' + escapeHtml(getSectionLabel(data.ownerSection)) + ' • สิทธิ์: ' + escapeHtml(getRoleLabel(data.ownerRole)) + '</div>'
+    + '<div class="text-xs text-slate-400 mt-1">ระยะเวลา: ' + escapeHtml(data.durationLabel || getProjectDurationText(data)) + '</div>'
+    + '<div class="text-xs text-slate-400 mt-1">ปีงบประมาณ: ' + escapeHtml(projectFiscalYear) + '</div>'
+    + autoDeleteText
+    + '</div>'
+    + commentHtml
+    + actionButton
+    + '</div>';
 }
 
 window.submitSavedProject = async (id) => {
@@ -1096,34 +1182,46 @@ window.submitSavedProject = async (id) => {
   }
 };
 
-// ---------- auto cleanup ----------
+function canDeleteProject(project) {
+  if (canApprove) return true;
+  return getOwnerId(project) === currentUserUid && project.status === 'draft';
+}
+
+window.deleteProjectById = async (id) => {
+  const project = window.projectsMap.get(id);
+  if (!project) return alert('ไม่พบข้อมูลโครงการ');
+  if (!canDeleteProject(project)) return alert('บัญชีนี้ไม่มีสิทธิ์ลบโครงการนี้');
+  const name = project.title || project.name || 'โครงการนี้';
+  if (!confirm('ยืนยันการลบ ' + name + '?')) return;
+  try {
+    await deleteDoc(doc(db, PROJECTS_COLLECTION, id));
+  } catch (error) {
+    console.error('Delete project error:', error);
+    alert('ลบโครงการไม่สำเร็จ: ' + (error.code || error.message || error));
+  }
+};
+
 function shouldAutoDeleteRejected(project) {
   if (project.status !== 'rejected') return false;
-
   const baseTime = getTime(project.rejectedAt) || getTime(project.updatedAt);
   if (!baseTime) return false;
-
   const ageMs = Date.now() - baseTime;
   const limitMs = REJECTED_AUTO_DELETE_DAYS * 24 * 60 * 60 * 1000;
   return ageMs >= limitMs;
 }
 
-// ---------- budget ----------
 function updateGlobalBudget(spent) {
   lastApprovedBudgetTotal = Number(spent || 0);
   const remaining = totalBudgetLimit - lastApprovedBudgetTotal;
   const percent = totalBudgetLimit > 0 ? (lastApprovedBudgetTotal / totalBudgetLimit) * 100 : 0;
-
   const title = findBudgetTitle();
   if (title) {
     title.id = 'globalBudgetTitle';
-    title.textContent = `ภาพรวมงบประมาณรวมทั้งฝ่ายปีปัจจุบัน (${formatNumber(totalBudgetLimit)} THB)`;
+    title.textContent = `ภาพรวมงบประมาณรวมทั้งฝ่ายปีงบประมาณ ${getSelectedFiscalYear()} (${formatNumber(totalBudgetLimit)} THB)`;
   }
-
   setText('globalSpent', formatNumber(lastApprovedBudgetTotal));
   setText('globalRemaining', formatNumber(remaining));
   setText('budgetPercent', percent.toFixed(1));
-
   const bar = document.getElementById('budgetProgressBar');
   if (!bar) return;
   bar.style.width = `${Math.min(percent, 100)}%`;
@@ -1132,7 +1230,6 @@ function updateGlobalBudget(spent) {
   else if (percent > 70) bar.className = 'bg-gradient-to-r from-amber-500 to-yellow-400 h-3 rounded-full transition-all duration-1000';
 }
 
-// ---------- helpers ----------
 function addDays(date, days) {
   const result = new Date(date);
   result.setDate(result.getDate() + days);
