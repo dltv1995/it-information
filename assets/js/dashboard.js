@@ -1,7 +1,7 @@
 // assets/js/dashboard.js
 // Firebase-only Dashboard + Global Budget from Firestore settings/budget
 // แก้ปัญหา "ช่องงบประมาณรวมเป็น 0" โดยอ่านงบรวมจาก settings/budget.totalBudget
-// Version: dashboard-fiscal-years-list-v23
+// Version: dashboard-budget-per-year-v24
 
 import { auth, db } from './firebase-config.js';
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -12,7 +12,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-console.log('dashboard.js loaded: dashboard-fiscal-years-list-v23');
+console.log('dashboard.js loaded: dashboard-budget-per-year-v24');
 
 const DEFAULT_TOTAL_BUDGET = 1500000;
 const SECTION_LABELS = {
@@ -301,6 +301,13 @@ function getAvailableFiscalYears() {
     return Array.from(years).filter(Boolean).sort((a, b) => Number(b) - Number(a));
 }
 
+
+function getSelectedFiscalYearBudget() {
+    const item = fiscalYearsCache.find(yearItem => String(yearItem.year || yearItem.id || '') === String(selectedDashboardFiscalYear));
+    const value = Number(item?.totalBudget ?? item?.budget ?? item?.budgetLimit ?? NaN);
+    return Number.isFinite(value) && value >= 0 ? value : toNumber(globalBudget || DEFAULT_TOTAL_BUDGET);
+}
+
 function projectMatchesDashboardFilters(project) {
     const fiscalMatch = getProjectFiscalYear(project) === selectedDashboardFiscalYear;
     if (!fiscalMatch) return false;
@@ -531,7 +538,7 @@ function renderDashboardFromFirebase() {
     const fiscalProjects = projectsCache.filter(project => getProjectFiscalYear(project) === selectedDashboardFiscalYear);
     const visibleProjects = fiscalProjects.filter(projectMatchesDashboardFilters);
 
-    const totalBudget = toNumber(globalBudget || DEFAULT_TOTAL_BUDGET);
+    const totalBudget = getSelectedFiscalYearBudget();
     const approvedProjects = fiscalProjects.filter(project => project.status === 'approved');
     const approvedBudget = approvedProjects.reduce((sum, project) => sum + toNumber(project.total), 0);
     const actualUsedBudget = approvedProjects.reduce((sum, project) => sum + toNumber(project.used), 0);
