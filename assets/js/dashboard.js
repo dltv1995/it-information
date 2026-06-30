@@ -1,7 +1,7 @@
 // assets/js/dashboard.js
 // Firebase-only Dashboard + Global Budget from Firestore settings/budget
 // แก้ปัญหา "ช่องงบประมาณรวมเป็น 0" โดยอ่านงบรวมจาก settings/budget.totalBudget
-// Version: dashboard-single-add-filter-row-v22
+// Version: dashboard-fiscal-years-list-v23
 
 import { auth, db } from './firebase-config.js';
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -12,7 +12,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-console.log('dashboard.js loaded: dashboard-single-add-filter-row-v22');
+console.log('dashboard.js loaded: dashboard-fiscal-years-list-v23');
 
 const DEFAULT_TOTAL_BUDGET = 1500000;
 const SECTION_LABELS = {
@@ -26,11 +26,13 @@ const SECTION_COLORS = {
     corporate_communication: '#f59e0b',
     unknown: '#64748b'
 };
+const FISCAL_YEARS_COLLECTION = 'fiscal_years';
 const BUDGET_REF = doc(db, 'settings', 'budget');
 
 let budgetChart = null;
 let workloadChart = null;
 let projectsCache = [];
+let fiscalYearsCache = [];
 let tasksCache = [];
 let globalBudget = DEFAULT_TOTAL_BUDGET;
 let selectedDashboardFiscalYear = localStorage.getItem('dashboardFiscalYear') || getDefaultFiscalYear();
@@ -38,6 +40,7 @@ let selectedDashboardSectionFilter = localStorage.getItem('dashboardSectionFilte
 let unsubProjects = null;
 let unsubTasks = null;
 let unsubBudget = null;
+let unsubFiscalYears = null;
 let mounted = false;
 
 document.addEventListener('DOMContentLoaded', initDashboardPage);
@@ -123,6 +126,7 @@ function initAuthAndRealtimeData() {
         const mockUser = JSON.parse(mockUserStr);
         initUserHeader(mockUser, true);
         listenGlobalBudget();
+        listenFiscalYears();
         listenProjects();
         listenTasks();
         return;
@@ -156,6 +160,7 @@ function initAuthAndRealtimeData() {
 
         initUserHeader(appUser, false);
         listenGlobalBudget();
+        listenFiscalYears();
         listenProjects();
         listenTasks();
     });
@@ -230,6 +235,23 @@ function listenProjects() {
     });
 }
 
+
+function listenFiscalYears() {
+    if (typeof unsubFiscalYears === 'function') unsubFiscalYears();
+    const yearsRef = collection(db, FISCAL_YEARS_COLLECTION);
+    unsubFiscalYears = onSnapshot(yearsRef, (snapshot) => {
+        fiscalYearsCache = snapshot.docs.map((docSnap) => ({
+            id: docSnap.id,
+            ...docSnap.data()
+        }));
+        renderDashboardFromFirebase();
+    }, (error) => {
+        console.error('Fiscal years listener error:', error);
+        fiscalYearsCache = [];
+        renderDashboardFromFirebase();
+    });
+}
+
 function listenTasks() {
     if (typeof unsubTasks === 'function') unsubTasks();
 
@@ -271,6 +293,10 @@ function getProjectFiscalYear(project) {
 
 function getAvailableFiscalYears() {
     const years = new Set([getDefaultFiscalYear(), selectedDashboardFiscalYear]);
+    fiscalYearsCache.forEach(item => {
+        const year = String(item.year || item.id || '').trim();
+        if (year) years.add(year);
+    });
     projectsCache.forEach(project => years.add(getProjectFiscalYear(project)));
     return Array.from(years).filter(Boolean).sort((a, b) => Number(b) - Number(a));
 }
@@ -408,7 +434,7 @@ function updateDashboardSectionTitles() {
     if (workloadTitle) workloadTitle.textContent = 'สัดส่วนงบประมาณตามส่วนงาน';
     const urgentList = document.getElementById('urgentList');
     const urgentTitle = urgentList?.closest('section')?.querySelector('h3');
-    if (urgentTitle) urgentTitle.textContent = 'งานที่ล่าช้าหรือใกล้ถึงกำหนดส่ง (Overdue / Urgent) (Overdue / Urgent)';
+    if (urgentTitle) urgentTitle.textContent = 'งานที่ล่าช้าหรือใกล้ถึงกำหนดส่ง (Overdue / Urgent)';
 }
 
 function getProjectApprovedBudget(project) {
