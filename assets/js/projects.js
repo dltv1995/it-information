@@ -1,6 +1,6 @@
 // assets/js/projects.js
 // Ready-to-replace file: Projects + Fiscal Year + Section Filter + Delete permissions
-// Version: projects-budget-per-year-v19
+// Version: projects-budget-per-year-v20-ready
 
 import { db, auth } from './firebase-config.js';
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -17,7 +17,7 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-console.log('projects.js loaded: projects-budget-per-year-v19');
+console.log('projects.js loaded: projects-budget-per-year-v20-ready');
 
 const DEFAULT_TOTAL_BUDGET = 1500000;
 const PROJECTS_COLLECTION = 'projects';
@@ -649,7 +649,7 @@ function ensureGlobalBudgetModal() {
           <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">งบประมาณรวมของปีงบประมาณที่เลือก (บาท)</label>
           <input type="number" id="globalBudgetInput" min="0" step="1000" class="w-full px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none">
         </div>
-        <p class="text-xs text-slate-500 dark:text-slate-400">บันทึกที่ Firestore: <code>settings/budget.totalBudget</code></p>
+        <p class="text-xs text-slate-500 dark:text-slate-400">บันทึกที่ Firestore: <code>fiscal_years/{ปี}.totalBudget</code></p>
         <div class="pt-2 flex justify-end gap-3">
           <button type="button" id="cancelGlobalBudgetBtn" class="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors">ยกเลิก</button>
           <button type="button" id="saveGlobalBudgetBtn" class="px-5 py-2 text-sm font-medium text-white bg-sky-600 hover:bg-sky-700 rounded-lg shadow-sm transition-colors flex items-center gap-2"><span>บันทึกงบรวม</span><span id="saveGlobalBudgetSpinner" class="hidden inline-block animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span></button>
@@ -998,18 +998,21 @@ async function saveGlobalBudget() {
     showGlobalBudgetError('บัญชีนี้ไม่มีสิทธิ์แก้ไขงบประมาณรวม');
     return;
   }
+
   const value = Number(document.getElementById('globalBudgetInput')?.value || 0);
   const saveBtn = document.getElementById('saveGlobalBudgetBtn');
   const spinner = document.getElementById('saveGlobalBudgetSpinner');
+
   if (!Number.isFinite(value) || value < 0) {
     showGlobalBudgetError('กรุณาระบุงบประมาณรวมให้ถูกต้อง');
     return;
   }
+
   try {
     if (saveBtn) saveBtn.disabled = true;
     spinner?.classList.remove('hidden');
-    const year = getSelectedFiscalYear();
 
+    const year = String(getSelectedFiscalYear());
     await setDoc(getFiscalYearDocRef(year), {
       year,
       label: `ปีงบประมาณ ${year}`,
@@ -1020,6 +1023,7 @@ async function saveGlobalBudget() {
     }, { merge: true });
 
     totalBudgetLimit = value;
+    updateGlobalBudget(lastApprovedBudgetTotal);
     closeGlobalBudgetModal();
   } catch (error) {
     console.error('Save fiscal year budget error:', error);
@@ -1039,11 +1043,55 @@ function showGlobalBudgetError(message) {
 
 function listenGlobalBudget() {
   if (unsubscribeBudget) unsubscribeBudget();
-  unsubscribeBudget = onSnapshot(BUDGET_REF, (snap) => {
-    totalBudgetLimit = snap.exists() ? Number(snap.data().totalBudget || DEFAULT_TOTAL_BUDGET) : DEFAULT_TOTAL_BUDGET;
+
+  const year = String(getSelectedFiscalYear());
+  const yearBudgetRef = getFiscalYearDocRef(year);
+
+  unsubscribeBudget = onSnapshot(yearBudgetRef, async (snap) => {
+    if (snap.exists()) {
+      const data = snap.data();
+      const value = Number(data.totalBudget ?? data.budget ?? data.budgetLimit ?? NaN);
+      totalBudgetLimit = Number.isFinite(value) && value >= 0 ? value : DEFAULT_TOTAL_BUDGET;
+      updateGlobalBudget(lastApprovedBudgetTotal);
+      return;
+    }
+
+    // Fallback สำหรับปีที่ยังไม่มีงบใน fiscal_years/{year}
+    let fallbackBudget = DEFAULT_TOTAL_BUDGET;
+    try {
+      const budgetSnap = await getDoc(BUDGET_REF);
+      fallbackBudget = budgetSnap.exists()
+        ? Number(budgetSnap.data().totalBudget || DEFAULT_TOTAL_BUDGET)
+        : DEFAULT_TOTAL_BUDGET;
+    } catch (error) {
+      console.warn('Read fallback settings/budget failed:', error);
+    }
+
+    totalBudgetLimit = Number.isFinite(fallbackBudget) && fallbackBudget >= 0
+      ? fallbackBudget
+      : DEFAULT_TOTAL_BUDGET;
+
+    // ถ้าผู้ใช้มีสิทธิ์ ให้สร้างค่าเริ่มต้นของปีนี้ไว้ใน fiscal_years/{year}
+    try {
+      if (canApprove) {
+        await setDoc(yearBudgetRef, {
+          year,
+          label: `ปีงบประมาณ ${year}`,
+          totalBudget: totalBudgetLimit,
+          createdBy: currentUserUid,
+          createdByName: currentUser?.name || currentUser?.email || 'Unknown',
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+      }
+    } catch (error) {
+      console.warn('Create fiscal year budget fallback failed:', error);
+    }
+
     updateGlobalBudget(lastApprovedBudgetTotal);
   }, (error) => {
-    console.error('Global budget listener error:', error);
+    console.error('Fiscal year budget listener error:', error);
+    totalBudgetLimit = getFiscalYearBudgetValue(year);
     updateGlobalBudget(lastApprovedBudgetTotal);
   });
 }
