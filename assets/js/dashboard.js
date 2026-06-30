@@ -1,7 +1,7 @@
 // assets/js/dashboard.js
 // Firebase-only Dashboard + Global Budget from Firestore settings/budget
 // แก้ปัญหา "ช่องงบประมาณรวมเป็น 0" โดยอ่านงบรวมจาก settings/budget.totalBudget
-// Version: dashboard-fiscal-filter-budget-v18
+// Version: dashboard-polished-v19
 
 import { auth, db } from './firebase-config.js';
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -12,7 +12,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-console.log('dashboard.js loaded: dashboard-fiscal-filter-budget-v18');
+console.log('dashboard.js loaded: dashboard-polished-v19');
 
 const DEFAULT_TOTAL_BUDGET = 1500000;
 const SECTION_LABELS = {
@@ -290,16 +290,21 @@ function ensureDashboardFilterControls() {
     const header = section.querySelector('.px-6.py-5') || section.firstElementChild;
     if (!header) return;
 
+    header.classList.add('bg-gradient-to-br', 'from-slate-50/80', 'to-white/40', 'dark:from-slate-900/70', 'dark:to-slate-950/40');
+
     const controls = document.createElement('div');
     controls.id = 'dashboardFilterControls';
-    controls.className = 'mt-4 grid grid-cols-1 xl:grid-cols-[220px_1fr] gap-3 items-end';
+    controls.className = 'mt-5 grid grid-cols-1 xl:grid-cols-[240px_1fr] gap-4 items-end';
     controls.innerHTML = `
         <div>
-            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">เลือกปีงบประมาณ</label>
-            <select id="dashboardFiscalYearSelect" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-800 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none"></select>
+            <label class="block text-xs font-extrabold tracking-wide text-slate-500 dark:text-slate-400 mb-2">เลือกปีงบประมาณ</label>
+            <select id="dashboardFiscalYearSelect" class="w-full px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-800 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none"></select>
         </div>
         <div>
-            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">แสดงโครงการ</label>
+            <div class="flex items-center justify-between gap-3 mb-2">
+                <label class="block text-xs font-extrabold tracking-wide text-slate-500 dark:text-slate-400">แสดงโครงการ</label>
+                <span id="dashboardFilterHint" class="hidden md:inline text-[11px] text-slate-400 dark:text-slate-500">คลิกเพื่อกรองตามส่วนงาน</span>
+            </div>
             <div id="dashboardSectionFilterBtns" class="flex flex-wrap gap-2">
                 <button type="button" data-section="all" class="dashboard-filter-btn px-3 py-2 rounded-xl text-xs font-bold border transition-colors">ทั้งหมด</button>
                 <button type="button" data-section="information" class="dashboard-filter-btn px-3 py-2 rounded-xl text-xs font-bold border transition-colors">สารสนเทศ</button>
@@ -502,6 +507,128 @@ function buildWorkloads(tasks) {
     return Array.from(map.values());
 }
 
+
+function injectDashboardPolishStyle() {
+    if (document.getElementById('dashboardPolishStyleV19')) return;
+    const style = document.createElement('style');
+    style.id = 'dashboardPolishStyleV19';
+    style.textContent = `
+        :root {
+            --dash-ring: rgba(14, 165, 233, .34);
+            --dash-card: rgba(255,255,255,.76);
+            --dash-card-dark: rgba(15,23,42,.78);
+        }
+        .dashboard-card {
+            border-radius: 28px !important;
+            border: 1px solid rgba(148,163,184,.22) !important;
+            background: linear-gradient(145deg, rgba(255,255,255,.82), rgba(248,250,252,.56)) !important;
+            box-shadow: 0 22px 70px rgba(15,23,42,.08) !important;
+            overflow: hidden !important;
+        }
+        html.dark .dashboard-card {
+            background: linear-gradient(145deg, rgba(15,23,42,.88), rgba(2,6,23,.72)) !important;
+            border-color: rgba(148,163,184,.20) !important;
+            box-shadow: 0 24px 80px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.04) !important;
+        }
+        #dashboardFilterControls {
+            padding: 14px;
+            border-radius: 24px;
+            background: rgba(15,23,42,.035);
+            border: 1px solid rgba(148,163,184,.16);
+        }
+        html.dark #dashboardFilterControls {
+            background: rgba(2,6,23,.32);
+            border-color: rgba(148,163,184,.16);
+        }
+        #dashboardFiscalYearSelect {
+            font-weight: 800;
+            min-height: 44px;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+        }
+        .dashboard-filter-btn {
+            min-height: 40px;
+            border-radius: 999px !important;
+            letter-spacing: .01em;
+            box-shadow: 0 8px 22px rgba(15,23,42,.05);
+        }
+        .dashboard-filter-btn.bg-sky-600 {
+            box-shadow: 0 10px 28px rgba(14,165,233,.28), inset 0 1px 0 rgba(255,255,255,.22);
+        }
+        .dash-project-card {
+            position: relative;
+            border-radius: 26px !important;
+            border: 1px solid rgba(148,163,184,.20) !important;
+            background: linear-gradient(135deg, rgba(255,255,255,.76), rgba(248,250,252,.46)) !important;
+            box-shadow: 0 18px 48px rgba(15,23,42,.08) !important;
+            overflow: hidden;
+        }
+        html.dark .dash-project-card {
+            background: linear-gradient(135deg, rgba(15,23,42,.74), rgba(2,6,23,.56)) !important;
+            border-color: rgba(148,163,184,.18) !important;
+            box-shadow: 0 18px 52px rgba(0,0,0,.30) !important;
+        }
+        .dash-project-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at top left, var(--section-soft, rgba(14,165,233,.18)), transparent 34%);
+            pointer-events: none;
+        }
+        .dash-project-card > * { position: relative; z-index: 1; }
+        .dash-project-card:hover {
+            transform: translateY(-2px);
+            border-color: var(--section-color, rgba(14,165,233,.55)) !important;
+            box-shadow: 0 24px 72px rgba(14,165,233,.13) !important;
+        }
+        .dash-code-badge {
+            width: 48px;
+            height: 48px;
+            border-radius: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 900;
+            box-shadow: 0 12px 30px var(--section-soft, rgba(14,165,233,.25));
+        }
+        .dash-budget-pill {
+            border-radius: 18px;
+            padding: 10px 14px;
+            background: rgba(15,23,42,.035);
+            border: 1px solid rgba(148,163,184,.13);
+        }
+        html.dark .dash-budget-pill { background: rgba(2,6,23,.34); }
+        .progress-track {
+            height: 10px !important;
+            border-radius: 999px !important;
+            background: rgba(148,163,184,.18) !important;
+            overflow: hidden !important;
+        }
+        .progress-fill {
+            height: 100% !important;
+            border-radius: 999px !important;
+            box-shadow: 0 0 20px currentColor;
+        }
+        #urgentList article {
+            border-radius: 22px !important;
+            transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+        }
+        #urgentList article:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 18px 48px rgba(15,23,42,.10);
+        }
+        .chart-box {
+            min-height: 320px;
+        }
+        @media (max-width: 768px) {
+            .dash-project-card { padding: 18px !important; }
+            .dash-code-badge { width: 42px; height: 42px; border-radius: 15px; }
+            #dashboardFilterControls { padding: 12px; }
+        }
+    `;
+    document.head.appendChild(style);
+}
+
 function applyTopMetricCardColors() {
     const cards = [
         { id: 'totalBudget', color: '#2563eb', bg: 'rgba(37,99,235,.26)', darkBg: 'rgba(37,99,235,.34)' },
@@ -525,6 +652,7 @@ function applyTopMetricCardColors() {
 }
 
 function renderDashboard(data) {
+    injectDashboardPolishStyle();
     const projects = Array.isArray(data.projects) ? data.projects : [];
     const urgentTasks = Array.isArray(data.urgentTasks) ? data.urgentTasks : [];
 
@@ -656,7 +784,7 @@ function renderProjects(projects) {
     const list = document.getElementById('projectList');
     if (!list) return;
     if (!projects.length) {
-        list.innerHTML = `<div class="rounded-2xl border border-slate-200/80 dark:border-slate-700/80 p-5 text-sm text-slate-500 dark:text-slate-400">ยังไม่มีข้อมูลโครงการใน Firebase</div>`;
+        list.innerHTML = `<div class="rounded-3xl border border-slate-200/80 dark:border-slate-700/80 p-8 text-center text-sm text-slate-500 dark:text-slate-400 bg-white/50 dark:bg-slate-900/50">ยังไม่มีข้อมูลโครงการในปีงบประมาณ/ส่วนงานที่เลือก</div>`;
         return;
     }
     list.innerHTML = projects.map(project => {
@@ -666,25 +794,30 @@ function renderProjects(projects) {
         const section = getProjectSection(project);
         const sectionColor = getSectionColor(section);
         const sectionLabel = getSectionLabel(section);
+        const sectionSoft = `${sectionColor}33`;
         return `
-            <article onclick="window.openDashboardProjectDetails('${escapeAttr(project.id)}')" class="cursor-pointer rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-white/60 dark:bg-slate-900/55 p-5 hover:border-sky-400/70 hover:shadow-lg transition-all">
-                <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
-                    <div class="flex items-start gap-3 min-w-0">
-                        <div class="w-10 h-10 rounded-xl text-white flex items-center justify-center font-bold shrink-0 shadow-sm" style="background:${escapeAttr(sectionColor)}" title="${escapeAttr(sectionLabel)}">${escapeHtml(project.code || 'งา')}</div>
-                        <div class="min-w-0">
-                            <h4 class="font-bold text-slate-900 dark:text-white truncate">${escapeHtml(project.name)}</h4>
-                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">${escapeHtml(project.owner)}</p>
-                            <p class="text-xs font-semibold mt-1" style="color:${escapeAttr(sectionColor)}">ส่วนงาน: ${escapeHtml(sectionLabel)}</p>
-                            <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">สถานะ: ${escapeHtml(statusText)} • ระยะเวลา: ${escapeHtml(project.durationLabel || '-')}</p>
+            <article onclick="window.openDashboardProjectDetails('${escapeAttr(project.id)}')" class="dash-project-card cursor-pointer p-5 transition-all" style="--section-color:${escapeAttr(sectionColor)};--section-soft:${escapeAttr(sectionSoft)}">
+                <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                    <div class="flex items-start gap-4 min-w-0">
+                        <div class="dash-code-badge shrink-0" style="background:${escapeAttr(sectionColor)}" title="${escapeAttr(sectionLabel)}">${escapeHtml(project.code || 'งา')}</div>
+                        <div class="min-w-0 flex-1">
+                            <div class="flex flex-wrap items-center gap-2 mb-1">
+                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-extrabold" style="background:${escapeAttr(sectionColor)}22;color:${escapeAttr(sectionColor)}">${escapeHtml(sectionLabel)}</span>
+                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">${escapeHtml(statusText)}</span>
+                            </div>
+                            <h4 class="font-extrabold text-lg text-slate-900 dark:text-white leading-snug">${escapeHtml(project.name)}</h4>
+                            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">${escapeHtml(project.owner)}</p>
+                            <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">ระยะเวลา: ${escapeHtml(project.durationLabel || '-')}</p>
                         </div>
                     </div>
-                    <div class="text-right shrink-0">
-                        <p class="text-[11px] text-slate-500 dark:text-slate-400 font-semibold">งบที่อนุมัติ</p>
-                        <strong class="text-slate-900 dark:text-white">${baht(approvedBudget)}</strong>
+                    <div class="dash-budget-pill text-right shrink-0 min-w-[150px]">
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400 font-bold">งบที่อนุมัติ</p>
+                        <strong class="text-xl text-slate-900 dark:text-white">${baht(approvedBudget)}</strong>
+                        <p class="text-[11px] mt-1" style="color:${escapeAttr(sectionColor)}">${budgetPercent}% ของงบรวม</p>
                     </div>
                 </div>
-                <div class="mt-4">
-                    <div class="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
+                <div class="mt-5">
+                    <div class="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-2">
                         <span>สัดส่วนงบที่อนุมัติ</span>
                         <span>${budgetPercent}%</span>
                     </div>
