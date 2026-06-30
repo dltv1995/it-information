@@ -1,7 +1,7 @@
 // assets/js/dashboard.js
 // Firebase-only Dashboard + Global Budget from Firestore settings/budget
 // แก้ปัญหา "ช่องงบประมาณรวมเป็น 0" โดยอ่านงบรวมจาก settings/budget.totalBudget
-// Version: dashboard-polished-v19
+// Version: dashboard-year-top-left-v20
 
 import { auth, db } from './firebase-config.js';
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -12,7 +12,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-console.log('dashboard.js loaded: dashboard-polished-v19');
+console.log('dashboard.js loaded: dashboard-year-top-left-v20');
 
 const DEFAULT_TOTAL_BUDGET = 1500000;
 const SECTION_LABELS = {
@@ -286,48 +286,61 @@ function ensureDashboardFilterControls() {
     const projectList = document.getElementById('projectList');
     if (!projectList) return;
     const section = projectList.closest('section');
-    if (!section || document.getElementById('dashboardFilterControls')) return;
+    if (!section) return;
     const header = section.querySelector('.px-6.py-5') || section.firstElementChild;
     if (!header) return;
 
-    header.classList.add('bg-gradient-to-br', 'from-slate-50/80', 'to-white/40', 'dark:from-slate-900/70', 'dark:to-slate-950/40');
+    header.classList.add('bg-gradient-to-br', 'from-slate-50/70', 'to-white/30', 'dark:from-slate-900/55', 'dark:to-slate-950/30');
 
-    const controls = document.createElement('div');
-    controls.id = 'dashboardFilterControls';
-    controls.className = 'mt-5 grid grid-cols-1 xl:grid-cols-[240px_1fr] gap-4 items-end';
-    controls.innerHTML = `
-        <div>
-            <label class="block text-xs font-extrabold tracking-wide text-slate-500 dark:text-slate-400 mb-2">เลือกปีงบประมาณ</label>
+    // ย้ายตัวเลือกปีงบประมาณไปไว้ซ้ายบน ใต้หัวข้อหลักของกรอบนี้
+    if (!document.getElementById('dashboardFiscalYearTopLeft')) {
+        const leftArea = header.querySelector('h3')?.parentElement || header;
+        const yearBox = document.createElement('div');
+        yearBox.id = 'dashboardFiscalYearTopLeft';
+        yearBox.innerHTML = `
+            <label>เลือกปีงบประมาณ</label>
             <select id="dashboardFiscalYearSelect" class="w-full px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-800 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none"></select>
-        </div>
-        <div>
-            <div class="flex items-center justify-between gap-3 mb-2">
-                <label class="block text-xs font-extrabold tracking-wide text-slate-500 dark:text-slate-400">แสดงโครงการ</label>
-                <span id="dashboardFilterHint" class="hidden md:inline text-[11px] text-slate-400 dark:text-slate-500">คลิกเพื่อกรองตามส่วนงาน</span>
-            </div>
-            <div id="dashboardSectionFilterBtns" class="flex flex-wrap gap-2">
-                <button type="button" data-section="all" class="dashboard-filter-btn px-3 py-2 rounded-xl text-xs font-bold border transition-colors">ทั้งหมด</button>
-                <button type="button" data-section="information" class="dashboard-filter-btn px-3 py-2 rounded-xl text-xs font-bold border transition-colors">สารสนเทศ</button>
-                <button type="button" data-section="technical" class="dashboard-filter-btn px-3 py-2 rounded-xl text-xs font-bold border transition-colors">เทคนิค</button>
-                <button type="button" data-section="corporate_communication" class="dashboard-filter-btn px-3 py-2 rounded-xl text-xs font-bold border transition-colors">ประชาสัมพันธ์</button>
-            </div>
-        </div>
-    `;
-    header.appendChild(controls);
-
-    document.getElementById('dashboardFiscalYearSelect')?.addEventListener('change', event => {
-        selectedDashboardFiscalYear = event.target.value || getDefaultFiscalYear();
-        localStorage.setItem('dashboardFiscalYear', selectedDashboardFiscalYear);
-        renderDashboardFromFirebase();
-    });
-
-    document.querySelectorAll('.dashboard-filter-btn').forEach(button => {
-        button.addEventListener('click', () => {
-            selectedDashboardSectionFilter = button.dataset.section || 'all';
-            localStorage.setItem('dashboardSectionFilter', selectedDashboardSectionFilter);
+        `;
+        leftArea.appendChild(yearBox);
+        document.getElementById('dashboardFiscalYearSelect')?.addEventListener('change', event => {
+            selectedDashboardFiscalYear = event.target.value || getDefaultFiscalYear();
+            localStorage.setItem('dashboardFiscalYear', selectedDashboardFiscalYear);
             renderDashboardFromFirebase();
         });
-    });
+    }
+
+    // เหลือเฉพาะปุ่มกรองส่วนงานไว้ด้านขวา/ด้านบนของรายการ
+    if (!document.getElementById('dashboardFilterControls')) {
+        const controls = document.createElement('div');
+        controls.id = 'dashboardFilterControls';
+        controls.className = 'mt-4';
+        controls.innerHTML = `
+            <div>
+                <div class="flex items-center justify-between gap-3 mb-2">
+                    <label class="block text-xs font-extrabold tracking-wide text-slate-500 dark:text-slate-400">แสดงโครงการ</label>
+                    <span id="dashboardFilterHint" class="hidden md:inline text-[11px] text-slate-400 dark:text-slate-500">เลือกส่วนงาน</span>
+                </div>
+                <div id="dashboardSectionFilterBtns" class="flex flex-wrap gap-2">
+                    <button type="button" data-section="all" class="dashboard-filter-btn px-3 py-2 rounded-xl text-xs font-bold border transition-colors">ทั้งหมด</button>
+                    <button type="button" data-section="information" class="dashboard-filter-btn px-3 py-2 rounded-xl text-xs font-bold border transition-colors">สารสนเทศ</button>
+                    <button type="button" data-section="technical" class="dashboard-filter-btn px-3 py-2 rounded-xl text-xs font-bold border transition-colors">เทคนิค</button>
+                    <button type="button" data-section="corporate_communication" class="dashboard-filter-btn px-3 py-2 rounded-xl text-xs font-bold border transition-colors">ประชาสัมพันธ์</button>
+                </div>
+            </div>
+        `;
+
+        const flexHeader = header.querySelector('.flex') || header;
+        const rightArea = flexHeader.children.length > 1 ? flexHeader.children[flexHeader.children.length - 1] : header;
+        rightArea.appendChild(controls);
+
+        document.querySelectorAll('.dashboard-filter-btn').forEach(button => {
+            button.addEventListener('click', () => {
+                selectedDashboardSectionFilter = button.dataset.section || 'all';
+                localStorage.setItem('dashboardSectionFilter', selectedDashboardSectionFilter);
+                renderDashboardFromFirebase();
+            });
+        });
+    }
 }
 
 function updateDashboardFilterControls() {
@@ -512,6 +525,7 @@ function injectDashboardPolishStyle() {
     if (document.getElementById('dashboardPolishStyleV19')) return;
     const style = document.createElement('style');
     style.id = 'dashboardPolishStyleV19';
+    style.dataset.v20 = 'dashboardYearTopLeftStyleV20';
     style.textContent = `
         :root {
             --dash-ring: rgba(14, 165, 233, .34);
@@ -519,53 +533,53 @@ function injectDashboardPolishStyle() {
             --dash-card-dark: rgba(15,23,42,.78);
         }
         .dashboard-card {
-            border-radius: 28px !important;
+            border-radius: 22px !important;
             border: 1px solid rgba(148,163,184,.22) !important;
             background: linear-gradient(145deg, rgba(255,255,255,.82), rgba(248,250,252,.56)) !important;
-            box-shadow: 0 22px 70px rgba(15,23,42,.08) !important;
+            box-shadow: 0 14px 38px rgba(15,23,42,.055) !important;
             overflow: hidden !important;
         }
         html.dark .dashboard-card {
             background: linear-gradient(145deg, rgba(15,23,42,.88), rgba(2,6,23,.72)) !important;
             border-color: rgba(148,163,184,.20) !important;
-            box-shadow: 0 24px 80px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.04) !important;
+            box-shadow: 0 16px 46px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.035) !important;
         }
         #dashboardFilterControls {
-            padding: 14px;
-            border-radius: 24px;
-            background: rgba(15,23,42,.035);
-            border: 1px solid rgba(148,163,184,.16);
+            padding: 0;
+            border-radius: 0;
+            background: transparent;
+            border: 0;
         }
         html.dark #dashboardFilterControls {
-            background: rgba(2,6,23,.32);
-            border-color: rgba(148,163,184,.16);
+            background: transparent;
+            border-color: transparent;
         }
         #dashboardFiscalYearSelect {
             font-weight: 800;
-            min-height: 44px;
+            min-height: 42px;
             box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
         }
         .dashboard-filter-btn {
             min-height: 40px;
             border-radius: 999px !important;
             letter-spacing: .01em;
-            box-shadow: 0 8px 22px rgba(15,23,42,.05);
+            box-shadow: none;
         }
         .dashboard-filter-btn.bg-sky-600 {
             box-shadow: 0 10px 28px rgba(14,165,233,.28), inset 0 1px 0 rgba(255,255,255,.22);
         }
         .dash-project-card {
             position: relative;
-            border-radius: 26px !important;
+            border-radius: 22px !important;
             border: 1px solid rgba(148,163,184,.20) !important;
             background: linear-gradient(135deg, rgba(255,255,255,.76), rgba(248,250,252,.46)) !important;
-            box-shadow: 0 18px 48px rgba(15,23,42,.08) !important;
+            box-shadow: 0 12px 30px rgba(15,23,42,.06) !important;
             overflow: hidden;
         }
         html.dark .dash-project-card {
             background: linear-gradient(135deg, rgba(15,23,42,.74), rgba(2,6,23,.56)) !important;
             border-color: rgba(148,163,184,.18) !important;
-            box-shadow: 0 18px 52px rgba(0,0,0,.30) !important;
+            box-shadow: 0 14px 36px rgba(0,0,0,.22) !important;
         }
         .dash-project-card::before {
             content: '';
@@ -578,7 +592,7 @@ function injectDashboardPolishStyle() {
         .dash-project-card:hover {
             transform: translateY(-2px);
             border-color: var(--section-color, rgba(14,165,233,.55)) !important;
-            box-shadow: 0 24px 72px rgba(14,165,233,.13) !important;
+            box-shadow: 0 16px 42px rgba(14,165,233,.10) !important;
         }
         .dash-code-badge {
             width: 48px;
@@ -599,7 +613,7 @@ function injectDashboardPolishStyle() {
         }
         html.dark .dash-budget-pill { background: rgba(2,6,23,.34); }
         .progress-track {
-            height: 10px !important;
+            height: 8px !important;
             border-radius: 999px !important;
             background: rgba(148,163,184,.18) !important;
             overflow: hidden !important;
@@ -620,6 +634,30 @@ function injectDashboardPolishStyle() {
         .chart-box {
             min-height: 320px;
         }
+
+        #dashboardFiscalYearTopLeft {
+            margin-top: 14px;
+            max-width: 280px;
+        }
+        #dashboardFiscalYearTopLeft label {
+            display: block;
+            margin-bottom: 7px;
+            font-size: 11px;
+            font-weight: 900;
+            letter-spacing: .02em;
+            color: rgb(100,116,139);
+        }
+        html.dark #dashboardFiscalYearTopLeft label { color: rgb(148,163,184); }
+        #dashboardFiscalYearSelect {
+            min-height: 42px;
+            border-radius: 16px !important;
+            padding-left: 14px !important;
+            padding-right: 14px !important;
+        }
+        #dashboardFilterControls {
+            margin-top: 0 !important;
+        }
+
         @media (max-width: 768px) {
             .dash-project-card { padding: 18px !important; }
             .dash-code-badge { width: 42px; height: 42px; border-radius: 15px; }
@@ -784,7 +822,7 @@ function renderProjects(projects) {
     const list = document.getElementById('projectList');
     if (!list) return;
     if (!projects.length) {
-        list.innerHTML = `<div class="rounded-3xl border border-slate-200/80 dark:border-slate-700/80 p-8 text-center text-sm text-slate-500 dark:text-slate-400 bg-white/50 dark:bg-slate-900/50">ยังไม่มีข้อมูลโครงการในปีงบประมาณ/ส่วนงานที่เลือก</div>`;
+        list.innerHTML = `<div class="rounded-3xl border border-slate-200/80 dark:border-slate-700/80 p-8 text-center text-sm text-slate-500 dark:text-slate-400 bg-white/50 dark:bg-slate-900/50">ยังไม่มีข้อมูลโครงการในปีงบประมาณหรือส่วนงานที่เลือก</div>`;
         return;
     }
     list.innerHTML = projects.map(project => {
