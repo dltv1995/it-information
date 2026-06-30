@@ -1,7 +1,7 @@
 // assets/js/dashboard.js
 // Firebase-only Dashboard + Global Budget from Firestore settings/budget
 // แก้ปัญหา "ช่องงบประมาณรวมเป็น 0" โดยอ่านงบรวมจาก settings/budget.totalBudget
-// Version: dashboard-year-top-left-v20
+// Version: dashboard-top-year-toolbar-v21
 
 import { auth, db } from './firebase-config.js';
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -12,7 +12,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-console.log('dashboard.js loaded: dashboard-year-top-left-v20');
+console.log('dashboard.js loaded: dashboard-top-year-toolbar-v21');
 
 const DEFAULT_TOTAL_BUDGET = 1500000;
 const SECTION_LABELS = {
@@ -282,79 +282,104 @@ function projectMatchesDashboardFilters(project) {
     return getProjectSection(project) === selectedDashboardSectionFilter;
 }
 
+
+function ensureDashboardTopFiscalYearControls() {
+    const totalBudgetEl = document.getElementById('totalBudget');
+    const metricGrid = totalBudgetEl?.closest('.grid');
+    if (!metricGrid || document.getElementById('dashboardTopFiscalYearBar')) return;
+
+    const bar = document.createElement('div');
+    bar.id = 'dashboardTopFiscalYearBar';
+    bar.className = 'mb-5 flex flex-col md:flex-row md:items-end md:justify-between gap-4';
+    bar.innerHTML = `
+        <div class="max-w-xs">
+            <label class="block text-xs font-extrabold tracking-wide text-slate-500 dark:text-slate-400 mb-2">เลือกปีงบประมาณ</label>
+            <select id="dashboardFiscalYearSelect" class="w-full px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-extrabold text-slate-800 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none shadow-sm"></select>
+        </div>
+        <div class="hidden md:block text-right">
+            <p class="text-xs font-bold text-slate-400 dark:text-slate-500">ข้อมูลสรุปทั้งหมดเปลี่ยนตามปีงบประมาณที่เลือก</p>
+        </div>
+    `;
+    metricGrid.parentNode.insertBefore(bar, metricGrid);
+
+    document.getElementById('dashboardFiscalYearSelect')?.addEventListener('change', event => {
+        selectedDashboardFiscalYear = event.target.value || getDefaultFiscalYear();
+        localStorage.setItem('dashboardFiscalYear', selectedDashboardFiscalYear);
+        renderDashboardFromFirebase();
+    });
+}
+
+function updateDashboardTopFiscalYearControls() {
+    ensureDashboardTopFiscalYearControls();
+    const select = document.getElementById('dashboardFiscalYearSelect');
+    if (!select) return;
+    const years = getAvailableFiscalYears();
+    select.innerHTML = years.map(year => `<option value="${escapeAttr(year)}">ปีงบประมาณ ${escapeHtml(year)}</option>`).join('');
+    select.value = selectedDashboardFiscalYear;
+    if (!select.value && years.length) {
+        selectedDashboardFiscalYear = years[0];
+        select.value = selectedDashboardFiscalYear;
+    }
+}
+
 function ensureDashboardFilterControls() {
     const projectList = document.getElementById('projectList');
     if (!projectList) return;
     const section = projectList.closest('section');
-    if (!section) return;
+    if (!section || document.getElementById('dashboardProjectHeaderToolbar')) return;
     const header = section.querySelector('.px-6.py-5') || section.firstElementChild;
     if (!header) return;
 
     header.classList.add('bg-gradient-to-br', 'from-slate-50/70', 'to-white/30', 'dark:from-slate-900/55', 'dark:to-slate-950/30');
 
-    // ย้ายตัวเลือกปีงบประมาณไปไว้ซ้ายบน ใต้หัวข้อหลักของกรอบนี้
-    if (!document.getElementById('dashboardFiscalYearTopLeft')) {
-        const leftArea = header.querySelector('h3')?.parentElement || header;
-        const yearBox = document.createElement('div');
-        yearBox.id = 'dashboardFiscalYearTopLeft';
-        yearBox.innerHTML = `
-            <label>เลือกปีงบประมาณ</label>
-            <select id="dashboardFiscalYearSelect" class="w-full px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-800 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none"></select>
-        `;
-        leftArea.appendChild(yearBox);
-        document.getElementById('dashboardFiscalYearSelect')?.addEventListener('change', event => {
-            selectedDashboardFiscalYear = event.target.value || getDefaultFiscalYear();
-            localStorage.setItem('dashboardFiscalYear', selectedDashboardFiscalYear);
+    const titleArea = header.querySelector('h3')?.parentElement || header;
+    const title = titleArea.querySelector('h3');
+    const subtitle = titleArea.querySelector('p');
+    if (title) title.textContent = 'สถานะงบประมาณโครงการย่อย';
+    if (subtitle) subtitle.textContent = 'แสดงโครงการตามปีงบประมาณและส่วนงานที่เลือก';
+
+    const toolbar = document.createElement('div');
+    toolbar.id = 'dashboardProjectHeaderToolbar';
+    toolbar.className = 'mt-5 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4';
+    toolbar.innerHTML = `
+        <div class="flex items-center gap-2">
+            <button type="button" id="dashboardAddProjectBtn" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-slate-900 text-white dark:bg-white dark:text-slate-900 text-xs font-extrabold shadow-sm hover:opacity-90 transition-opacity">
+                <i class="ph ph-plus-circle text-base"></i>
+                <span>เพิ่มโครงการ</span>
+            </button>
+        </div>
+        <div id="dashboardFilterControls" class="flex flex-col sm:flex-row sm:items-center gap-3 xl:justify-end">
+            <span class="text-xs font-extrabold tracking-wide text-slate-500 dark:text-slate-400 whitespace-nowrap">แสดงโครงการ</span>
+            <div id="dashboardSectionFilterBtns" class="flex flex-wrap gap-2 justify-start xl:justify-end">
+                <button type="button" data-section="all" class="dashboard-filter-btn px-3 py-2 rounded-xl text-xs font-bold border transition-colors">ทั้งหมด</button>
+                <button type="button" data-section="information" class="dashboard-filter-btn px-3 py-2 rounded-xl text-xs font-bold border transition-colors">สารสนเทศ</button>
+                <button type="button" data-section="technical" class="dashboard-filter-btn px-3 py-2 rounded-xl text-xs font-bold border transition-colors">เทคนิค</button>
+                <button type="button" data-section="corporate_communication" class="dashboard-filter-btn px-3 py-2 rounded-xl text-xs font-bold border transition-colors">ประชาสัมพันธ์</button>
+            </div>
+        </div>
+    `;
+    header.appendChild(toolbar);
+
+    document.getElementById('dashboardAddProjectBtn')?.addEventListener('click', () => {
+        if (window.top && window.top !== window && window.top.location) {
+            window.top.location.href = 'projects.html';
+        } else {
+            window.location.href = 'projects.html';
+        }
+    });
+
+    document.querySelectorAll('.dashboard-filter-btn').forEach(button => {
+        button.addEventListener('click', () => {
+            selectedDashboardSectionFilter = button.dataset.section || 'all';
+            localStorage.setItem('dashboardSectionFilter', selectedDashboardSectionFilter);
             renderDashboardFromFirebase();
         });
-    }
-
-    // เหลือเฉพาะปุ่มกรองส่วนงานไว้ด้านขวา/ด้านบนของรายการ
-    if (!document.getElementById('dashboardFilterControls')) {
-        const controls = document.createElement('div');
-        controls.id = 'dashboardFilterControls';
-        controls.className = 'mt-4';
-        controls.innerHTML = `
-            <div>
-                <div class="flex items-center justify-between gap-3 mb-2">
-                    <label class="block text-xs font-extrabold tracking-wide text-slate-500 dark:text-slate-400">แสดงโครงการ</label>
-                    <span id="dashboardFilterHint" class="hidden md:inline text-[11px] text-slate-400 dark:text-slate-500">เลือกส่วนงาน</span>
-                </div>
-                <div id="dashboardSectionFilterBtns" class="flex flex-wrap gap-2">
-                    <button type="button" data-section="all" class="dashboard-filter-btn px-3 py-2 rounded-xl text-xs font-bold border transition-colors">ทั้งหมด</button>
-                    <button type="button" data-section="information" class="dashboard-filter-btn px-3 py-2 rounded-xl text-xs font-bold border transition-colors">สารสนเทศ</button>
-                    <button type="button" data-section="technical" class="dashboard-filter-btn px-3 py-2 rounded-xl text-xs font-bold border transition-colors">เทคนิค</button>
-                    <button type="button" data-section="corporate_communication" class="dashboard-filter-btn px-3 py-2 rounded-xl text-xs font-bold border transition-colors">ประชาสัมพันธ์</button>
-                </div>
-            </div>
-        `;
-
-        const flexHeader = header.querySelector('.flex') || header;
-        const rightArea = flexHeader.children.length > 1 ? flexHeader.children[flexHeader.children.length - 1] : header;
-        rightArea.appendChild(controls);
-
-        document.querySelectorAll('.dashboard-filter-btn').forEach(button => {
-            button.addEventListener('click', () => {
-                selectedDashboardSectionFilter = button.dataset.section || 'all';
-                localStorage.setItem('dashboardSectionFilter', selectedDashboardSectionFilter);
-                renderDashboardFromFirebase();
-            });
-        });
-    }
+    });
 }
 
 function updateDashboardFilterControls() {
+    updateDashboardTopFiscalYearControls();
     ensureDashboardFilterControls();
-    const select = document.getElementById('dashboardFiscalYearSelect');
-    if (select) {
-        const years = getAvailableFiscalYears();
-        select.innerHTML = years.map(year => `<option value="${escapeAttr(year)}">ปีงบประมาณ ${escapeHtml(year)}</option>`).join('');
-        select.value = selectedDashboardFiscalYear;
-        if (!select.value && years.length) {
-            selectedDashboardFiscalYear = years[0];
-            select.value = selectedDashboardFiscalYear;
-        }
-    }
     document.querySelectorAll('.dashboard-filter-btn').forEach(button => {
         const active = button.dataset.section === selectedDashboardSectionFilter;
         button.className = active
@@ -654,8 +679,21 @@ function injectDashboardPolishStyle() {
             padding-left: 14px !important;
             padding-right: 14px !important;
         }
-        #dashboardFilterControls {
-            margin-top: 0 !important;
+        #dashboardFilterControls { margin-top: 0 !important; }
+
+
+        #dashboardTopFiscalYearBar {
+            padding: 0 2px;
+        }
+        #dashboardProjectHeaderToolbar {
+            border-top: 1px solid rgba(148,163,184,.14);
+            padding-top: 16px;
+        }
+        #dashboardAddProjectBtn {
+            box-shadow: 0 10px 26px rgba(15,23,42,.10);
+        }
+        html.dark #dashboardAddProjectBtn {
+            box-shadow: 0 10px 26px rgba(255,255,255,.05);
         }
 
         @media (max-width: 768px) {
