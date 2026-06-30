@@ -1057,7 +1057,7 @@ function renderBudgetChart(summary, projects = []) {
 
     const chartLabels = labels.length ? [...labels, 'คงเหลือ'] : ['คงเหลือ'];
     const chartValues = values.length ? [...values, remaining] : [remaining || 1];
-    const chartColors = colors.length ? [...colors, '#10b981'] : ['#10b981'];
+    const chartColors = colors.length ? [...colors, '#7a7a7a'] : ['#7a7a7a'];
 
     if (budgetChart) budgetChart.destroy();
     budgetChart = new Chart(canvas, {
