@@ -1,7 +1,7 @@
 // assets/js/dashboard.js
 // Firebase-only Dashboard + Global Budget from Firestore settings/budget
 // แก้ปัญหา "ช่องงบประมาณรวมเป็น 0" โดยอ่านงบรวมจาก settings/budget.totalBudget
-// Version: dashboard-budget-per-year-v24
+// Version: dashboard-combined-section-budget-v25
 
 import { auth, db } from './firebase-config.js';
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -12,7 +12,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-console.log('dashboard.js loaded: dashboard-budget-per-year-v24');
+console.log('dashboard.js loaded: dashboard-combined-section-budget-v25');
 
 const DEFAULT_TOTAL_BUDGET = 1500000;
 const SECTION_LABELS = {
@@ -435,10 +435,7 @@ function updateDashboardFilterControls() {
 function updateDashboardSectionTitles() {
     const budgetCanvas = document.getElementById('budgetChart');
     const budgetTitle = budgetCanvas?.closest('section')?.querySelector('h3');
-    if (budgetTitle) budgetTitle.textContent = 'สัดส่วนงบประมาณทั้งหมด ใช้ไป คงเหลือ';
-    const workloadCanvas = document.getElementById('workloadChart');
-    const workloadTitle = workloadCanvas?.closest('section')?.querySelector('h3');
-    if (workloadTitle) workloadTitle.textContent = 'สัดส่วนงบประมาณตามส่วนงาน';
+    if (budgetTitle) budgetTitle.textContent = 'สัดส่วนงบประมาณทั้งหมด ใช้ไปตามส่วนงาน คงเหลือ';
     const urgentList = document.getElementById('urgentList');
     const urgentTitle = urgentList?.closest('section')?.querySelector('h3');
     if (urgentTitle) urgentTitle.textContent = 'งานที่ล่าช้าหรือใกล้ถึงกำหนดส่ง (Overdue / Urgent)';
@@ -826,8 +823,8 @@ function renderDashboard(data) {
 
     renderProjects(projects);
     renderUrgentTasks(urgentTasks);
-    renderBudgetChart(data.summary);
-    renderWorkloadChart(Array.isArray(data.fiscalProjects) ? data.fiscalProjects : projects);
+    removeSectionBudgetChartPanel();
+    renderBudgetChart(data.summary, Array.isArray(data.fiscalProjects) ? data.fiscalProjects : projects);
     applyTopMetricCardColors();
 
     if (!projects.length && !tasksCache.length) {
@@ -1024,21 +1021,53 @@ function renderUrgentTasks(tasks) {
     }).join('');
 }
 
-function renderBudgetChart(summary) {
+
+function removeSectionBudgetChartPanel() {
+    const canvas = document.getElementById('workloadChart');
+    const section = canvas?.closest('section');
+    const parent = section?.parentElement;
+    if (section) section.remove();
+    if (parent) parent.className = 'grid grid-cols-1 gap-5';
+}
+
+function renderBudgetChart(summary, projects = []) {
     const canvas = document.getElementById('budgetChart');
     if (!canvas || typeof Chart === 'undefined') return;
+
     const total = toNumber(summary?.totalBudget || globalBudget || DEFAULT_TOTAL_BUDGET);
-    const used = toNumber(summary?.usedBudget || 0);
-    const remaining = Math.max(toNumber(summary?.remainingBudget ?? (total - used)), 0);
+    const approvedProjects = Array.isArray(projects)
+        ? projects.filter(project => project.status === 'approved')
+        : [];
+
+    const sectionTotals = new Map();
+    approvedProjects.forEach(project => {
+        const section = getProjectSection(project);
+        const approvedBudget = getProjectApprovedBudget(project);
+        if (approvedBudget > 0) {
+            sectionTotals.set(section, (sectionTotals.get(section) || 0) + approvedBudget);
+        }
+    });
+
+    const used = Array.from(sectionTotals.values()).reduce((sum, value) => sum + toNumber(value), 0);
+    const remaining = Math.max(total - used, 0);
+    const sectionKeys = Array.from(sectionTotals.keys());
+    const labels = sectionKeys.map(getSectionLabel);
+    const values = Array.from(sectionTotals.values());
+    const colors = sectionKeys.map(getSectionColor);
+
+    const chartLabels = labels.length ? [...labels, 'คงเหลือ'] : ['คงเหลือ'];
+    const chartValues = values.length ? [...values, remaining] : [remaining || 1];
+    const chartColors = colors.length ? [...colors, '#10b981'] : ['#10b981'];
+
     if (budgetChart) budgetChart.destroy();
     budgetChart = new Chart(canvas, {
         type: 'pie',
         data: {
-            labels: ['ใช้ไป / อนุมัติแล้ว', 'คงเหลือ'],
+            labels: chartLabels,
             datasets: [{
                 label: `งบประมาณทั้งหมด ${baht(total)}`,
-                data: [used, remaining],
-                backgroundColor: ['#f59e0b', '#10b981'],
+                data: chartValues,
+                backgroundColor: chartColors,
                 borderColor: 'rgba(255,255,255,.18)',
                 borderWidth: 2
             }]
@@ -1052,35 +1081,8 @@ function chartPieOptions() {
     return { responsive: true, maintainAspectRatio: false, animation: false, plugins: { legend: { position: 'top', labels: { color: isDark ? '#cbd5e1' : '#475569', boxWidth: 18, usePointStyle: true } }, tooltip: { callbacks: { label: (context) => { const value = Number(context.raw || 0); const total = context.dataset.data.reduce((sum, item) => sum + Number(item || 0), 0); const pct = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0'; return `${context.label}: ${baht(value)} (${pct}%)`; } } } } };
 }
 
-function renderWorkloadChart(projects) {
-    const canvas = document.getElementById('workloadChart');
-    if (!canvas || typeof Chart === 'undefined') return;
-    const approvedProjects = projects.filter(project => project.status === 'approved');
-    const sectionTotals = new Map();
-    approvedProjects.forEach(project => {
-        const section = getProjectSection(project);
-        const approvedBudget = getProjectApprovedBudget(project);
-        sectionTotals.set(section, (sectionTotals.get(section) || 0) + approvedBudget);
-    });
-    const sectionKeys = Array.from(sectionTotals.keys());
-    const labels = sectionKeys.map(getSectionLabel);
-    const values = Array.from(sectionTotals.values());
-    const colors = sectionKeys.map(getSectionColor);
-    if (workloadChart) workloadChart.destroy();
-    workloadChart = new Chart(canvas, {
-        type: 'pie',
-        data: {
-            labels: labels.length ? labels : ['ยังไม่มีงบอนุมัติ'],
-            datasets: [{
-                label: 'งบที่อนุมัติแล้วตามส่วนงาน (บาท)',
-                data: values.length ? values : [1],
-                backgroundColor: labels.length ? colors : ['rgba(100,116,139,.35)'],
-                borderColor: 'rgba(255,255,255,.18)',
-                borderWidth: 2
-            }]
-        },
-        options: chartPieOptions()
-    });
+function renderWorkloadChart() {
+    // รวมสัดส่วนงบตามส่วนงานเข้าไปใน budgetChart แล้ว จึงไม่ต้อง render chart แยก
 }
 
 function chartBaseOptions(stacked) {
@@ -1209,10 +1211,9 @@ function getFallbackDashboardHtml() {
             </div>
             <div class="grid grid-cols-1 2xl:grid-cols-7 gap-5">
                 <section class="dashboard-card rounded-2xl 2xl:col-span-4 overflow-hidden"><div class="px-6 py-5 border-b border-slate-200/70 dark:border-slate-700/70"><h3 class="font-bold text-slate-900 dark:text-white">สถานะงบประมาณโครงการย่อย</h3></div><div id="projectList" class="p-5 space-y-4 max-h-[390px] overflow-y-auto soft-scroll"></div></section>
-                <section class="dashboard-card rounded-2xl 2xl:col-span-3 overflow-hidden"><div class="px-6 py-5 border-b border-slate-200/70 dark:border-slate-700/70"><h3 class="font-bold text-slate-900 dark:text-white">สัดส่วนงบประมาณทั้งหมด ใช้ไป คงเหลือ</h3></div><div class="p-5 chart-box"><canvas id="budgetChart"></canvas></div></section>
+                <section class="dashboard-card rounded-2xl 2xl:col-span-3 overflow-hidden"><div class="px-6 py-5 border-b border-slate-200/70 dark:border-slate-700/70"><h3 class="font-bold text-slate-900 dark:text-white">สัดส่วนงบประมาณทั้งหมด ใช้ไปตามส่วนงาน คงเหลือ</h3></div><div class="p-5 chart-box"><canvas id="budgetChart"></canvas></div></section>
             </div>
-            <div class="grid grid-cols-1 2xl:grid-cols-2 gap-5">
-                <section class="dashboard-card rounded-2xl overflow-hidden"><div class="px-6 py-5 border-b border-slate-200/70 dark:border-slate-700/70"><h3 class="font-bold text-slate-900 dark:text-white">สัดส่วนงบประมาณตามส่วนงาน</h3></div><div class="p-5 chart-box"><canvas id="workloadChart"></canvas></div></section>
+            <div class="grid grid-cols-1 gap-5">
                 <section class="dashboard-card rounded-2xl overflow-hidden"><div class="px-6 py-5 border-b border-slate-200/70 dark:border-slate-700/70"><h3 class="font-bold text-slate-900 dark:text-white">งานที่ล่าช้าหรือใกล้ถึงกำหนดส่ง (Overdue / Urgent)</h3></div><div id="urgentList" class="p-5 space-y-3"></div></section>
             </div>
         </section>
