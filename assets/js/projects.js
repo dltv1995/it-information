@@ -1,6 +1,6 @@
 // assets/js/projects.js
 // Ready-to-replace file: Projects + Fiscal Year + Section Filter + Delete permissions
-// Version: projects-full-ready-v17
+// Version: projects-year-visibility-fix-v18
 
 import { db, auth } from './firebase-config.js';
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -17,7 +17,7 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-console.log('projects.js loaded: projects-full-ready-v17');
+console.log('projects.js loaded: projects-year-visibility-fix-v18');
 
 const DEFAULT_TOTAL_BUDGET = 1500000;
 const PROJECTS_COLLECTION = 'projects';
@@ -49,7 +49,7 @@ const ROLE_LABELS = {
 
 const ALLOWED_ROLES = new Set([
   'admin', 'administrator', 'manager', 'head', 'department_head', 'head_department',
-  'section_head', 'supervisor', 'director', 'ผู้ดูแลระบบ', 'หัวหน้าฝ่าย', 'หัวหน้างาน'
+  'section_head', 'supervisor', 'director', 'teacher_head', 'deputy_director', 'principal', 'ผู้ดูแลระบบ', 'หัวหน้าฝ่าย', 'หัวหน้างาน', 'หัวหน้ากลุ่ม', 'หัวหน้าส่วน', 'ผู้อำนวยการ', 'รองผู้อำนวยการ'
 ]);
 
 const CREATOR_ROLES = new Set([
@@ -261,12 +261,51 @@ function getRoleLabel(role) {
 }
 
 function getOwnerId(project) {
-  return project?.ownerId || project?.createdBy || '';
+  return project?.ownerId || project?.createdBy || project?.userId || project?.createdByUid || '';
+}
+
+function isCurrentUserProjectOwner(project) {
+  if (!project || !currentUserUid) return false;
+  const uidCandidates = [
+    project.ownerId,
+    project.createdBy,
+    project.userId,
+    project.createdByUid,
+    project.creatorId,
+    project.submittedBy
+  ].filter(Boolean).map(String);
+
+  if (uidCandidates.includes(String(currentUserUid))) return true;
+
+  const currentEmail = String(currentUser?.email || '').trim().toLowerCase();
+  const currentName = String(currentUser?.name || '').trim().toLowerCase();
+
+  const emailCandidates = [
+    project.ownerEmail,
+    project.creatorEmail,
+    project.email,
+    project.createdByEmail,
+    project.userEmail
+  ].filter(Boolean).map(value => String(value).trim().toLowerCase());
+
+  if (currentEmail && emailCandidates.includes(currentEmail)) return true;
+
+  const nameCandidates = [
+    project.ownerName,
+    project.creatorName,
+    project.owner,
+    project.createdByName,
+    project.userName
+  ].filter(Boolean).map(value => String(value).trim().toLowerCase());
+
+  if (currentName && nameCandidates.includes(currentName)) return true;
+
+  return false;
 }
 
 function isProjectVisibleToCurrentUser(project) {
   if (canApprove) return true;
-  return getOwnerId(project) === currentUserUid;
+  return isCurrentUserProjectOwner(project);
 }
 
 function getCurrentOwnerPayload() {
@@ -444,10 +483,32 @@ async function addFiscalYearFromInput() {
   }
 }
 
+
+function getFiscalYearFromDateValue(value) {
+  if (!value) return '';
+  let date = null;
+  if (typeof value.toDate === 'function') date = value.toDate();
+  else if (value instanceof Date) date = value;
+  else if (typeof value === 'string') {
+    const parsed = new Date(`${value}T00:00:00`);
+    date = Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+  if (!date) return '';
+  const thaiYear = date.getFullYear() + 543;
+  return String(date.getMonth() >= 9 ? thaiYear + 1 : thaiYear);
+}
+
+function getProjectFiscalYearFromProject(project) {
+  const explicit = String(project?.fiscalYear || project?.year || project?.budgetYear || '').trim();
+  if (explicit) return explicit;
+  return getFiscalYearFromDateValue(project?.startDate)
+    || getFiscalYearFromDateValue(project?.createdAt)
+    || getDefaultFiscalYear();
+}
+
 function projectMatchesFiscalYear(project) {
-  const targetYear = getSelectedFiscalYear();
-  const projectYear = String(project.fiscalYear || targetYear);
-  return projectYear === targetYear;
+  const targetYear = String(getSelectedFiscalYear());
+  return getProjectFiscalYearFromProject(project) === targetYear;
 }
 
 function projectMatchesSectionFilter(project) {
@@ -1057,7 +1118,7 @@ function listenProjects() {
     visibleItems.sort((a, b) => getTime(b.createdAt) - getTime(a.createdAt));
     if (!visibleItems.length) {
       const sectionText = canApprove && selectedSectionFilter !== 'all' ? ` ในหมวด${getSectionLabel(selectedSectionFilter)}` : '';
-      grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-500">${canApprove ? `ยังไม่มีโครงการปีงบประมาณ ${getSelectedFiscalYear()}${sectionText}` : `ยังไม่มีโครงการของคุณในปีงบประมาณ ${getSelectedFiscalYear()}`}</div>`;
+      grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-500">${canApprove ? `ยังไม่มีโครงการปีงบประมาณ ${getSelectedFiscalYear()}${sectionText}` : `ยังไม่มีโครงการที่เชื่อมกับบัญชีของคุณในปีงบประมาณ ${getSelectedFiscalYear()} หากเป็นหัวหน้า/แอดมินให้ตรวจ role ใน users/{uid}`}</div>`;
     }
     visibleItems.forEach((data) => {
       window.projectsMap.set(data.id, data);
@@ -1094,7 +1155,7 @@ function normalizeProjectDoc(id, data) {
     ownerEmail: data.ownerEmail || '',
     ownerSection: data.ownerSection || data.section || '',
     ownerRole: data.ownerRole || '',
-    fiscalYear: String(data.fiscalYear || getDefaultFiscalYear()),
+    fiscalYear: getProjectFiscalYearFromProject(data),
     noDeadline: Boolean(data.noDeadline),
     startDate: data.startDate || null,
     endDate: data.endDate || null,
