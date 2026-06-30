@@ -1,6 +1,6 @@
 // assets/js/projects.js
 // Ready-to-replace file: Projects + Fiscal Year + Section Filter + Delete permissions
-// Version: projects-filter-approved-total-v21
+// Version: projects-filter-total-card-v22
 
 import { db, auth } from './firebase-config.js';
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -17,7 +17,7 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-console.log('projects.js loaded: projects-filter-approved-total-v21');
+console.log('projects.js loaded: projects-filter-total-card-v22');
 
 const DEFAULT_TOTAL_BUDGET = 1500000;
 const PROJECTS_COLLECTION = 'projects';
@@ -346,13 +346,12 @@ function ensureFiscalYearAndFilterControls() {
       </select>
     </div>
     <div id="filterApprovedTotalWrapper" class="hidden">
-      <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">รวมงบอนุมัติตามตัวกรอง</label>
-      <div class="rounded-xl border border-sky-200/70 dark:border-sky-800/70 bg-sky-50/70 dark:bg-sky-900/20 px-4 py-3 min-h-[46px]">
-        <div class="flex items-baseline justify-between gap-3">
-          <span id="filterApprovedTotalLabel" class="text-xs font-semibold text-slate-500 dark:text-slate-400 truncate">ทั้งหมด</span>
-          <strong id="filterApprovedTotal" class="text-lg font-extrabold text-sky-600 dark:text-sky-300 whitespace-nowrap">0 THB</strong>
+      <div id="filterApprovedTotalCard" class="w-full min-h-[48px] rounded-lg border px-4 py-2.5 bg-slate-50/70 dark:bg-slate-900/30 flex items-center justify-between gap-3 transition-colors duration-200">
+        <div class="min-w-0">
+          <div id="filterApprovedTotalLabel" class="text-xs font-bold truncate">ทั้งหมด</div>
+          <div id="filterApprovedTotalHint" class="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5 truncate">อนุมัติแล้ว</div>
         </div>
-        <div id="filterApprovedTotalHint" class="text-[11px] text-slate-400 dark:text-slate-500 mt-1">เฉพาะโครงการที่อนุมัติแล้ว</div>
+        <strong id="filterApprovedTotal" class="text-base font-extrabold whitespace-nowrap">0 THB</strong>
       </div>
     </div>
     <div id="fiscalYearCreateWrapper" class="hidden lg:justify-self-end">
@@ -1112,16 +1111,48 @@ function updateFilterApprovedTotal(total) {
   const totalEl = document.getElementById('filterApprovedTotal');
   const labelEl = document.getElementById('filterApprovedTotalLabel');
   const hintEl = document.getElementById('filterApprovedTotalHint');
-  if (!totalEl || !labelEl) return;
+  const cardEl = document.getElementById('filterApprovedTotalCard');
+  if (!totalEl || !labelEl || !cardEl) return;
 
-  const sectionLabel = selectedSectionFilter && selectedSectionFilter !== 'all'
-    ? getSectionLabel(selectedSectionFilter)
-    : 'ทั้งหมด';
+  const themeMap = {
+    all: {
+      label: 'ทั้งหมด',
+      border: 'rgba(14,165,233,.82)',
+      bg: 'rgba(14,165,233,.10)',
+      text: '#38bdf8'
+    },
+    information: {
+      label: 'งานสารสนเทศ',
+      border: 'rgba(16,185,129,.82)',
+      bg: 'rgba(16,185,129,.12)',
+      text: '#10b981'
+    },
+    technical: {
+      label: 'งานเทคนิค',
+      border: 'rgba(59,130,246,.82)',
+      bg: 'rgba(59,130,246,.12)',
+      text: '#3b82f6'
+    },
+    corporate_communication: {
+      label: 'งานสื่อสารองค์กร',
+      border: 'rgba(245,158,11,.86)',
+      bg: 'rgba(245,158,11,.13)',
+      text: '#f59e0b'
+    }
+  };
 
-  labelEl.textContent = sectionLabel;
+  const key = selectedSectionFilter && selectedSectionFilter !== 'all' ? selectedSectionFilter : 'all';
+  const theme = themeMap[key] || themeMap.all;
+
+  labelEl.textContent = theme.label;
   totalEl.textContent = `${formatNumber(total)} THB`;
+  totalEl.style.color = theme.text;
+  labelEl.style.color = theme.text;
+  cardEl.style.borderColor = theme.border;
+  cardEl.style.background = `linear-gradient(135deg, ${theme.bg}, rgba(15,23,42,.04))`;
+
   if (hintEl) {
-    hintEl.textContent = `ปีงบประมาณ ${getSelectedFiscalYear()} • เฉพาะโครงการที่อนุมัติแล้ว`;
+    hintEl.textContent = `ปีงบประมาณ ${getSelectedFiscalYear()} • อนุมัติแล้ว`;
   }
 }
 
