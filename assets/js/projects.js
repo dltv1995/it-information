@@ -1,6 +1,6 @@
 // assets/js/projects.js
 // Ready-to-replace file: Projects + Fiscal Year + Section Filter + Delete permissions
-// Version: projects-budget-per-year-v20-ready
+// Version: projects-filter-approved-total-v21
 
 import { db, auth } from './firebase-config.js';
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -17,7 +17,7 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-console.log('projects.js loaded: projects-budget-per-year-v20-ready');
+console.log('projects.js loaded: projects-filter-approved-total-v21');
 
 const DEFAULT_TOTAL_BUDGET = 1500000;
 const PROJECTS_COLLECTION = 'projects';
@@ -330,7 +330,7 @@ function ensureFiscalYearAndFilterControls() {
 
   const controls = document.createElement('div');
   controls.id = 'projectFiscalControls';
-  controls.className = 'mb-6 grid grid-cols-1 lg:grid-cols-3 gap-4 items-end';
+  controls.className = 'mb-6 grid grid-cols-1 lg:grid-cols-4 gap-4 items-end';
   controls.innerHTML = `
     <div>
       <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">ปีงบประมาณ</label>
@@ -344,6 +344,16 @@ function ensureFiscalYearAndFilterControls() {
         <option value="technical">เทคนิค</option>
         <option value="corporate_communication">สื่อสารองค์กร</option>
       </select>
+    </div>
+    <div id="filterApprovedTotalWrapper" class="hidden">
+      <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">รวมงบอนุมัติตามตัวกรอง</label>
+      <div class="rounded-xl border border-sky-200/70 dark:border-sky-800/70 bg-sky-50/70 dark:bg-sky-900/20 px-4 py-3 min-h-[46px]">
+        <div class="flex items-baseline justify-between gap-3">
+          <span id="filterApprovedTotalLabel" class="text-xs font-semibold text-slate-500 dark:text-slate-400 truncate">ทั้งหมด</span>
+          <strong id="filterApprovedTotal" class="text-lg font-extrabold text-sky-600 dark:text-sky-300 whitespace-nowrap">0 THB</strong>
+        </div>
+        <div id="filterApprovedTotalHint" class="text-[11px] text-slate-400 dark:text-slate-500 mt-1">เฉพาะโครงการที่อนุมัติแล้ว</div>
+      </div>
     </div>
     <div id="fiscalYearCreateWrapper" class="hidden lg:justify-self-end">
       <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">เพิ่มปีงบประมาณ</label>
@@ -380,6 +390,7 @@ function ensureFiscalYearAndFilterControls() {
 
 function updateFiscalControlsVisibility() {
   document.getElementById('sectionFilterWrapper')?.classList.toggle('hidden', !canApprove);
+  document.getElementById('filterApprovedTotalWrapper')?.classList.toggle('hidden', !canApprove);
   document.getElementById('fiscalYearCreateWrapper')?.classList.toggle('hidden', !canApprove);
 }
 
@@ -1096,6 +1107,24 @@ function listenGlobalBudget() {
   });
 }
 
+
+function updateFilterApprovedTotal(total) {
+  const totalEl = document.getElementById('filterApprovedTotal');
+  const labelEl = document.getElementById('filterApprovedTotalLabel');
+  const hintEl = document.getElementById('filterApprovedTotalHint');
+  if (!totalEl || !labelEl) return;
+
+  const sectionLabel = selectedSectionFilter && selectedSectionFilter !== 'all'
+    ? getSectionLabel(selectedSectionFilter)
+    : 'ทั้งหมด';
+
+  labelEl.textContent = sectionLabel;
+  totalEl.textContent = `${formatNumber(total)} THB`;
+  if (hintEl) {
+    hintEl.textContent = `ปีงบประมาณ ${getSelectedFiscalYear()} • เฉพาะโครงการที่อนุมัติแล้ว`;
+  }
+}
+
 function listenProjects() {
   const grid = document.getElementById('projectsGrid');
   if (!grid) return;
@@ -1105,6 +1134,7 @@ function listenProjects() {
     grid.innerHTML = '';
     window.projectsMap = new Map();
     let departmentApprovedTotal = 0;
+    let filteredApprovedTotal = 0;
     const visibleItems = [];
 
     for (const docSnap of snapshot.docs) {
@@ -1118,7 +1148,11 @@ function listenProjects() {
         }
       }
       if (!projectMatchesFiscalYear(data)) continue;
-      if (data.status === 'approved') departmentApprovedTotal += Number(data.totalBudget || data.budgetAllocated || 0);
+      const approvedAmount = Number(data.totalBudget || data.budgetAllocated || 0);
+      if (data.status === 'approved') {
+        departmentApprovedTotal += approvedAmount;
+        if (projectMatchesSectionFilter(data)) filteredApprovedTotal += approvedAmount;
+      }
       if (isProjectVisibleToCurrentUser(data) && projectMatchesSectionFilter(data)) visibleItems.push(data);
     }
 
@@ -1132,6 +1166,7 @@ function listenProjects() {
       grid.insertAdjacentHTML('beforeend', createProjectCard(data.id, data));
     });
     updateGlobalBudget(departmentApprovedTotal);
+    updateFilterApprovedTotal(filteredApprovedTotal);
   }, (error) => {
     console.error('Projects listener error:', error);
     grid.innerHTML = `
