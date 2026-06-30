@@ -1,7 +1,7 @@
 // assets/js/dashboard.js
 // Firebase-only Dashboard + Global Budget from Firestore settings/budget
 // แก้ปัญหา "ช่องงบประมาณรวมเป็น 0" โดยอ่านงบรวมจาก settings/budget.totalBudget
-// Version: dashboard-top-year-toolbar-v21
+// Version: dashboard-single-add-filter-row-v22
 
 import { auth, db } from './firebase-config.js';
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -12,7 +12,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-console.log('dashboard.js loaded: dashboard-top-year-toolbar-v21');
+console.log('dashboard.js loaded: dashboard-single-add-filter-row-v22');
 
 const DEFAULT_TOTAL_BUDGET = 1500000;
 const SECTION_LABELS = {
@@ -326,7 +326,7 @@ function ensureDashboardFilterControls() {
     const projectList = document.getElementById('projectList');
     if (!projectList) return;
     const section = projectList.closest('section');
-    if (!section || document.getElementById('dashboardProjectHeaderToolbar')) return;
+    if (!section) return;
     const header = section.querySelector('.px-6.py-5') || section.firstElementChild;
     if (!header) return;
 
@@ -338,19 +338,30 @@ function ensureDashboardFilterControls() {
     if (title) title.textContent = 'สถานะงบประมาณโครงการย่อย';
     if (subtitle) subtitle.textContent = 'แสดงโครงการตามปีงบประมาณและส่วนงานที่เลือก';
 
+    // ซ่อนปุ่มเพิ่มโครงการเดิมจาก template ถ้ามี เพื่อให้เหลือปุ่มเดียว
+    header.querySelectorAll('button').forEach(button => {
+        const text = String(button.textContent || '').replace(/\s+/g, ' ').trim();
+        if (text.includes('เพิ่มโครงการ') && button.id !== 'dashboardAddProjectBtn') {
+            button.classList.add('hidden');
+            button.setAttribute('aria-hidden', 'true');
+        }
+    });
+
+    if (document.getElementById('dashboardProjectHeaderToolbar')) return;
+
     const toolbar = document.createElement('div');
     toolbar.id = 'dashboardProjectHeaderToolbar';
-    toolbar.className = 'mt-5 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4';
+    toolbar.className = 'mt-5 flex items-center justify-between gap-4 w-full';
     toolbar.innerHTML = `
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 shrink-0">
             <button type="button" id="dashboardAddProjectBtn" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-slate-900 text-white dark:bg-white dark:text-slate-900 text-xs font-extrabold shadow-sm hover:opacity-90 transition-opacity">
                 <i class="ph ph-plus-circle text-base"></i>
                 <span>เพิ่มโครงการ</span>
             </button>
         </div>
-        <div id="dashboardFilterControls" class="flex flex-col sm:flex-row sm:items-center gap-3 xl:justify-end">
+        <div id="dashboardFilterControls" class="flex items-center justify-end gap-3 min-w-0">
             <span class="text-xs font-extrabold tracking-wide text-slate-500 dark:text-slate-400 whitespace-nowrap">แสดงโครงการ</span>
-            <div id="dashboardSectionFilterBtns" class="flex flex-wrap gap-2 justify-start xl:justify-end">
+            <div id="dashboardSectionFilterBtns" class="flex items-center gap-2 flex-nowrap overflow-x-auto soft-scroll">
                 <button type="button" data-section="all" class="dashboard-filter-btn px-3 py-2 rounded-xl text-xs font-bold border transition-colors">ทั้งหมด</button>
                 <button type="button" data-section="information" class="dashboard-filter-btn px-3 py-2 rounded-xl text-xs font-bold border transition-colors">สารสนเทศ</button>
                 <button type="button" data-section="technical" class="dashboard-filter-btn px-3 py-2 rounded-xl text-xs font-bold border transition-colors">เทคนิค</button>
@@ -551,6 +562,7 @@ function injectDashboardPolishStyle() {
     const style = document.createElement('style');
     style.id = 'dashboardPolishStyleV19';
     style.dataset.v20 = 'dashboardYearTopLeftStyleV20';
+    style.dataset.v22 = 'dashboardSingleToolbarV22';
     style.textContent = `
         :root {
             --dash-ring: rgba(14, 165, 233, .34);
@@ -694,6 +706,43 @@ function injectDashboardPolishStyle() {
         }
         html.dark #dashboardAddProjectBtn {
             box-shadow: 0 10px 26px rgba(255,255,255,.05);
+        }
+
+
+        /* v22: keep only one Add Project button and keep filters on one row */
+        #dashboardProjectHeaderToolbar {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            gap: 18px !important;
+            flex-wrap: nowrap !important;
+        }
+        #dashboardFilterControls {
+            display: flex !important;
+            flex-direction: row !important;
+            align-items: center !important;
+            justify-content: flex-end !important;
+            gap: 12px !important;
+            flex-wrap: nowrap !important;
+            white-space: nowrap !important;
+        }
+        #dashboardSectionFilterBtns {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: flex-end !important;
+            gap: 8px !important;
+            flex-wrap: nowrap !important;
+        }
+        #dashboardProjectHeaderToolbar .dashboard-filter-btn {
+            white-space: nowrap !important;
+            min-width: auto !important;
+        }
+        @media (max-width: 900px) {
+            #dashboardProjectHeaderToolbar,
+            #dashboardFilterControls,
+            #dashboardSectionFilterBtns {
+                flex-wrap: wrap !important;
+            }
         }
 
         @media (max-width: 768px) {
