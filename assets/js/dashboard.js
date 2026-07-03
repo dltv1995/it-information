@@ -1,7 +1,7 @@
 // assets/js/dashboard.js
 // Firebase-only Dashboard + Global Budget from Firestore settings/budget
 // แก้ปัญหา "ช่องงบประมาณรวมเป็น 0" โดยอ่านงบรวมจาก settings/budget.totalBudget
-// Version: dashboard-combined-section-budget-v25
+// Version: dashboard-section-allocation-summary-v26
 
 import { auth, db } from './firebase-config.js';
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -12,7 +12,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-console.log('dashboard.js loaded: dashboard-combined-section-budget-v25');
+console.log('dashboard.js loaded: dashboard-section-allocation-summary-v26');
 
 const DEFAULT_TOTAL_BUDGET = 1500000;
 const SECTION_LABELS = {
@@ -308,6 +308,79 @@ function getSelectedFiscalYearBudget() {
     return Number.isFinite(value) && value >= 0 ? value : toNumber(globalBudget || DEFAULT_TOTAL_BUDGET);
 }
 
+
+function getSelectedFiscalYearData() {
+    return fiscalYearsCache.find(yearItem => String(yearItem.year || yearItem.id || '') === String(selectedDashboardFiscalYear)) || null;
+}
+
+function getSectionBudgetAllocationMap() {
+    const yearData = getSelectedFiscalYearData() || {};
+    const sectionBudgets = yearData.sectionBudgets || {};
+    return {
+        technical: toNumber(sectionBudgets.technical ?? yearData.technicalBudget ?? yearData.budgetTechnical ?? 0),
+        information: toNumber(sectionBudgets.information ?? yearData.informationBudget ?? yearData.budgetInformation ?? 0),
+        corporate_communication: toNumber(sectionBudgets.corporate_communication ?? yearData.corporateCommunicationBudget ?? yearData.communicationBudget ?? yearData.budgetCorporateCommunication ?? 0)
+    };
+}
+
+function getDashboardSectionKeys() {
+    return ['technical', 'information', 'corporate_communication'];
+}
+
+function buildSectionBudgetStats(projects = [], totalBudget = getSelectedFiscalYearBudget()) {
+    const allocations = getSectionBudgetAllocationMap();
+    const approvedProjects = Array.isArray(projects)
+        ? projects.filter(project => project.status === 'approved')
+        : [];
+
+    const approvedMap = new Map();
+    approvedProjects.forEach(project => {
+        const section = getProjectSection(project);
+        const approvedBudget = getProjectApprovedBudget(project);
+        approvedMap.set(section, (approvedMap.get(section) || 0) + approvedBudget);
+    });
+
+    const sectionKeys = getDashboardSectionKeys();
+    const rows = sectionKeys.map(section => {
+        const allocated = toNumber(allocations[section]);
+        const approved = toNumber(approvedMap.get(section));
+        const remaining = Math.max(allocated - approved, 0);
+        const over = Math.max(approved - allocated, 0);
+        return {
+            section,
+            label: getSectionLabel(section),
+            color: getSectionColor(section),
+            allocated,
+            approved,
+            remaining,
+            over,
+            usagePercent: allocated > 0 ? Number(((approved / allocated) * 100).toFixed(1)) : 0
+        };
+    });
+
+    const allocatedTotal = rows.reduce((sum, row) => sum + row.allocated, 0);
+    const approvedTotal = rows.reduce((sum, row) => sum + row.approved, 0);
+    const sectionRemainingTotal = rows.reduce((sum, row) => sum + row.remaining, 0);
+    const unallocated = Math.max(toNumber(totalBudget) - allocatedTotal, 0);
+    const totalRemaining = Math.max(toNumber(totalBudget) - approvedTotal, 0);
+
+    return {
+        totalBudget: toNumber(totalBudget),
+        allocatedTotal,
+        approvedTotal,
+        sectionRemainingTotal,
+        unallocated,
+        totalRemaining,
+        rows
+    };
+}
+
+function colorWithAlpha(hex, alphaHex) {
+    const value = String(hex || '').trim();
+    if (/^#[0-9a-fA-F]{6}$/.test(value)) return `${value}${alphaHex}`;
+    return value || '#64748b';
+}
+
 function projectMatchesDashboardFilters(project) {
     const fiscalMatch = getProjectFiscalYear(project) === selectedDashboardFiscalYear;
     if (!fiscalMatch) return false;
@@ -435,7 +508,7 @@ function updateDashboardFilterControls() {
 function updateDashboardSectionTitles() {
     const budgetCanvas = document.getElementById('budgetChart');
     const budgetTitle = budgetCanvas?.closest('section')?.querySelector('h3');
-    if (budgetTitle) budgetTitle.textContent = 'สัดส่วนงบประมาณทั้งหมด ใช้ไปตามส่วนงาน คงเหลือ';
+    if (budgetTitle) budgetTitle.textContent = 'สัดส่วนงบประมาณทั้งหมด กระจายแล้ว ใช้ไป คงเหลือ';
     const urgentList = document.getElementById('urgentList');
     const urgentTitle = urgentList?.closest('section')?.querySelector('h3');
     if (urgentTitle) urgentTitle.textContent = 'งานที่ล่าช้าหรือใกล้ถึงกำหนดส่ง (Overdue / Urgent)';
@@ -767,6 +840,39 @@ function injectDashboardPolishStyle() {
             white-space: nowrap !important;
             min-width: auto !important;
         }
+
+        .budget-section-summary {
+            border-top: 1px solid rgba(148,163,184,.16);
+        }
+        .budget-section-summary-grid {
+            display: grid;
+            grid-template-columns: repeat(1, minmax(0, 1fr));
+            gap: 12px;
+        }
+        @media (min-width: 900px) {
+            .budget-section-summary-grid {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+        }
+        .budget-section-card {
+            border-radius: 18px;
+            padding: 14px;
+            border: 1px solid rgba(148,163,184,.18);
+            background: rgba(255,255,255,.58);
+        }
+        html.dark .budget-section-card {
+            background: rgba(15,23,42,.50);
+            border-color: rgba(148,163,184,.16);
+        }
+        .budget-section-total-row {
+            border-radius: 18px;
+            border: 1px solid rgba(148,163,184,.18);
+            background: linear-gradient(135deg, rgba(15,23,42,.055), rgba(14,165,233,.075));
+        }
+        html.dark .budget-section-total-row {
+            background: linear-gradient(135deg, rgba(15,23,42,.68), rgba(14,165,233,.12));
+        }
+
         @media (max-width: 900px) {
             #dashboardProjectHeaderToolbar,
             #dashboardFilterControls,
@@ -1030,34 +1136,102 @@ function removeSectionBudgetChartPanel() {
     if (parent) parent.className = 'grid grid-cols-1 gap-5';
 }
 
+function ensureBudgetSectionSummaryPanel() {
+    const canvas = document.getElementById('budgetChart');
+    const section = canvas?.closest('section');
+    if (!section) return null;
+
+    let panel = document.getElementById('budgetSectionSummary');
+    if (!panel) {
+        panel = document.createElement('div');
+        panel.id = 'budgetSectionSummary';
+        panel.className = 'budget-section-summary px-5 pb-5 pt-4';
+        section.appendChild(panel);
+    }
+    return panel;
+}
+
+function renderBudgetSectionSummary(stats) {
+    const panel = ensureBudgetSectionSummaryPanel();
+    if (!panel || !stats) return;
+
+    const rowsHtml = stats.rows.map(row => {
+        const remainingTone = row.over > 0 ? 'text-red-500 dark:text-red-300' : 'text-emerald-600 dark:text-emerald-300';
+        const remainingLabel = row.over > 0 ? `เกินงบ ${baht(row.over)}` : baht(row.remaining);
+        return `
+            <article class="budget-section-card" style="border-color:${escapeAttr(colorWithAlpha(row.color, '88'))}; box-shadow: inset 4px 0 0 ${escapeAttr(row.color)}">
+                <div class="flex items-center justify-between gap-3 mb-3">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <span class="w-3 h-3 rounded-full shrink-0" style="background:${escapeAttr(row.color)}"></span>
+                        <h4 class="font-extrabold text-sm text-slate-900 dark:text-white truncate">${escapeHtml(row.label)}</h4>
+                    </div>
+                    <span class="text-[11px] font-bold text-slate-400 dark:text-slate-500 whitespace-nowrap">ใช้ ${row.usagePercent}%</span>
+                </div>
+                <div class="space-y-2 text-xs">
+                    <div class="flex justify-between gap-3"><span class="text-slate-500 dark:text-slate-400">งบที่กระจาย</span><b class="text-slate-900 dark:text-white">${baht(row.allocated)}</b></div>
+                    <div class="flex justify-between gap-3"><span class="text-slate-500 dark:text-slate-400">งบรวมที่อนุมัติ</span><b style="color:${escapeAttr(row.color)}">${baht(row.approved)}</b></div>
+                    <div class="flex justify-between gap-3"><span class="text-slate-500 dark:text-slate-400">งบคงเหลือส่วนงาน</span><b class="${remainingTone}">${remainingLabel}</b></div>
+                </div>
+            </article>
+        `;
+    }).join('');
+
+    panel.innerHTML = `
+        <div class="mb-3 flex flex-col md:flex-row md:items-end md:justify-between gap-2">
+            <div>
+                <h4 class="text-sm font-extrabold text-slate-900 dark:text-white">สรุปงบตามส่วนงาน</h4>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">งบที่กระจาย / งบที่อนุมัติ / งบคงเหลือของแต่ละส่วนงาน</p>
+            </div>
+            <div class="text-xs text-slate-500 dark:text-slate-400">ยังไม่กระจาย: <b class="text-slate-900 dark:text-white">${baht(stats.unallocated)}</b></div>
+        </div>
+        <div class="budget-section-summary-grid">${rowsHtml}</div>
+        <div class="budget-section-total-row mt-4 p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div>
+                <div class="text-xs text-slate-500 dark:text-slate-400">สรุปงบรวมปีงบประมาณ ${escapeHtml(selectedDashboardFiscalYear)}</div>
+                <div class="text-sm font-extrabold text-slate-900 dark:text-white mt-1">งบรวมทั้งหมด ${baht(stats.totalBudget)} • กระจายแล้ว ${baht(stats.allocatedTotal)}</div>
+            </div>
+            <div class="flex flex-wrap gap-3 text-sm font-extrabold">
+                <span class="text-amber-600 dark:text-amber-300">ใช้ไปทั้งหมด ${baht(stats.approvedTotal)}</span>
+                <span class="text-emerald-600 dark:text-emerald-300">คงเหลือรวม ${baht(stats.totalRemaining)}</span>
+            </div>
+        </div>
+    `;
+}
+
 function renderBudgetChart(summary, projects = []) {
     const canvas = document.getElementById('budgetChart');
     if (!canvas || typeof Chart === 'undefined') return;
 
     const total = toNumber(summary?.totalBudget || globalBudget || DEFAULT_TOTAL_BUDGET);
-    const approvedProjects = Array.isArray(projects)
-        ? projects.filter(project => project.status === 'approved')
-        : [];
+    const stats = buildSectionBudgetStats(projects, total);
+    const chartLabels = [];
+    const chartValues = [];
+    const chartColors = [];
 
-    const sectionTotals = new Map();
-    approvedProjects.forEach(project => {
-        const section = getProjectSection(project);
-        const approvedBudget = getProjectApprovedBudget(project);
-        if (approvedBudget > 0) {
-            sectionTotals.set(section, (sectionTotals.get(section) || 0) + approvedBudget);
+    stats.rows.forEach(row => {
+        if (row.approved > 0) {
+            chartLabels.push(`${row.label} อนุมัติแล้ว`);
+            chartValues.push(row.approved);
+            chartColors.push(row.color);
+        }
+        if (row.remaining > 0) {
+            chartLabels.push(`${row.label} คงเหลือ`);
+            chartValues.push(row.remaining);
+            chartColors.push(colorWithAlpha(row.color, '55'));
         }
     });
 
-    const used = Array.from(sectionTotals.values()).reduce((sum, value) => sum + toNumber(value), 0);
-    const remaining = Math.max(total - used, 0);
-    const sectionKeys = Array.from(sectionTotals.keys());
-    const labels = sectionKeys.map(getSectionLabel);
-    const values = Array.from(sectionTotals.values());
-    const colors = sectionKeys.map(getSectionColor);
+    if (stats.unallocated > 0) {
+        chartLabels.push('ยังไม่กระจาย');
+        chartValues.push(stats.unallocated);
+        chartColors.push('#64748b');
+    }
 
-    const chartLabels = labels.length ? [...labels, 'คงเหลือ'] : ['คงเหลือ'];
-    const chartValues = values.length ? [...values, remaining] : [remaining || 1];
-    const chartColors = colors.length ? [...colors, '#7a7a7a'] : ['#7a7a7a'];
+    if (!chartValues.length) {
+        chartLabels.push('ยังไม่มีข้อมูลงบประมาณ');
+        chartValues.push(1);
+        chartColors.push('rgba(100,116,139,.35)');
+    }
 
     if (budgetChart) budgetChart.destroy();
     budgetChart = new Chart(canvas, {
@@ -1074,6 +1248,8 @@ function renderBudgetChart(summary, projects = []) {
         },
         options: chartPieOptions()
     });
+
+    renderBudgetSectionSummary(stats);
 }
 
 function chartPieOptions() {
@@ -1211,7 +1387,7 @@ function getFallbackDashboardHtml() {
             </div>
             <div class="grid grid-cols-1 2xl:grid-cols-7 gap-5">
                 <section class="dashboard-card rounded-2xl 2xl:col-span-4 overflow-hidden"><div class="px-6 py-5 border-b border-slate-200/70 dark:border-slate-700/70"><h3 class="font-bold text-slate-900 dark:text-white">สถานะงบประมาณโครงการย่อย</h3></div><div id="projectList" class="p-5 space-y-4 max-h-[390px] overflow-y-auto soft-scroll"></div></section>
-                <section class="dashboard-card rounded-2xl 2xl:col-span-3 overflow-hidden"><div class="px-6 py-5 border-b border-slate-200/70 dark:border-slate-700/70"><h3 class="font-bold text-slate-900 dark:text-white">สัดส่วนงบประมาณทั้งหมด ใช้ไปตามส่วนงาน คงเหลือ</h3></div><div class="p-5 chart-box"><canvas id="budgetChart"></canvas></div></section>
+                <section class="dashboard-card rounded-2xl 2xl:col-span-3 overflow-hidden"><div class="px-6 py-5 border-b border-slate-200/70 dark:border-slate-700/70"><h3 class="font-bold text-slate-900 dark:text-white">สัดส่วนงบประมาณทั้งหมด กระจายแล้ว ใช้ไป คงเหลือ</h3></div><div class="p-5 chart-box"><canvas id="budgetChart"></canvas></div></section>
             </div>
             <div class="grid grid-cols-1 gap-5">
                 <section class="dashboard-card rounded-2xl overflow-hidden"><div class="px-6 py-5 border-b border-slate-200/70 dark:border-slate-700/70"><h3 class="font-bold text-slate-900 dark:text-white">งานที่ล่าช้าหรือใกล้ถึงกำหนดส่ง (Overdue / Urgent)</h3></div><div id="urgentList" class="p-5 space-y-3"></div></section>
