@@ -500,7 +500,7 @@ function ensureDashboardFilterControls() {
                 <button type="button" data-section="all" class="dashboard-filter-btn px-3 py-2 rounded-xl text-xs font-bold border transition-colors">ทั้งหมด</button>
                 <button type="button" data-section="information" class="dashboard-filter-btn px-3 py-2 rounded-xl text-xs font-bold border transition-colors">สารสนเทศ</button>
                 <button type="button" data-section="technical" class="dashboard-filter-btn px-3 py-2 rounded-xl text-xs font-bold border transition-colors">เทคนิค</button>
-                <button type="button" data-section="corporate_communication" class="dashboard-filter-btn px-3 py-2 rounded-xl text-xs font-bold border transition-colors">ประชาสัมพันธ์</button>
+                <button type="button" data-section="corporate_communication" class="dashboard-filter-btn px-3 py-2 rounded-xl text-xs font-bold border transition-colors">สื่อสารองค์กร</button>
             </div>
         </div>
     `;
