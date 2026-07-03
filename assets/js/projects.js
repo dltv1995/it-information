@@ -1,6 +1,6 @@
 // assets/js/projects.js
 // Ready-to-replace file: Projects + Fiscal Year + Section Filter + Delete permissions
-// Version: projects-filter-total-card-v22
+// Version: projects-section-budget-allocation-v23
 
 import { db, auth } from './firebase-config.js';
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -17,7 +17,7 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-console.log('projects.js loaded: projects-filter-total-card-v22');
+console.log('projects.js loaded: projects-section-budget-allocation-v23');
 
 const DEFAULT_TOTAL_BUDGET = 1500000;
 const PROJECTS_COLLECTION = 'projects';
@@ -176,7 +176,10 @@ async function initPage() {
   ensureFiscalYearAndFilterControls();
   updateFiscalControlsVisibility();
 
-  if (canApprove) document.getElementById('editGlobalBudgetBtn')?.classList.remove('hidden');
+  if (canApprove) {
+    document.getElementById('editGlobalBudgetBtn')?.classList.remove('hidden');
+    document.getElementById('allocateSectionBudgetBtn')?.classList.remove('hidden');
+  }
 
   setupProjectModal();
   setupActionModal();
@@ -322,6 +325,38 @@ function getFiscalYearBudgetValue(year = getSelectedFiscalYear()) {
   return Number.isFinite(value) && value >= 0 ? value : DEFAULT_TOTAL_BUDGET;
 }
 
+
+function getCurrentFiscalYearData(year = getSelectedFiscalYear()) {
+  return fiscalYearsCache.find(item => String(item.year || item.id || '') === String(year)) || null;
+}
+
+function getSectionBudgetAllocations(year = getSelectedFiscalYear()) {
+  const data = getCurrentFiscalYearData(year) || {};
+  const sectionBudgets = data.sectionBudgets || {};
+  return {
+    technical: Number(sectionBudgets.technical ?? data.technicalBudget ?? data.budgetTechnical ?? 0),
+    information: Number(sectionBudgets.information ?? data.informationBudget ?? data.budgetInformation ?? 0),
+    corporate_communication: Number(sectionBudgets.corporate_communication ?? data.corporateCommunicationBudget ?? data.communicationBudget ?? data.budgetCorporateCommunication ?? 0)
+  };
+}
+
+function getSectionBudgetTotal(allocations = getSectionBudgetAllocations()) {
+  return Number(allocations.technical || 0)
+    + Number(allocations.information || 0)
+    + Number(allocations.corporate_communication || 0);
+}
+
+function getSectionBudgetRemaining(allocations = getSectionBudgetAllocations()) {
+  return Number(totalBudgetLimit || 0) - getSectionBudgetTotal(allocations);
+}
+
+function setSectionBudgetInputValues(allocations = getSectionBudgetAllocations()) {
+  setValue('sectionBudgetTechnical', allocations.technical || '');
+  setValue('sectionBudgetInformation', allocations.information || '');
+  setValue('sectionBudgetCorporate', allocations.corporate_communication || '');
+  updateSectionBudgetAllocationPreview();
+}
+
 function ensureFiscalYearAndFilterControls() {
   if (document.getElementById('projectFiscalControls')) return;
   const grid = document.getElementById('projectsGrid');
@@ -451,6 +486,9 @@ async function addFiscalYearFromInput() {
       year,
       label: `ปีงบประมาณ ${year}`,
       totalBudget: Number(totalBudgetLimit || DEFAULT_TOTAL_BUDGET),
+      sectionBudgets: { technical: 0, information: 0, corporate_communication: 0 },
+      sectionBudgetTotal: 0,
+      sectionBudgetRemaining: Number(totalBudgetLimit || DEFAULT_TOTAL_BUDGET),
       createdBy: currentUserUid,
       createdByName: currentUser?.name || currentUser?.email || 'Unknown',
       createdAt: serverTimestamp(),
@@ -613,6 +651,7 @@ function ensureActionBudgetFields() {
 function ensureGlobalBudgetButtonAndModal() {
   ensureGlobalBudgetButton();
   ensureGlobalBudgetModal();
+  ensureSectionBudgetAllocationModal();
 }
 
 function ensureGlobalBudgetButton() {
@@ -632,7 +671,18 @@ function ensureGlobalBudgetButton() {
   btn.type = 'button';
   btn.className = 'hidden inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold shadow-sm transition-colors';
   btn.innerHTML = '<i class="ph ph-pencil-simple"></i><span>แก้งบรวม</span>';
-  row.appendChild(btn);
+  const buttonGroup = document.createElement('div');
+  buttonGroup.className = 'flex flex-wrap gap-2 justify-end';
+  buttonGroup.appendChild(btn);
+
+  const allocateBtn = document.createElement('button');
+  allocateBtn.id = 'allocateSectionBudgetBtn';
+  allocateBtn.type = 'button';
+  allocateBtn.className = 'hidden inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm transition-colors';
+  allocateBtn.innerHTML = '<i class="ph ph-chart-pie-slice"></i><span>กระจายงบส่วนงาน</span>';
+  buttonGroup.appendChild(allocateBtn);
+
+  row.appendChild(buttonGroup);
 }
 
 function findBudgetTitle() {
@@ -668,6 +718,163 @@ function ensureGlobalBudgetModal() {
     </div>
   `;
   document.body.appendChild(modal);
+}
+
+
+function ensureSectionBudgetAllocationModal() {
+  if (document.getElementById('sectionBudgetAllocationModal')) return;
+  const modal = document.createElement('div');
+  modal.id = 'sectionBudgetAllocationModal';
+  modal.className = 'fixed inset-0 bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm z-[91] hidden flex items-center justify-center p-4 opacity-0 transition-opacity duration-300';
+  modal.innerHTML = `
+    <div id="sectionBudgetAllocationModalContent" class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-2xl border border-slate-200 dark:border-slate-700 overflow-hidden transform scale-95 transition-transform duration-300">
+      <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
+        <div>
+          <h3 class="text-lg font-bold text-slate-800 dark:text-white">กระจายงบประมาณไปยังส่วนงาน</h3>
+          <p id="sectionBudgetAllocationSubtitle" class="text-xs text-slate-500 dark:text-slate-400 mt-1">กำหนดวงเงินของแต่ละส่วนงาน โดยไม่เปลี่ยนงบรวมทั้งฝ่าย</p>
+        </div>
+        <button id="closeSectionBudgetAllocationModalBtn" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors"><i class="ph ph-x text-xl"></i></button>
+      </div>
+      <div class="p-6 space-y-5">
+        <div id="sectionBudgetAllocationError" class="hidden bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-sm p-3 rounded-lg border border-red-100 dark:border-red-800/50"></div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40 p-4">
+            <div class="text-xs text-slate-500 dark:text-slate-400 mb-1">งบรวมที่ได้รับ</div>
+            <div id="sectionBudgetGrandTotal" class="text-xl font-extrabold text-slate-900 dark:text-white">0 THB</div>
+          </div>
+          <div class="rounded-xl border border-sky-200 dark:border-sky-800 bg-sky-50/70 dark:bg-sky-900/20 p-4">
+            <div class="text-xs text-slate-500 dark:text-slate-400 mb-1">กระจายแล้ว</div>
+            <div id="sectionBudgetAllocatedTotal" class="text-xl font-extrabold text-sky-600 dark:text-sky-300">0 THB</div>
+          </div>
+          <div class="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/70 dark:bg-emerald-900/20 p-4">
+            <div class="text-xs text-slate-500 dark:text-slate-400 mb-1">ยังไม่กระจาย</div>
+            <div id="sectionBudgetRemainingTotal" class="text-xl font-extrabold text-emerald-600 dark:text-emerald-300">0 THB</div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-sm font-semibold text-blue-600 dark:text-blue-300 mb-1">งานเทคนิค</label>
+            <input type="number" id="sectionBudgetTechnical" min="0" step="1000" class="w-full px-4 py-2.5 rounded-lg border border-blue-200 dark:border-blue-800 bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" placeholder="0">
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-emerald-600 dark:text-emerald-300 mb-1">งานสารสนเทศ</label>
+            <input type="number" id="sectionBudgetInformation" min="0" step="1000" class="w-full px-4 py-2.5 rounded-lg border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="0">
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-amber-600 dark:text-amber-300 mb-1">งานสื่อสารองค์กร</label>
+            <input type="number" id="sectionBudgetCorporate" min="0" step="1000" class="w-full px-4 py-2.5 rounded-lg border border-amber-200 dark:border-amber-800 bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-amber-500 outline-none" placeholder="0">
+          </div>
+        </div>
+
+        <div class="rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 p-4 text-xs text-slate-500 dark:text-slate-400">
+          ระบบจะบันทึกไว้ที่ <code>fiscal_years/{ปี}.sectionBudgets</code> โดยยอดงบรวม <code>totalBudget</code> ยังอยู่เหมือนเดิม
+        </div>
+
+        <div class="pt-2 flex justify-end gap-3">
+          <button type="button" id="cancelSectionBudgetAllocationBtn" class="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors">ยกเลิก</button>
+          <button type="button" id="saveSectionBudgetAllocationBtn" class="px-5 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition-colors flex items-center gap-2"><span>บันทึกการกระจายงบ</span><span id="saveSectionBudgetAllocationSpinner" class="hidden inline-block animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span></button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  ['sectionBudgetTechnical', 'sectionBudgetInformation', 'sectionBudgetCorporate'].forEach(id => {
+    document.getElementById(id)?.addEventListener('input', updateSectionBudgetAllocationPreview);
+  });
+}
+
+function openSectionBudgetAllocationModal() {
+  ensureSectionBudgetAllocationModal();
+  const modal = document.getElementById('sectionBudgetAllocationModal');
+  const content = document.getElementById('sectionBudgetAllocationModalContent');
+  const error = document.getElementById('sectionBudgetAllocationError');
+  const subtitle = document.getElementById('sectionBudgetAllocationSubtitle');
+  if (subtitle) subtitle.textContent = `ปีงบประมาณ ${getSelectedFiscalYear()} • งบรวมยังคงอยู่ที่ ${formatNumber(totalBudgetLimit)} บาท`;
+  error?.classList.add('hidden');
+  setSectionBudgetInputValues();
+  modal.classList.remove('hidden');
+  setTimeout(() => { modal.classList.remove('opacity-0'); content.classList.remove('scale-95'); }, 10);
+}
+
+function closeSectionBudgetAllocationModal() {
+  const modal = document.getElementById('sectionBudgetAllocationModal');
+  const content = document.getElementById('sectionBudgetAllocationModalContent');
+  if (!modal || !content) return;
+  modal.classList.add('opacity-0');
+  content.classList.add('scale-95');
+  setTimeout(() => modal.classList.add('hidden'), 250);
+}
+
+function updateSectionBudgetAllocationPreview() {
+  const allocations = {
+    technical: Number(document.getElementById('sectionBudgetTechnical')?.value || 0),
+    information: Number(document.getElementById('sectionBudgetInformation')?.value || 0),
+    corporate_communication: Number(document.getElementById('sectionBudgetCorporate')?.value || 0)
+  };
+  const allocated = getSectionBudgetTotal(allocations);
+  const remaining = Number(totalBudgetLimit || 0) - allocated;
+  setText('sectionBudgetGrandTotal', `${formatNumber(totalBudgetLimit)} THB`);
+  setText('sectionBudgetAllocatedTotal', `${formatNumber(allocated)} THB`);
+  setText('sectionBudgetRemainingTotal', `${formatNumber(remaining)} THB`);
+  const remainingEl = document.getElementById('sectionBudgetRemainingTotal');
+  if (remainingEl) {
+    remainingEl.className = remaining < 0
+      ? 'text-xl font-extrabold text-red-600 dark:text-red-300'
+      : 'text-xl font-extrabold text-emerald-600 dark:text-emerald-300';
+  }
+}
+
+async function saveSectionBudgetAllocation() {
+  if (!canApprove) return showSectionBudgetAllocationError('บัญชีนี้ไม่มีสิทธิ์กระจายงบประมาณ');
+  const allocations = {
+    technical: Number(document.getElementById('sectionBudgetTechnical')?.value || 0),
+    information: Number(document.getElementById('sectionBudgetInformation')?.value || 0),
+    corporate_communication: Number(document.getElementById('sectionBudgetCorporate')?.value || 0)
+  };
+  if (Object.values(allocations).some(value => !Number.isFinite(value) || value < 0)) {
+    return showSectionBudgetAllocationError('กรุณาระบุจำนวนงบเป็นตัวเลขที่ไม่ติดลบ');
+  }
+  const allocated = getSectionBudgetTotal(allocations);
+  const remaining = Number(totalBudgetLimit || 0) - allocated;
+  if (remaining < 0) {
+    return showSectionBudgetAllocationError(`ยอดกระจายงบเกินงบรวม ${formatNumber(Math.abs(remaining))} บาท`);
+  }
+  const saveBtn = document.getElementById('saveSectionBudgetAllocationBtn');
+  const spinner = document.getElementById('saveSectionBudgetAllocationSpinner');
+  try {
+    if (saveBtn) saveBtn.disabled = true;
+    spinner?.classList.remove('hidden');
+    const year = String(getSelectedFiscalYear());
+    await setDoc(getFiscalYearDocRef(year), {
+      year,
+      label: `ปีงบประมาณ ${year}`,
+      totalBudget: Number(totalBudgetLimit || 0),
+      sectionBudgets: allocations,
+      sectionBudgetTotal: allocated,
+      sectionBudgetRemaining: remaining,
+      sectionBudgetUpdatedBy: currentUserUid,
+      sectionBudgetUpdatedByName: currentUser?.name || currentUser?.email || 'Unknown',
+      sectionBudgetUpdatedAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+    closeSectionBudgetAllocationModal();
+  } catch (error) {
+    console.error('Save section budget allocation error:', error);
+    showSectionBudgetAllocationError(`บันทึกการกระจายงบไม่สำเร็จ: ${error.code || error.message || error}`);
+  } finally {
+    if (saveBtn) saveBtn.disabled = false;
+    spinner?.classList.add('hidden');
+  }
+}
+
+function showSectionBudgetAllocationError(message) {
+  const error = document.getElementById('sectionBudgetAllocationError');
+  if (!error) return alert(message);
+  error.textContent = message;
+  error.classList.remove('hidden');
 }
 
 function setupProjectModal() {
@@ -977,9 +1184,13 @@ async function requestEditProject(closeModal) {
 
 function setupGlobalBudgetModal() {
   document.getElementById('editGlobalBudgetBtn')?.addEventListener('click', openGlobalBudgetModal);
+  document.getElementById('allocateSectionBudgetBtn')?.addEventListener('click', openSectionBudgetAllocationModal);
   document.getElementById('closeGlobalBudgetModalBtn')?.addEventListener('click', closeGlobalBudgetModal);
   document.getElementById('cancelGlobalBudgetBtn')?.addEventListener('click', closeGlobalBudgetModal);
   document.getElementById('saveGlobalBudgetBtn')?.addEventListener('click', saveGlobalBudget);
+  document.getElementById('closeSectionBudgetAllocationModalBtn')?.addEventListener('click', closeSectionBudgetAllocationModal);
+  document.getElementById('cancelSectionBudgetAllocationBtn')?.addEventListener('click', closeSectionBudgetAllocationModal);
+  document.getElementById('saveSectionBudgetAllocationBtn')?.addEventListener('click', saveSectionBudgetAllocation);
 }
 
 function openGlobalBudgetModal() {
