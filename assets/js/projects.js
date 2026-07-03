@@ -1,6 +1,6 @@
 // assets/js/projects.js
 // Ready-to-replace file: Projects + Fiscal Year + Section Filter + Delete permissions
-// Version: projects-section-budget-allocation-v23
+// Version: projects-section-budget-allocation-visible-v24-ready
 
 import { db, auth } from './firebase-config.js';
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -17,7 +17,8 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-console.log('projects.js loaded: projects-section-budget-allocation-v23');
+console.log('projects.js loaded: projects-section-budget-allocation-visible-v24-ready');
+console.log('projects section budget allocation ready: visible-v24-ready');
 
 const DEFAULT_TOTAL_BUDGET = 1500000;
 const PROJECTS_COLLECTION = 'projects';
@@ -49,13 +50,13 @@ const ROLE_LABELS = {
 
 const ALLOWED_ROLES = new Set([
   'admin', 'administrator', 'manager', 'head', 'department_head', 'head_department',
-  'section_head', 'supervisor', 'director', 'ผู้ดูแลระบบ', 'หัวหน้าฝ่าย', 'หัวหน้างาน'
+  'section_head', 'supervisor', 'director', 'teacher_head', 'deputy_director', 'principal', 'ผู้ดูแลระบบ', 'หัวหน้าฝ่าย', 'หัวหน้างาน', 'หัวหน้ากลุ่ม', 'หัวหน้าส่วน', 'ผู้อำนวยการ', 'รองผู้อำนวยการ'
 ]);
 
 const CREATOR_ROLES = new Set([
   'admin', 'administrator', 'manager', 'head', 'department_head', 'head_department',
   'section_head', 'supervisor', 'director', 'secretary', 'staff', 'employee',
-  'ผู้ดูแลระบบ', 'หัวหน้าฝ่าย', 'หัวหน้างาน', 'เลขาฯ', 'เจ้าหน้าที่'
+  'ผู้ดูแลระบบ', 'หัวหน้าฝ่าย', 'หัวหน้างาน', 'หัวหน้ากลุ่ม', 'หัวหน้าส่วน', 'ผู้อำนวยการ', 'รองผู้อำนวยการ', 'เลขาฯ', 'เจ้าหน้าที่'
 ]);
 
 let currentUser = null;
@@ -179,6 +180,7 @@ async function initPage() {
   if (canApprove) {
     document.getElementById('editGlobalBudgetBtn')?.classList.remove('hidden');
     document.getElementById('allocateSectionBudgetBtn')?.classList.remove('hidden');
+    document.getElementById('sectionBudgetAllocationInlineWrapper')?.classList.remove('hidden');
   }
 
   setupProjectModal();
@@ -365,7 +367,7 @@ function ensureFiscalYearAndFilterControls() {
 
   const controls = document.createElement('div');
   controls.id = 'projectFiscalControls';
-  controls.className = 'mb-6 grid grid-cols-1 lg:grid-cols-4 gap-4 items-end';
+  controls.className = 'mb-6 grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-5 gap-4 items-end';
   controls.innerHTML = `
     <div>
       <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">ปีงบประมาณ</label>
@@ -388,6 +390,13 @@ function ensureFiscalYearAndFilterControls() {
         </div>
         <strong id="filterApprovedTotal" class="text-base font-extrabold whitespace-nowrap">0 THB</strong>
       </div>
+    </div>
+    <div id="sectionBudgetAllocationInlineWrapper" class="hidden">
+      <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">กระจายงบส่วนงาน</label>
+      <button type="button" id="sectionBudgetAllocationInlineBtn" class="w-full min-h-[46px] inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold shadow-sm transition-colors">
+        <i class="ph ph-chart-pie-slice"></i>
+        <span>แบ่งงบให้ 3 ส่วนงาน</span>
+      </button>
     </div>
     <div id="fiscalYearCreateWrapper" class="hidden lg:justify-self-end">
       <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">เพิ่มปีงบประมาณ</label>
@@ -418,6 +427,7 @@ function ensureFiscalYearAndFilterControls() {
   }
 
   document.getElementById('addFiscalYearBtn')?.addEventListener('click', addFiscalYearFromInput);
+  document.getElementById('sectionBudgetAllocationInlineBtn')?.addEventListener('click', openSectionBudgetAllocationModal);
   updateFiscalControlsVisibility();
   populateFiscalYearSelects();
 }
@@ -425,6 +435,7 @@ function ensureFiscalYearAndFilterControls() {
 function updateFiscalControlsVisibility() {
   document.getElementById('sectionFilterWrapper')?.classList.toggle('hidden', !canApprove);
   document.getElementById('filterApprovedTotalWrapper')?.classList.toggle('hidden', !canApprove);
+  document.getElementById('sectionBudgetAllocationInlineWrapper')?.classList.toggle('hidden', !canApprove);
   document.getElementById('fiscalYearCreateWrapper')?.classList.toggle('hidden', !canApprove);
 }
 
@@ -463,12 +474,19 @@ function populateFiscalYearSelects() {
   }
 }
 
+function refreshSectionBudgetAllocationUiIfOpen() {
+  const modal = document.getElementById('sectionBudgetAllocationModal');
+  if (!modal || modal.classList.contains('hidden')) return;
+  setSectionBudgetInputValues();
+}
+
 function listenFiscalYears() {
   if (unsubscribeFiscalYears) unsubscribeFiscalYears();
   unsubscribeFiscalYears = onSnapshot(collection(db, FISCAL_YEARS_COLLECTION), (snapshot) => {
     fiscalYearsCache = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
     if (!fiscalYearsCache.length) fiscalYearsCache = [{ id: getDefaultFiscalYear(), year: getDefaultFiscalYear(), totalBudget: DEFAULT_TOTAL_BUDGET }];
     populateFiscalYearSelects();
+    refreshSectionBudgetAllocationUiIfOpen();
   }, (error) => {
     console.warn('Fiscal year listener error:', error);
     fiscalYearsCache = [{ id: getDefaultFiscalYear(), year: getDefaultFiscalYear(), totalBudget: DEFAULT_TOTAL_BUDGET }];
@@ -1185,6 +1203,7 @@ async function requestEditProject(closeModal) {
 function setupGlobalBudgetModal() {
   document.getElementById('editGlobalBudgetBtn')?.addEventListener('click', openGlobalBudgetModal);
   document.getElementById('allocateSectionBudgetBtn')?.addEventListener('click', openSectionBudgetAllocationModal);
+  document.getElementById('sectionBudgetAllocationInlineBtn')?.addEventListener('click', openSectionBudgetAllocationModal);
   document.getElementById('closeGlobalBudgetModalBtn')?.addEventListener('click', closeGlobalBudgetModal);
   document.getElementById('cancelGlobalBudgetBtn')?.addEventListener('click', closeGlobalBudgetModal);
   document.getElementById('saveGlobalBudgetBtn')?.addEventListener('click', saveGlobalBudget);
