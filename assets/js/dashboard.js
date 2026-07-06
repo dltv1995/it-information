@@ -558,7 +558,7 @@ function normalizeProject(id, data) {
 
     return {
         id,
-        code: data.code || 'งา',
+        code: data.code || '',
         name: data.name || data.title || data.projectName || 'ไม่ระบุชื่อโครงการ',
         owner: data.ownerName || data.creatorName || data.owner || data.managerName || 'ไม่ระบุผู้รับผิดชอบ',
         ownerId: data.ownerId || data.createdBy || '',
@@ -1076,7 +1076,7 @@ function openDashboardProjectDetails(projectId) {
                 <div class="space-y-5">
                     <div class="rounded-3xl border p-5" style="border-color:${escapeAttr(sectionColor)}; background:linear-gradient(135deg, ${escapeAttr(sectionColor)}22, transparent)">
                         <div class="flex items-start gap-4">
-                            <div class="w-12 h-12 rounded-2xl text-white flex items-center justify-center font-extrabold shrink-0" style="background:${escapeAttr(sectionColor)}">${escapeHtml(project.code || 'งา')}</div>
+                            <div class="w-12 h-12 rounded-2xl text-white flex items-center justify-center font-extrabold shrink-0" style="background:${escapeAttr(sectionColor)}">${escapeHtml(project.code || '')}</div>
                             <div class="min-w-0">
                                 <h4 class="text-xl font-extrabold text-slate-900 dark:text-white">${escapeHtml(project.name || project.title || '-')}</h4>
                                 <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">${escapeHtml(project.description || 'ไม่มีรายละเอียด')}</p>
@@ -1146,7 +1146,7 @@ function renderProjects(projects) {
             <article onclick="window.openDashboardProjectDetails('${escapeAttr(project.id)}')" class="dash-project-card cursor-pointer p-5 transition-all" style="--section-color:${escapeAttr(sectionColor)};--section-soft:${escapeAttr(sectionSoft)}">
                 <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                     <div class="flex items-start gap-4 min-w-0">
-                        <div class="dash-code-badge shrink-0" style="background:${escapeAttr(sectionColor)}" title="${escapeAttr(sectionLabel)}">${escapeHtml(project.code || 'งา')}</div>
+                        <div class="dash-code-badge shrink-0" style="background:${escapeAttr(sectionColor)}" title="${escapeAttr(sectionLabel)}">${escapeHtml(project.code || '')}</div>
                         <div class="min-w-0 flex-1">
                             <div class="flex flex-wrap items-center gap-2 mb-1">
                                 <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-extrabold" style="background:${escapeAttr(sectionColor)}22;color:${escapeAttr(sectionColor)}">${escapeHtml(sectionLabel)}</span>
