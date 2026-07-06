@@ -1,7 +1,7 @@
 // assets/js/dashboard.js
 // Firebase-only Dashboard + Global Budget from Firestore settings/budget
 // แก้ปัญหา "ช่องงบประมาณรวมเป็น 0" โดยอ่านงบรวมจาก settings/budget.totalBudget
-// Version: dashboard-project-list-header-v28
+// Version: dashboard-project-list-match-chart-v29-fix
 
 import { auth, db } from './firebase-config.js';
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -12,7 +12,7 @@ import {
     onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-console.log('dashboard.js loaded: dashboard-project-list-header-v28');
+console.log('dashboard.js loaded: dashboard-project-list-match-chart-v29-fix');
 
 const DEFAULT_TOTAL_BUDGET = 1500000;
 const SECTION_LABELS = {
@@ -42,10 +42,15 @@ let unsubTasks = null;
 let unsubBudget = null;
 let unsubFiscalYears = null;
 let mounted = false;
+let dashboardProjectResizeSyncBound = false;
 
 document.addEventListener('DOMContentLoaded', initDashboardPage);
 
 function initDashboardPage() {
+    if (!dashboardProjectResizeSyncBound) {
+        dashboardProjectResizeSyncBound = true;
+        window.addEventListener('resize', () => scheduleProjectSectionHeightSync());
+    }
     showBody();
     waitForPageContent(() => {
         initAuthAndRealtimeData();
@@ -462,27 +467,16 @@ function ensureDashboardFilterControls() {
     if (!projectList) return;
     const section = projectList.closest('section');
     if (!section) return;
-
     const header = section.querySelector('.px-6.py-5') || section.firstElementChild;
     if (!header) return;
 
-    section.classList.add('dashboard-project-section');
-    projectList.classList.add('dashboard-project-list-fill');
-    projectList.classList.remove('max-h-[390px]');
+    header.classList.add('bg-gradient-to-br', 'from-slate-50/70', 'to-white/30', 'dark:from-slate-900/55', 'dark:to-slate-950/30');
 
-    header.classList.add(
-        'dashboard-project-header-one-line',
-        'bg-gradient-to-br',
-        'from-slate-50/70',
-        'to-white/30',
-        'dark:from-slate-900/55',
-        'dark:to-slate-950/30'
-    );
-
-    const title = header.querySelector('h3');
-    const subtitle = header.querySelector('p');
+    const titleArea = header.querySelector('h3')?.parentElement || header;
+    const title = titleArea.querySelector('h3');
+    const subtitle = titleArea.querySelector('p');
     if (title) title.textContent = 'สถานะงบประมาณโครงการย่อย';
-    if (subtitle) subtitle.textContent = 'โครงการตามปีงบประมาณและส่วนงานที่เลือก';
+    if (subtitle) subtitle.textContent = 'แสดงโครงการตามปีงบประมาณและส่วนงานที่เลือก';
 
     // ซ่อนปุ่มเพิ่มโครงการเดิมจาก template ถ้ามี เพื่อให้เหลือปุ่มเดียว
     header.querySelectorAll('button').forEach(button => {
@@ -497,12 +491,14 @@ function ensureDashboardFilterControls() {
 
     const toolbar = document.createElement('div');
     toolbar.id = 'dashboardProjectHeaderToolbar';
-    toolbar.className = 'dashboard-project-toolbar-inline flex items-center justify-end gap-3 min-w-0 shrink-0';
+    toolbar.className = 'mt-5 flex items-center justify-between gap-4 w-full';
     toolbar.innerHTML = `
-        <button type="button" id="dashboardAddProjectBtn" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-slate-900 text-white dark:bg-white dark:text-slate-900 text-xs font-extrabold shadow-sm hover:opacity-90 transition-opacity whitespace-nowrap">
-            <i class="ph ph-plus-circle text-base"></i>
-            <span>เพิ่มโครงการ</span>
-        </button>
+        <div class="flex items-center gap-2 shrink-0">
+            <button type="button" id="dashboardAddProjectBtn" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-slate-900 text-white dark:bg-white dark:text-slate-900 text-xs font-extrabold shadow-sm hover:opacity-90 transition-opacity">
+                <i class="ph ph-plus-circle text-base"></i>
+                <span>เพิ่มโครงการ</span>
+            </button>
+        </div>
         <div id="dashboardFilterControls" class="flex items-center justify-end gap-3 min-w-0">
             <span class="text-xs font-extrabold tracking-wide text-slate-500 dark:text-slate-400 whitespace-nowrap">แสดงโครงการ</span>
             <div id="dashboardSectionFilterBtns" class="flex items-center gap-2 flex-nowrap overflow-x-auto soft-scroll">
@@ -513,7 +509,6 @@ function ensureDashboardFilterControls() {
             </div>
         </div>
     `;
-
     header.appendChild(toolbar);
 
     document.getElementById('dashboardAddProjectBtn')?.addEventListener('click', () => {
@@ -840,8 +835,8 @@ function injectDashboardPolishStyle() {
             padding: 0 2px;
         }
         #dashboardProjectHeaderToolbar {
-            border-top: 0;
-            padding-top: 0;
+            border-top: 1px solid rgba(148,163,184,.14);
+            padding-top: 16px;
         }
         #dashboardAddProjectBtn {
             box-shadow: 0 10px 26px rgba(15,23,42,.10);
@@ -850,64 +845,6 @@ function injectDashboardPolishStyle() {
             box-shadow: 0 10px 26px rgba(255,255,255,.05);
         }
 
-
-
-        /* v28: project section header one-line + no empty stretched list frame */
-        .dashboard-project-section {
-            align-self: start !important;
-        }
-        .dashboard-project-section .dashboard-project-header-one-line {
-            display: flex !important;
-            align-items: center !important;
-            justify-content: space-between !important;
-            gap: 18px !important;
-            flex-wrap: nowrap !important;
-        }
-        .dashboard-project-section .dashboard-project-header-one-line > div:first-child,
-        .dashboard-project-section .dashboard-project-header-one-line h3,
-        .dashboard-project-section .dashboard-project-header-one-line p {
-            min-width: 0 !important;
-        }
-        .dashboard-project-section .dashboard-project-header-one-line h3 {
-            white-space: nowrap !important;
-            overflow: hidden !important;
-            text-overflow: ellipsis !important;
-            line-height: 1.25 !important;
-        }
-        .dashboard-project-section .dashboard-project-header-one-line p {
-            white-space: nowrap !important;
-            overflow: hidden !important;
-            text-overflow: ellipsis !important;
-            max-width: 310px !important;
-        }
-        .dashboard-project-toolbar-inline {
-            margin-top: 0 !important;
-        }
-        .dashboard-project-list-fill {
-            max-height: none !important;
-            min-height: 0 !important;
-            overflow-y: visible !important;
-        }
-        .dashboard-project-section .dash-project-card:last-child {
-            margin-bottom: 0 !important;
-        }
-        @media (min-width: 1536px) {
-            .grid:has(.dashboard-project-section) {
-                align-items: start !important;
-            }
-        }
-        @media (max-width: 1180px) {
-            .dashboard-project-section .dashboard-project-header-one-line {
-                flex-wrap: wrap !important;
-                align-items: flex-start !important;
-            }
-            .dashboard-project-toolbar-inline,
-            #dashboardFilterControls {
-                width: 100% !important;
-                justify-content: flex-start !important;
-                flex-wrap: wrap !important;
-            }
-        }
 
         /* v22: keep only one Add Project button and keep filters on one row */
         #dashboardProjectHeaderToolbar {
@@ -1018,6 +955,48 @@ function applyTopMetricCardColors() {
     });
 }
 
+function syncProjectSectionHeightToChart() {
+    const projectList = document.getElementById('projectList');
+    const projectSection = projectList?.closest('section');
+    const chartCanvas = document.getElementById('budgetChart');
+    const chartSection = chartCanvas?.closest('section');
+    if (!projectSection || !chartSection || projectSection === chartSection) return;
+
+    if (window.innerWidth < 1280) {
+        projectSection.style.height = '';
+        projectSection.style.maxHeight = '';
+        projectSection.style.display = '';
+        projectSection.style.flexDirection = '';
+        projectSection.style.overflow = '';
+        projectList.style.maxHeight = '';
+        projectList.style.overflowY = '';
+        projectList.style.flex = '';
+        return;
+    }
+
+    const chartHeight = Math.max(520, Math.round(chartSection.getBoundingClientRect().height));
+    projectSection.style.height = `${chartHeight}px`;
+    projectSection.style.maxHeight = `${chartHeight}px`;
+    projectSection.style.display = 'flex';
+    projectSection.style.flexDirection = 'column';
+    projectSection.style.overflow = 'hidden';
+
+    const header = projectSection.querySelector('.px-6.py-5') || projectSection.firstElementChild;
+    const headerHeight = header ? Math.round(header.getBoundingClientRect().height) : 0;
+    const listHeight = Math.max(260, chartHeight - headerHeight);
+    projectList.style.flex = '1 1 auto';
+    projectList.style.maxHeight = `${listHeight}px`;
+    projectList.style.overflowY = 'auto';
+}
+
+function scheduleProjectSectionHeightSync() {
+    requestAnimationFrame(() => {
+        syncProjectSectionHeightToChart();
+        setTimeout(syncProjectSectionHeightToChart, 120);
+        setTimeout(syncProjectSectionHeightToChart, 320);
+    });
+}
+
 function renderDashboard(data) {
     injectDashboardPolishStyle();
     const projects = Array.isArray(data.projects) ? data.projects : [];
@@ -1038,6 +1017,7 @@ function renderDashboard(data) {
     removeSectionBudgetChartPanel();
     renderBudgetChart(data.summary, Array.isArray(data.fiscalProjects) ? data.fiscalProjects : projects);
     applyTopMetricCardColors();
+    scheduleProjectSectionHeightSync();
 
     if (!projects.length && !tasksCache.length) {
         showFirebaseStatus('ยังไม่มีข้อมูลโครงการใน Firebase แต่ระบบอ่านงบประมาณรวมจาก settings/budget แล้ว', 'info');
@@ -1522,7 +1502,7 @@ function getFallbackDashboardHtml() {
                 <article class="dashboard-card metric-card rounded-2xl p-6" style="--accent:#10b981"><p class="text-xs font-semibold text-slate-500 dark:text-slate-400">งบประมาณรวมคงเหลือ</p><h3 id="remainingBudget" class="text-3xl font-extrabold text-slate-900 dark:text-white mt-1">฿0</h3><p id="remainingPercent" class="text-xs font-semibold text-emerald-500 mt-1">0%</p></article>
             </div>
             <div class="grid grid-cols-1 2xl:grid-cols-7 gap-5">
-                <section class="dashboard-card rounded-2xl 2xl:col-span-4 overflow-hidden"><div class="px-6 py-5 border-b border-slate-200/70 dark:border-slate-700/70"><h3 class="font-bold text-slate-900 dark:text-white">สถานะงบประมาณโครงการย่อย</h3></div><div id="projectList" class="p-5 space-y-4 dashboard-project-list-fill soft-scroll"></div></section>
+                <section class="dashboard-card rounded-2xl 2xl:col-span-4 overflow-hidden"><div class="px-6 py-5 border-b border-slate-200/70 dark:border-slate-700/70"><h3 class="font-bold text-slate-900 dark:text-white">สถานะงบประมาณโครงการย่อย</h3></div><div id="projectList" class="p-5 space-y-4 max-h-[390px] overflow-y-auto soft-scroll"></div></section>
                 <section class="dashboard-card rounded-2xl 2xl:col-span-3 overflow-hidden"><div class="px-6 py-5 border-b border-slate-200/70 dark:border-slate-700/70"><h3 class="font-bold text-slate-900 dark:text-white">สัดส่วนงบประมาณทั้งหมด ใช้แล้ว/คงเหลือตามส่วนงาน</h3></div><div class="p-5 chart-box"><canvas id="budgetChart"></canvas></div></section>
             </div>
             <div class="grid grid-cols-1 gap-5">
