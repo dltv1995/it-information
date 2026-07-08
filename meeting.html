@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ระบบจองห้องประชุม</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Prompt', 'Sarabun', 'Noto Sans Thai', 'sans-serif'] },
+          colors: {
+            brand: {
+              50: '#f0f9ff', 100: '#e0f2fe', 500: '#0ea5e9',
+              600: '#0284c7', 800: '#075985', 900: '#0f172a'
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800;900&family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" />
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+  <link rel="stylesheet" href="assets/css/style.css" />
+  <link rel="stylesheet" href="assets/css/header.css" />
+  <link rel="stylesheet" href="assets/css/meeting.css?v=meeting-split-v1" />
+
+  <script>
+    if (
+      localStorage.getItem('color-theme') === 'dark' ||
+      (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)
+    ) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  </script>
+</head>
+<body id="appBody"
+      data-title="ระบบจองห้องประชุม"
+      data-subtitle="จองห้อง ตรวจสอบรายการ และดูสถิติการใช้งาน"
+      data-active-menu="meeting"
+      class="bg-slate-50 dark:bg-slate-900 transition-theme font-sans text-slate-700 dark:text-slate-300 hidden m-0">
+
+  <div id="layoutRoot" class="flex h-screen overflow-hidden"></div>
+
+  <template id="meetingTemplate">
+    <section class="meeting-page space-y-6">
+      <div id="meetingStatus" class="hidden meeting-alert"></div>
+
+      <div class="meeting-hero">
+        <div>
+          <p class="meeting-eyebrow">Meeting Room Booking</p>
+          <h1>ระบบจองห้องประชุมออนไลน์</h1>
+          <p>เลือกห้อง วันที่ เวลา อุปกรณ์ และตรวจสอบรายการจองในระบบเดียว</p>
+        </div>
+        <div class="meeting-hero-actions">
+          <button id="exportCsvBtn" type="button" class="btn-ghost">
+            <i class="fa-solid fa-download"></i>
+            ส่งออก CSV
+          </button>
+        </div>
+      </div>
+
+      <div class="meeting-tabs" role="tablist" aria-label="Meeting tabs">
+        <button class="meeting-tab active" data-tab="booking" type="button"><i class="fa-solid fa-plus-circle"></i> จองห้อง</button>
+        <button class="meeting-tab" data-tab="list" type="button"><i class="fa-solid fa-list-ul"></i> รายการ <span id="bookingCountBadge" class="tab-badge hidden">0</span></button>
+        <button class="meeting-tab" data-tab="stats" type="button"><i class="fa-solid fa-chart-bar"></i> สถิติ</button>
+        <button class="meeting-tab" data-tab="suggestions" type="button"><i class="fa-solid fa-lightbulb"></i> เสนอเพิ่มเติม</button>
+      </div>
+
+      <div id="tab-booking" class="meeting-panel active">
+        <div class="meeting-card">
+          <div class="card-title"><i class="fa-solid fa-door-open"></i> เลือกห้องประชุม</div>
+          <div id="roomGrid" class="room-grid"></div>
+        </div>
+
+        <div id="bookingSteps" class="booking-steps disabled">
+          <div class="meeting-card">
+            <div class="card-title"><i class="fa-solid fa-clock"></i> วันที่และเวลา</div>
+            <div class="form-grid">
+              <div class="form-group">
+                <label>วันที่ <span>*</span></label>
+                <input id="bookingDate" type="date" class="form-control" />
+              </div>
+              <div class="form-group">
+                <label>จำนวนผู้เข้าร่วม <span>*</span></label>
+                <input id="attendees" type="number" min="1" max="300" class="form-control" placeholder="เช่น 10" />
+              </div>
+            </div>
+            <div class="form-group mt-4">
+              <label>เลือกช่วงเวลา <span>*</span> <small>คลิกเวลาเริ่มต้น แล้วคลิกเวลาสิ้นสุด</small></label>
+              <div id="timeSlots" class="time-slots"></div>
+              <div id="selectedTimeText" class="selected-time hidden"></div>
+            </div>
+          </div>
+
+          <div class="meeting-card">
+            <div class="card-title"><i class="fa-solid fa-user"></i> ข้อมูลผู้จอง</div>
+            <div class="form-grid">
+              <div class="form-group">
+                <label>ชื่อ-นามสกุล <span>*</span></label>
+                <input id="bookerName" type="text" class="form-control" placeholder="ระบุชื่อ-นามสกุล" />
+              </div>
+              <div class="form-group">
+                <label>แผนก/ฝ่าย <span>*</span></label>
+                <select id="bookerDept" class="form-control">
+                  <option value="">-- เลือกแผนก/ฝ่าย --</option>
+                  <option>ผู้บริหาร</option>
+                  <option>ฝ่ายสื่อการสอน</option>
+                  <option>ฝ่ายผลิตรายการ</option>
+                  <option>ฝ่ายออกอากาศ</option>
+                  <option>ฝ่ายรายการ</option>
+                  <option>ฝ่ายสารสนเทศฯ</option>
+                  <option>ฝ่ายบริหารงานทั่วไป</option>
+                  <option>สำนักงานมูลนิธิฯ</option>
+                  <option>หน่วยงานภายนอก</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>เบอร์โทร <span>*</span></label>
+                <input id="bookerPhone" type="tel" class="form-control" placeholder="081-234-5678" />
+              </div>
+              <div class="form-group">
+                <label>อีเมล</label>
+                <input id="bookerEmail" type="email" class="form-control" placeholder="name@example.com" />
+              </div>
+            </div>
+          </div>
+
+          <div class="meeting-card">
+            <div class="card-title"><i class="fa-solid fa-clipboard-list"></i> ภารกิจ / หัวข้อประชุม</div>
+            <div class="form-group">
+              <label>หัวข้อประชุม <span>*</span></label>
+              <input id="topic" type="text" class="form-control" placeholder="ระบุหัวข้อ" />
+            </div>
+            <div class="form-group mt-4">
+              <label>รายละเอียด</label>
+              <textarea id="detail" class="form-control" rows="3" placeholder="รายละเอียดเพิ่มเติม"></textarea>
+            </div>
+          </div>
+
+          <div class="meeting-card">
+            <div class="card-title"><i class="fa-solid fa-tools"></i> เลือกอุปกรณ์ที่ใช้งาน</div>
+            <div id="equipmentList" class="equipment-list"></div>
+          </div>
+
+          <div id="summaryBox" class="meeting-summary hidden">
+            <div class="card-title"><i class="fa-solid fa-file-alt"></i> สรุปรายการจอง</div>
+            <div id="summaryContent" class="summary-content"></div>
+            <div class="text-right mt-5">
+              <button id="submitBookingBtn" type="button" class="btn-primary"><i class="fa-solid fa-paper-plane"></i> ยืนยันการจอง</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="tab-list" class="meeting-panel">
+        <div class="stats-grid">
+          <div class="stat-card"><strong id="statTotal">0</strong><span>จองทั้งหมด</span></div>
+          <div class="stat-card"><strong id="statRoom1">0</strong><span>ห้อง 1</span></div>
+          <div class="stat-card"><strong id="statRoom2">0</strong><span>ห้อง 2</span></div>
+          <div class="stat-card"><strong id="statToday">0</strong><span>วันนี้</span></div>
+        </div>
+        <div class="meeting-card">
+          <div class="toolbar-row">
+            <select id="filterRoom" class="form-control compact"><option value="">ทุกห้อง</option><option value="1">ห้อง 1</option><option value="2">ห้อง 2</option></select>
+            <input id="filterDate" type="date" class="form-control compact" />
+            <input id="filterSearch" type="text" class="form-control" placeholder="ค้นหาชื่อ / หัวข้อ / แผนก" />
+            <button id="clearAllBtn" type="button" class="btn-danger"><i class="fa-solid fa-trash-alt"></i> ล้างทั้งหมด</button>
+          </div>
+          <div id="bookingList" class="booking-list"></div>
+        </div>
+      </div>
+
+      <div id="tab-stats" class="meeting-panel">
+        <div class="meeting-card">
+          <div class="toolbar-row between">
+            <div>
+              <div class="card-title mb-0"><i class="fa-solid fa-chart-bar"></i> สถิติการใช้งานรายเดือน</div>
+              <p class="muted">จำนวนชั่วโมงที่ใช้งานของแต่ละห้อง</p>
+            </div>
+            <select id="statsYear" class="form-control compact"></select>
+          </div>
+          <div class="stats-grid mt-5">
+            <div class="stat-card"><strong id="totalHours">0</strong><span>ชม.รวม</span><small id="totalSessions">0 ครั้ง</small></div>
+            <div class="stat-card"><strong id="room1Hours">0</strong><span>ห้อง 1</span><small id="room1Sessions">0 ครั้ง</small></div>
+            <div class="stat-card"><strong id="room2Hours">0</strong><span>ห้อง 2</span><small id="room2Sessions">0 ครั้ง</small></div>
+            <div class="stat-card"><strong id="averageHours">0</strong><span>เฉลี่ย/เดือน</span><small id="peakMonth">-</small></div>
+          </div>
+          <div class="chart-card mt-5"><canvas id="statsChart" height="300"></canvas></div>
+        </div>
+      </div>
+
+      <div id="tab-suggestions" class="meeting-panel">
+        <div class="meeting-alert info"><i class="fa-solid fa-info-circle"></i> ฟีเจอร์ที่เสนอเพิ่มเติม — โหวตหรือแสดงความคิดเห็นเพื่อช่วยตัดสินใจพัฒนาต่อ</div>
+        <div id="suggestionGrid" class="suggestion-grid"></div>
+      </div>
+    </section>
+  </template>
+
+  <script type="module" src="assets/js/meeting.js?v=meeting-split-v1"></script>
+  <script type="module" src="assets/js/session-timeout.js?v=session-timeout-v1"></script>
+</body>
+</html>
