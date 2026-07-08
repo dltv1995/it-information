@@ -1,6 +1,10 @@
 /* assets/css/header.css */
-
 .nav-item.active {
+    color: #ffffff;
+}
+
+.nav-item.active i,
+.nav-item.active span {
     color: #ffffff;
 }
 
@@ -19,6 +23,10 @@
 
 .nav-item {
     user-select: none;
+}
+
+.nav-item:hover {
+    transform: translateX(1px);
 }
 
 header {
