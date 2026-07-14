@@ -9,7 +9,7 @@
     a.href = 'meeting.html';
     a.dataset.page = 'meeting';
     a.className = 'nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors';
-    a.innerHTML = '<i class="ph ph-presentation-chart text-lg"></i><span>จองห้องประชุม</span>';
+    a.innerHTML = '<i class="ph ph-presentation-chart text-lg"></i><span>ระบบจองห้องประชุม</span>';
     nav.appendChild(a);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', addMeetingMenu);
