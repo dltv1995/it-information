@@ -1,20 +1,118 @@
 <!DOCTYPE html>
-<html lang="th"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ระบบจองห้องประชุม</title>
-<script src="https://cdn.tailwindcss.com"></script><script>tailwind.config={darkMode:'class',theme:{extend:{fontFamily:{sans:['Prompt','Sarabun','sans-serif']},colors:{brand:{50:'#f0f9ff',100:'#e0f2fe',500:'#0ea5e9',600:'#0284c7',800:'#075985',900:'#0f172a'}}}}}</script><link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet"><script src="https://unpkg.com/@phosphor-icons/web"></script><script src="https://cdn.jsdelivr.net/npm/chart.js"></script><link rel="stylesheet" href="assets/css/style.css"><link rel="stylesheet" href="assets/css/header.css"><link rel="stylesheet" href="assets/css/meeting.css?v=meeting-complete-v6"></head>
-<body id="appBody" data-title="ระบบจองห้องประชุม" data-subtitle="จองห้อง เลือกเวลาเอง และจัดการรายการ" data-active-menu="meeting" class="bg-slate-50 font-sans hidden"><div id="layoutRoot" class="flex h-screen overflow-hidden"></div>
-<template id="meetingTemplate"><section class="meeting-page space-y-6"><div id="meetingStatus" class="meeting-alert hidden"></div>
-<div class="meeting-tabs"><button class="meeting-tab active" data-tab="booking">จองห้อง</button><button class="meeting-tab" data-tab="list">รายการ <span id="bookingCountBadge" class="tab-badge hidden">0</span></button><button class="meeting-tab" data-tab="stats">สถิติ</button></div>
-<div id="tab-booking" class="meeting-panel active"><div class="meeting-card"><div class="card-title"><i class="fa-solid fa-door-open"></i> เลือกห้องประชุม</div><p class="muted">ห้องประชุม 1 รองรับ 40 คน ส่วนห้องประชุม 2 รองรับ 10 คน</p><div id="roomGrid" class="room-grid"></div></div>
-<div id="bookingSteps" class="booking-steps disabled"><div class="meeting-card"><div class="card-title">วันที่และเวลา</div><div class="form-grid"><div class="form-group"><label>วันที่ *</label><input id="bookingDate" type="date" class="form-control"></div><div class="form-group"><label>จำนวนผู้เข้าร่วม *</label><input id="attendees" type="number" min="1" class="form-control"><small id="capacityHint" class="capacity-hint hidden"></small></div></div><div class="custom-time-grid mt-4"><div class="time-input-card"><span class="time-icon start"><i class="fa-solid fa-play"></i></span><div><small>เวลาเริ่มต้น</small><input id="startTime" type="time" step="300" class="form-control time-control"></div></div><i class="fa-solid fa-arrow-right time-arrow"></i><div class="time-input-card"><span class="time-icon end"><i class="fa-solid fa-flag-checkered"></i></span><div><small>เวลาสิ้นสุด</small><input id="endTime" type="time" step="300" class="form-control time-control"></div></div></div><div id="selectedTimeText" class="selected-time hidden"></div></div>
-<div class="meeting-card"><div class="card-title">ข้อมูลผู้จอง</div><div class="form-grid"><input id="bookerName" class="form-control" placeholder="ชื่อ-นามสกุล *"><select id="bookerDept" class="form-control"><option value="">-- เลือกส่วนงาน * --</option><option>ผู้บริหาร</option><option>ฝ่ายสารสนเทศฯ</option><option>ฝ่ายบริหารงานทั่วไป</option><option>หน่วยงานภายนอก</option></select><input id="bookerPhone" class="form-control" placeholder="เบอร์โทร *"><input id="bookerEmail" type="email" class="form-control" placeholder="อีเมล"></div></div>
-<div class="meeting-card"><div class="card-title">หัวข้อประชุม</div><input id="topic" class="form-control" placeholder="หัวข้อประชุม *"><textarea id="detail" class="form-control mt-4" rows="3" placeholder="รายละเอียด"></textarea></div>
-<div class="meeting-card"><div class="section-heading"><span class="heading-icon"><i class="fa-solid fa-screwdriver-wrench"></i></span><div><h3>เลือกอุปกรณ์ที่ใช้งาน</h3><p>เลือกได้หลายรายการ</p></div><span id="equipmentCount" class="selection-count">เลือก 0 รายการ</span></div><div id="equipmentList" class="equipment-grid"></div></div>
-<div class="meeting-card"><div class="card-title">เอกสารการประชุม (แบบร่าง)</div><div id="fileDropZone" class="file-drop"><input id="meetingFiles" type="file" multiple class="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png"><button id="chooseFilesBtn" type="button" class="btn-secondary">เลือกไฟล์แบบร่าง</button><p>เลือกไฟล์ได้ แต่ยังไม่อัปโหลดไปยัง Storage</p></div><div id="fileList" class="file-list"></div></div>
-<div id="summaryBox" class="meeting-summary hidden"><div id="summaryContent"></div></div>
-<div class="meeting-submit-card">
-  <div class="submit-copy"><span class="submit-icon"><i class="fa-solid fa-paper-plane"></i></span><div><h3>บันทึกการจองห้องประชุม</h3><p>ตรวจสอบข้อมูลด้านบน แล้วส่งรายการไปยัง Firebase Firestore</p></div></div>
-  <button id="submitBookingBtn" type="button" class="meeting-submit-btn"><i class="fa-solid fa-paper-plane"></i><span>ส่งคำขอจองห้องประชุม</span></button>
-</div></div></div>
-<div id="tab-list" class="meeting-panel"><div class="stats-grid"><div class="stat-card"><strong id="statTotal">0</strong><span>ทั้งหมด</span></div><div class="stat-card"><strong id="statRoom1">0</strong><span>ห้อง 1</span></div><div class="stat-card"><strong id="statRoom2">0</strong><span>ห้อง 2</span></div><div class="stat-card"><strong id="statToday">0</strong><span>วันนี้</span></div></div><div class="meeting-card"><div class="toolbar"><select id="filterRoom" class="form-control"><option value="">ทุกห้อง</option><option value="1">ห้อง 1</option><option value="2">ห้อง 2</option></select><input id="filterDate" type="date" class="form-control"><input id="filterSearch" class="form-control" placeholder="ค้นหา"><button id="exportCsvBtn" class="btn-secondary">ส่งออก CSV</button></div><div id="bookingList" class="booking-list"></div></div></div>
-<div id="tab-stats" class="meeting-panel"><div class="meeting-card"><div class="section-heading"><div><h3>สถิติการใช้ห้องประชุม</h3></div><select id="statsYear" class="form-control year-select"></select></div><div class="stats-grid"><div class="stat-card"><strong id="totalHours">0</strong><span>ชั่วโมงรวม</span></div><div class="stat-card"><strong id="room1Hours">0</strong><span>ห้อง 1</span></div><div class="stat-card"><strong id="room2Hours">0</strong><span>ห้อง 2</span></div><div class="stat-card"><strong id="averageHours">0</strong><span>เฉลี่ย/เดือน</span><small id="peakMonth"></small></div></div><div class="chart-wrap"><canvas id="statsChart"></canvas></div></div></div>
-</section></template><script src="assets/js/header.js?v=header-global-meeting-v6"></script><script type="module" src="assets/js/meeting.js?v=meeting-complete-v6"></script><script type="module" src="assets/js/session-timeout.js?v=session-timeout-v1"></script></body></html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>จองห้องประชุม</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config={darkMode:'class',theme:{extend:{fontFamily:{sans:['Prompt','Sarabun','sans-serif']},colors:{brand:{50:'#eff8ff',100:'#dbeafe',500:'#0ea5e9',600:'#0284c7',700:'#0369a1',900:'#0f172a'}}}}};
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="assets/css/header.css">
+  <link rel="stylesheet" href="assets/css/meeting.css?v=meeting-direct-book-v7">
+</head>
+<body id="appBody" data-title="ระบบจองห้องประชุม" data-subtitle="เลือกห้อง กำหนดเวลา และจองได้ทันที" data-active-menu="meeting" class="bg-slate-50 font-sans text-slate-700 hidden m-0">
+  <div id="layoutRoot" class="flex h-screen overflow-hidden"></div>
+
+  <template id="meetingTemplate">
+    <section class="meeting-page">
+      <div id="meetingStatus" class="meeting-alert hidden"></div>
+
+      <div class="meeting-tabs">
+        <button type="button" class="meeting-tab active" data-tab="booking"><i class="fa-solid fa-calendar-plus"></i> จองห้อง</button>
+        <button type="button" class="meeting-tab" data-tab="list"><i class="fa-solid fa-list-check"></i> รายการ <span id="bookingCountBadge" class="tab-badge">0</span></button>
+        <button type="button" class="meeting-tab" data-tab="stats"><i class="fa-solid fa-chart-column"></i> สถิติ</button>
+      </div>
+
+      <div id="tab-booking" class="meeting-panel active">
+        <div class="meeting-card room-section">
+          <div class="section-head">
+            <span class="section-icon blue"><i class="fa-solid fa-door-open"></i></span>
+            <div><h2>เลือกห้องประชุม</h2><p>เลือกห้องให้เหมาะกับจำนวนผู้เข้าร่วม</p></div>
+          </div>
+          <div id="roomGrid" class="room-grid"></div>
+        </div>
+
+        <div id="bookingSteps" class="booking-flow disabled">
+          <div class="meeting-card">
+            <div class="section-head">
+              <span class="section-icon cyan"><i class="fa-solid fa-clock"></i></span>
+              <div><h2>วันและเวลาประชุม</h2><p>กำหนดเวลาเริ่มต้นและสิ้นสุดได้เอง</p></div>
+            </div>
+            <div class="form-grid three">
+              <label class="field"><span>วันที่ <b>*</b></span><input id="bookingDate" type="date" class="form-control"></label>
+              <label class="field"><span>เวลาเริ่มต้น <b>*</b></span><input id="startTime" type="time" step="300" class="form-control"></label>
+              <label class="field"><span>เวลาสิ้นสุด <b>*</b></span><input id="endTime" type="time" step="300" class="form-control"></label>
+            </div>
+            <div class="form-grid two mt-4">
+              <label class="field"><span>จำนวนผู้เข้าร่วม <b>*</b></span><input id="attendees" type="number" min="1" class="form-control" placeholder="เลือกห้องก่อน"><small id="capacityHint" class="field-hint"></small></label>
+              <div id="selectedTimeText" class="time-result muted-result"><i class="fa-regular fa-clock"></i> รอเลือกเวลา</div>
+            </div>
+          </div>
+
+          <div class="meeting-card">
+            <div class="section-head">
+              <span class="section-icon violet"><i class="fa-solid fa-user-pen"></i></span>
+              <div><h2>ข้อมูลการประชุม</h2><p>ระบุผู้จองและรายละเอียดการประชุม</p></div>
+            </div>
+            <div class="form-grid two">
+              <label class="field"><span>ชื่อผู้จอง <b>*</b></span><input id="bookerName" class="form-control" placeholder="ชื่อ-นามสกุล"></label>
+              <label class="field"><span>ส่วนงาน <b>*</b></span><select id="bookerDept" class="form-control"><option value="">-- เลือกส่วนงาน --</option><option>ผู้บริหาร</option><option>ฝ่ายสารสนเทศฯ</option><option>ฝ่ายสื่อการสอน</option><option>ฝ่ายผลิตรายการ</option><option>ฝ่ายบริหารงานทั่วไป</option><option>หน่วยงานภายนอก</option></select></label>
+              <label class="field"><span>เบอร์โทร <b>*</b></span><input id="bookerPhone" class="form-control" placeholder="เบอร์โทรติดต่อ"></label>
+              <label class="field"><span>อีเมล</span><input id="bookerEmail" type="email" class="form-control" placeholder="name@example.com"></label>
+            </div>
+            <label class="field mt-4"><span>หัวข้อประชุม <b>*</b></span><input id="topic" class="form-control" placeholder="ระบุหัวข้อการประชุม"></label>
+            <label class="field mt-4"><span>รายละเอียด</span><textarea id="detail" rows="3" class="form-control" placeholder="รายละเอียดเพิ่มเติม"></textarea></label>
+          </div>
+
+          <div class="meeting-card equipment-block">
+            <div class="section-head equipment-head">
+              <span class="section-icon orange"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
+              <div><h2>อุปกรณ์ที่ต้องการ</h2><p>แตะการ์ดเพื่อเลือกได้หลายรายการ</p></div>
+              <span id="equipmentCount" class="selected-count">เลือกแล้ว 0 รายการ</span>
+            </div>
+            <div id="equipmentList" class="equipment-grid"></div>
+          </div>
+
+          <div class="meeting-card draft-file-block">
+            <div class="section-head">
+              <span class="section-icon emerald"><i class="fa-solid fa-file-circle-plus"></i></span>
+              <div><h2>เอกสารการประชุม <span class="draft-badge">แบบร่าง</span></h2><p>เตรียมส่วนแนบไฟล์ไว้ก่อน ยังไม่อัปโหลดไป Storage</p></div>
+            </div>
+            <div id="fileDropZone" class="file-drop">
+              <input id="meetingFiles" type="file" multiple hidden accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png">
+              <span class="upload-icon"><i class="fa-solid fa-cloud-arrow-up"></i></span>
+              <div><strong>เลือกไฟล์แบบร่าง</strong><p>สูงสุด 5 ไฟล์ ไฟล์ละไม่เกิน 10 MB</p></div>
+              <button id="chooseFilesBtn" type="button" class="secondary-btn">เลือกไฟล์</button>
+            </div>
+            <div id="fileList" class="file-list"></div>
+          </div>
+
+          <div id="summaryBox" class="booking-summary">
+            <div class="summary-title"><i class="fa-solid fa-clipboard-check"></i><span>ตรวจสอบก่อนจอง</span></div>
+            <div id="summaryContent" class="summary-grid"><span class="summary-empty">กรอกข้อมูลให้ครบ ระบบจะแสดงสรุปที่นี่</span></div>
+          </div>
+
+          <div class="book-now-bar">
+            <div class="book-now-copy"><span class="book-now-icon"><i class="fa-solid fa-bolt"></i></span><div><h3>พร้อมใช้งานทันที</h3><p>กดจองแล้วบันทึกเป็นรายการยืนยันใน Firebase Firestore</p></div></div>
+            <button id="bookNowBtn" type="button" class="book-now-btn"><i class="fa-solid fa-calendar-check"></i><span>จองห้องประชุม</span></button>
+          </div>
+        </div>
+      </div>
+
+      <div id="tab-list" class="meeting-panel">
+        <div class="stats-grid"><div class="stat-card"><strong id="statTotal">0</strong><span>ทั้งหมด</span></div><div class="stat-card"><strong id="statRoom1">0</strong><span>ห้อง 1</span></div><div class="stat-card"><strong id="statRoom2">0</strong><span>ห้อง 2</span></div><div class="stat-card"><strong id="statToday">0</strong><span>วันนี้</span></div></div>
+        <div class="meeting-card"><div class="filter-bar"><select id="filterRoom" class="form-control"><option value="">ทุกห้อง</option><option value="1">ห้อง 1</option><option value="2">ห้อง 2</option></select><input id="filterDate" type="date" class="form-control"><input id="filterSearch" class="form-control" placeholder="ค้นหาหัวข้อหรือชื่อผู้จอง"><button id="exportCsvBtn" type="button" class="secondary-btn">ส่งออก CSV</button></div><div id="bookingList" class="booking-list"></div></div>
+      </div>
+
+      <div id="tab-stats" class="meeting-panel"><div class="meeting-card"><div class="section-head"><span class="section-icon blue"><i class="fa-solid fa-chart-simple"></i></span><div><h2>สถิติการใช้งาน</h2><p>จำนวนชั่วโมงการใช้ห้องประชุม</p></div><select id="statsYear" class="form-control year-select"></select></div><div class="stats-grid"><div class="stat-card"><strong id="totalHours">0</strong><span>ชั่วโมงรวม</span></div><div class="stat-card"><strong id="room1Hours">0</strong><span>ห้อง 1</span></div><div class="stat-card"><strong id="room2Hours">0</strong><span>ห้อง 2</span></div><div class="stat-card"><strong id="averageHours">0</strong><span>เฉลี่ย/เดือน</span></div></div></div></div>
+    </section>
+  </template>
+  <script src="assets/js/header.js?v=header-global-meeting-v6"></script>
+  <script src="assets/js/meeting.js?v=meeting-direct-book-v7"></script>
+  <script type="module" src="assets/js/session-timeout.js?v=session-timeout-v1"></script>
+</body>
+</html>
