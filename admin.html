@@ -8,6 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="assets/css/header.css?v=shared-sidebar-v7">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <script>
         if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
@@ -29,8 +30,9 @@
             }
         };
     </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 </head>
-<body class="bg-slate-50 dark:bg-slate-900 transition-theme font-sans text-slate-700 dark:text-slate-300 hidden m-0" id="appBody">
+<body data-active-menu="admin" data-title="จัดการผู้ใช้งานและสิทธิ์" data-subtitle="เพิ่ม แก้ไข และกำหนดสิทธิ์การเข้าถึงระบบ" class="bg-slate-50 dark:bg-slate-900 transition-theme font-sans text-slate-700 dark:text-slate-300 hidden m-0" id="appBody">
     <noscript>
         <div style="padding:24px;font-family:sans-serif;color:#dc2626">กรุณาเปิดใช้งาน JavaScript เพื่อใช้งานหน้านี้</div>
     </noscript>
@@ -267,6 +269,7 @@
             }, 3500);
         })();
     </script>
-    <script type="module" src="assets/js/admin.js?v=admin-section-v2"></script>
+    <script src="assets/js/header.js?v=shared-sidebar-v7"></script>
+  <script type="module" src="assets/js/admin.js?v=admin-section-v2"></script>
 </body>
 </html>

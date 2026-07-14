@@ -8,15 +8,16 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/style.css">
-  <link rel="stylesheet" href="assets/css/header.css">
+  <link rel="stylesheet" href="assets/css/header.css?v=shared-sidebar-v7">
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
   <script>
     if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.classList.add('dark');
     else document.documentElement.classList.remove('dark');
     tailwind.config = { darkMode:'class', theme:{ extend:{ fontFamily:{ sans:['Prompt','sans-serif'] }, colors:{ brand:{ 50:'#f0f9ff',100:'#e0f2fe',500:'#0ea5e9',600:'#0284c7',800:'#075985',900:'#0f172a' } } } } };
   </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 </head>
-<body class="bg-slate-50 dark:bg-slate-900 transition-theme font-sans text-slate-700 dark:text-slate-300 hidden m-0" id="appBody">
+<body data-active-menu="projects" data-title="โครงการและงบประมาณ" data-subtitle="สร้างโครงการ ตรวจสอบสถานะ และบริหารงบประมาณ" class="bg-slate-50 dark:bg-slate-900 transition-theme font-sans text-slate-700 dark:text-slate-300 hidden m-0" id="appBody">
   <div class="flex h-screen overflow-hidden">
     <div id="mobileOverlay" class="fixed inset-0 bg-slate-900/50 dark:bg-black/60 backdrop-blur-sm z-40 hidden md:hidden transition-opacity duration-300 opacity-0"></div>
     <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-72 bg-brand-900 text-slate-300 flex flex-col shadow-xl transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-300 ease-in-out border-r border-slate-800 transition-theme">
@@ -40,6 +41,7 @@
 
   <div id="globalBudgetModal" class="fixed inset-0 bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm z-[70] hidden flex items-center justify-center p-4 opacity-0 transition-opacity duration-300"><div id="globalBudgetModalContent" class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md border border-slate-200 dark:border-slate-700 overflow-hidden transform scale-95 transition-transform duration-300"><div class="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50"><h3 class="text-lg font-bold text-slate-800 dark:text-white">แก้ไขงบประมาณรวมฝ่าย</h3><button id="closeGlobalBudgetModalBtn" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors"><i class="ph ph-x text-xl"></i></button></div><div class="p-6 space-y-4"><div id="globalBudgetError" class="hidden bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-sm p-3 rounded-lg border border-red-100 dark:border-red-800/50"></div><div><label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">งบประมาณรวมฝ่ายปีปัจจุบัน (บาท)</label><input type="number" id="globalBudgetInput" min="0" step="1000" class="w-full px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none"></div><p class="text-xs text-slate-500 dark:text-slate-400">ค่านี้เก็บที่ Firestore: settings/budget.totalBudget</p><div class="pt-2 flex justify-end gap-3"><button type="button" id="cancelGlobalBudgetBtn" class="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors">ยกเลิก</button><button type="button" id="saveGlobalBudgetBtn" class="px-5 py-2 text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 dark:bg-sky-600 dark:hover:bg-sky-700 rounded-lg shadow-sm transition-colors flex items-center gap-2"><span>บันทึกงบรวม</span><span id="saveGlobalBudgetSpinner" class="hidden inline-block animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span></button></div></div></div></div>
 
+  <script src="assets/js/header.js?v=shared-sidebar-v7"></script>
   <script type="module" src="assets/js/projects.js?v=projects-permission-fix-v19"></script>
 </body>
 </html>
