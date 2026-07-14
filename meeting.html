@@ -10,7 +10,7 @@
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/style.css">
   <link rel="stylesheet" href="assets/css/header.css">
-  <link rel="stylesheet" href="assets/css/meeting.css?v=meeting-popup-alert-v15">
+  <link rel="stylesheet" href="assets/css/meeting.css?v=meeting-phone-validation-v16">
 </head>
 <body id="appBody" data-title="ระบบจองห้องประชุม" data-subtitle="เลือกห้อง กำหนดเวลา และจองได้ทันที" data-active-menu="meeting" class="bg-slate-50 font-sans text-slate-700 hidden m-0">
 <div id="layoutRoot" class="flex h-screen overflow-hidden"></div>
@@ -42,7 +42,20 @@
 
       <article class="meeting-card accent-violet">
         <header class="section-head"><span class="section-icon violet"><i class="fa-solid fa-user-pen"></i></span><div><h2>ข้อมูลผู้จอง</h2><p>กรอกข้อมูลที่มีเครื่องหมาย * ให้ครบ</p></div></header>
-        <div class="form-grid two"><label class="field"><span>ชื่อ-นามสกุล *</span><input id="bookerName" class="form-control"></label><label class="field"><span>ส่วนงาน *</span><select id="bookerDept" class="form-control"><option value="">-- เลือกส่วนงาน --</option><option>ผู้บริหาร</option><option>ฝ่ายสารสนเทศฯ</option><option>ฝ่ายสื่อการสอน</option><option>ฝ่ายผลิตรายการ</option><option>ฝ่ายบริหารงานทั่วไป</option><option>หน่วยงานภายนอก</option></select></label><label class="field"><span>เบอร์โทร *</span><input id="bookerPhone" class="form-control"></label><div id="externalOrgField" class="field external-org-field hidden"><span>ชื่อหน่วยงานภายนอก *</span><input id="externalOrgName" class="form-control" placeholder="ระบุชื่อหน่วยงาน"></div></div>
+        <div class="form-grid two"><label class="field"><span>ชื่อ-นามสกุล *</span><input id="bookerName" class="form-control"></label><label class="field"><span>ส่วนงาน *</span><select id="bookerDept" class="form-control"><option value="">-- เลือกส่วนงาน --</option><option>ผู้บริหาร</option><option>ฝ่ายสารสนเทศฯ</option><option>ฝ่ายสื่อการสอน</option><option>ฝ่ายผลิตรายการ</option><option>ฝ่ายบริหารงานทั่วไป</option><option>หน่วยงานภายนอก</option></select></label><div class="field phone-field">
+  <span>เบอร์โทร *</span>
+  <div class="phone-input-group">
+    <select id="phoneType" class="form-control phone-type-select" aria-label="ประเภทโทรศัพท์">
+      <option value="mobile">โทรศัพท์มือถือ</option>
+      <option value="landline">โทรศัพท์บ้าน</option>
+    </select>
+    <div class="phone-number-wrap">
+      <i class="fa-solid fa-mobile-screen-button" id="phoneTypeIcon"></i>
+      <input id="bookerPhone" type="text" inputmode="numeric" autocomplete="tel" maxlength="10" class="form-control phone-number-input" placeholder="กรอกตัวเลข 10 หลัก" aria-describedby="phoneHint">
+    </div>
+  </div>
+  <small id="phoneHint" class="phone-hint"><i class="fa-solid fa-circle-info"></i> โทรศัพท์มือถือ: ตัวเลข 10 หลัก</small>
+</div><div id="externalOrgField" class="field external-org-field hidden"><span>ชื่อหน่วยงานภายนอก *</span><input id="externalOrgName" class="form-control" placeholder="ระบุชื่อหน่วยงาน"></div></div>
         <label class="field mt-4"><span>หัวข้อประชุม *</span><input id="topic" class="form-control"></label><label class="field mt-4"><span>รายละเอียด</span><textarea id="detail" rows="3" class="form-control"></textarea></label>
       </article>
 
@@ -61,6 +74,6 @@
 </section>
 </template>
 <script src="assets/js/header.js?v=header-global-meeting-v6"></script>
-<script type="module" src="assets/js/meeting.js?v=meeting-popup-alert-v15"></script>
+<script type="module" src="assets/js/meeting.js?v=meeting-phone-validation-v16"></script>
 <script type="module" src="assets/js/session-timeout.js?v=session-timeout-v1"></script>
 </body></html>
