@@ -12,7 +12,7 @@
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/style.css">
   <link rel="stylesheet" href="assets/css/header.css">
-  <link rel="stylesheet" href="assets/css/meeting.css?v=meeting-direct-book-v7">
+  <link rel="stylesheet" href="assets/css/meeting.css?v=meeting-external-org-v8">
 </head>
 <body id="appBody" data-title="ระบบจองห้องประชุม" data-subtitle="เลือกห้อง กำหนดเวลา และจองได้ทันที" data-active-menu="meeting" class="bg-slate-50 font-sans text-slate-700 hidden m-0">
   <div id="layoutRoot" class="flex h-screen overflow-hidden"></div>
@@ -62,7 +62,11 @@
               <label class="field"><span>ชื่อผู้จอง <b>*</b></span><input id="bookerName" class="form-control" placeholder="ชื่อ-นามสกุล"></label>
               <label class="field"><span>ส่วนงาน <b>*</b></span><select id="bookerDept" class="form-control"><option value="">-- เลือกส่วนงาน --</option><option>ผู้บริหาร</option><option>ฝ่ายสารสนเทศฯ</option><option>ฝ่ายสื่อการสอน</option><option>ฝ่ายผลิตรายการ</option><option>ฝ่ายบริหารงานทั่วไป</option><option>หน่วยงานภายนอก</option></select></label>
               <label class="field"><span>เบอร์โทร <b>*</b></span><input id="bookerPhone" class="form-control" placeholder="เบอร์โทรติดต่อ"></label>
-              <label class="field"><span>อีเมล</span><input id="bookerEmail" type="email" class="form-control" placeholder="name@example.com"></label>
+              <div id="externalOrgField" class="field external-org-field hidden">
+                <span>ชื่อหน่วยงานภายนอก <b>*</b></span>
+                <div class="external-org-input-wrap"><i class="fa-solid fa-building-circle-check"></i><input id="externalOrgName" class="form-control" placeholder="ระบุชื่อบริษัท มูลนิธิ หรือหน่วยงาน"></div>
+                <small class="field-hint">แสดงเฉพาะเมื่อเลือก “หน่วยงานภายนอก”</small>
+              </div>
             </div>
             <label class="field mt-4"><span>หัวข้อประชุม <b>*</b></span><input id="topic" class="form-control" placeholder="ระบุหัวข้อการประชุม"></label>
             <label class="field mt-4"><span>รายละเอียด</span><textarea id="detail" rows="3" class="form-control" placeholder="รายละเอียดเพิ่มเติม"></textarea></label>
@@ -112,7 +116,7 @@
     </section>
   </template>
   <script src="assets/js/header.js?v=header-global-meeting-v6"></script>
-  <script src="assets/js/meeting.js?v=meeting-direct-book-v7"></script>
+  <script src="assets/js/meeting.js?v=meeting-external-org-v8"></script>
   <script type="module" src="assets/js/session-timeout.js?v=session-timeout-v1"></script>
 </body>
 </html>
