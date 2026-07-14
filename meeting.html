@@ -10,7 +10,7 @@
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/style.css">
   <link rel="stylesheet" href="assets/css/header.css">
-  <link rel="stylesheet" href="assets/css/meeting.css?v=meeting-glass-effects-v11">
+  <link rel="stylesheet" href="assets/css/meeting.css?v=meeting-24h-summary-v12">
 </head>
 <body id="appBody" data-title="ระบบจองห้องประชุม" data-subtitle="เลือกห้อง กำหนดเวลา และจองได้ทันที" data-active-menu="meeting" class="bg-slate-50 font-sans text-slate-700 hidden m-0">
 <div id="layoutRoot" class="flex h-screen overflow-hidden"></div>
@@ -31,8 +31,8 @@
         <div class="section-head"><span class="section-icon cyan"><i class="fa-solid fa-clock"></i></span><div><h2>วันและเวลา</h2><p>เลือกเวลาเริ่มต้นและสิ้นสุดได้เอง</p></div></div>
         <div class="form-grid three">
           <label class="field"><span>วันที่ *</span><input id="bookingDate" type="date" class="form-control"></label>
-          <label class="field"><span>เวลาเริ่มต้น *</span><input id="startTime" type="time" step="300" class="form-control"></label>
-          <label class="field"><span>เวลาสิ้นสุด *</span><input id="endTime" type="time" step="300" class="form-control"></label>
+          <label class="field"><span>เวลาเริ่มต้น *</span><select id="startTime" class="form-control time-24-select" aria-label="เวลาเริ่มต้นแบบ 24 ชั่วโมง"></select></label>
+          <label class="field"><span>เวลาสิ้นสุด *</span><select id="endTime" class="form-control time-24-select" aria-label="เวลาสิ้นสุดแบบ 24 ชั่วโมง"></select></label>
         </div>
         <div class="form-grid two mt-4">
           <label class="field"><span>จำนวนผู้เข้าร่วม *</span><input id="attendees" type="number" min="1" step="1" class="form-control" placeholder="กรอกจำนวนผู้เข้าร่วม"></label>
@@ -52,7 +52,10 @@
       </article>
       <article class="meeting-card"><div class="section-head"><span class="section-icon orange"><i class="fa-solid fa-wand-magic-sparkles"></i></span><div><h2>อุปกรณ์ที่ต้องการ</h2><p>เลือกได้หลายรายการ</p></div><span id="equipmentCount" class="selected-count">เลือกแล้ว 0 รายการ</span></div><div id="equipmentList" class="equipment-grid"></div></article>
       <article class="meeting-card"><div class="section-head"><span class="section-icon emerald"><i class="fa-solid fa-file-circle-plus"></i></span><div><h2>เอกสารการประชุม <small>แบบร่าง</small></h2><p>เลือกไฟล์ไว้เป็นข้อมูลร่าง ยังไม่อัปโหลด Storage</p></div></div><div id="fileDropZone" class="file-drop"><input id="meetingFiles" type="file" multiple hidden><i class="fa-solid fa-cloud-arrow-up"></i><div><strong>เลือกไฟล์แบบร่าง</strong><p>สูงสุด 5 ไฟล์ ไฟล์ละไม่เกิน 10 MB</p></div><button id="chooseFilesBtn" type="button" class="secondary-btn">เลือกไฟล์</button></div><div id="fileList" class="file-list"></div></article>
-      <div id="summaryContent" class="booking-summary">เลือกห้องและกรอกข้อมูล ระบบจะแสดงสรุปที่นี่</div>
+      <div id="summaryContent" class="booking-summary summary-empty-state">
+        <div class="summary-placeholder-icon"><i class="fa-solid fa-clipboard-list"></i></div>
+        <div><strong>สรุปรายการจอง</strong><p>เลือกห้องและกรอกข้อมูล ระบบจะแสดงรายละเอียดแบบเรียลไทม์ที่นี่</p></div>
+      </div>
       <div class="book-now-bar"><div><h3>จองได้ทันที</h3><p>บันทึกเป็นรายการยืนยันใน Firebase Firestore</p></div><button id="bookNowBtn" class="book-now-btn" type="button"><i class="fa-solid fa-calendar-check"></i> จองห้องประชุม</button></div>
     </div>
   </div>
@@ -60,6 +63,6 @@
 </section>
 </template>
 <script src="assets/js/header.js?v=header-global-meeting-v6"></script>
-<script type="module" src="assets/js/meeting.js?v=meeting-glass-effects-v11"></script>
+<script type="module" src="assets/js/meeting.js?v=meeting-24h-summary-v12"></script>
 <script type="module" src="assets/js/session-timeout.js?v=session-timeout-v1"></script>
 </body></html>
