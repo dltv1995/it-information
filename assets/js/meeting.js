@@ -1,210 +1,67 @@
 // assets/js/meeting.js
-// Version: meeting-firebase-attachments-v2
-import { app, auth, db } from './firebase-config.js';
-import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
-import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, serverTimestamp, query, orderBy } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
-import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js';
+// Version: meeting-ui-stable-v5
+console.log('meeting.js loaded: meeting-ui-stable-v5');
 
-console.log('meeting.js loaded: meeting-firebase-attachments-v2');
-
-const storage = getStorage(app);
-const COLLECTION = 'meeting_bookings';
-const ROOMS = [
-  { id: '1', name: 'ห้องประชุม 1', capacity: 40, icon: 'fa-users', detail: 'รองรับผู้เข้าประชุมได้สูงสุด 40 คน เหมาะกับการประชุมฝ่าย การประชุมคณะทำงาน และการอบรมขนาดกลาง' },
-  { id: '2', name: 'ห้องประชุม 2', capacity: 10, icon: 'fa-user-group', detail: 'รองรับผู้เข้าประชุมได้สูงสุด 10 คน เหมาะกับการประชุมกลุ่มย่อย การนัดหมายภายใน และการประชุมออนไลน์' }
+const ROOMS=[
+ {id:'1',name:'ห้องประชุม 1',capacity:40,icon:'fa-users',detail:'รองรับผู้เข้าประชุมได้สูงสุด 40 คน เหมาะกับการประชุมฝ่าย การประชุมคณะทำงาน และการอบรมขนาดกลาง'},
+ {id:'2',name:'ห้องประชุม 2',capacity:10,icon:'fa-user-group',detail:'รองรับผู้เข้าประชุมได้สูงสุด 10 คน เหมาะกับการประชุมกลุ่มย่อย การนัดหมายภายใน และการประชุมออนไลน์'}
 ];
-const EQUIPMENT = ['โปรเจกเตอร์','จอรับภาพ','ไมโครโฟน','ลำโพง','กล้องประชุมออนไลน์','สาย HDMI / Adapter','ไวท์บอร์ด','อินเทอร์เน็ตสำหรับประชุม'];
-const TIME_START = 8, TIME_END = 18, SLOT_MINUTES = 30;
+const EQUIPMENT=[
+ ['โปรเจกเตอร์','fa-video','blue'],['จอรับภาพ','fa-display','indigo'],['ไมโครโฟน','fa-microphone-lines','rose'],['ลำโพง','fa-volume-high','amber'],['กล้องประชุมออนไลน์','fa-camera','emerald'],['สาย HDMI / Adapter','fa-plug','cyan'],['ไวท์บอร์ด','fa-chalkboard','violet'],['อินเทอร์เน็ตสำหรับประชุม','fa-wifi','sky']
+];
+const state={mounted:false,room:null,start:'',end:'',equipment:new Set(),files:[],bookings:[],firebase:null,user:null,unsub:null,chart:null};
+const el={};
 
-let currentUser = null, bookings = [], selectedRoom = null, selectedStart = null, selectedEnd = null;
-let selectedEquipment = new Set(), selectedFiles = [], unsubscribeBookings = null, mounted = false, statsChart = null;
-const els = {};
-
-document.addEventListener('DOMContentLoaded', waitForHeaderAndMount);
-
-function waitForHeaderAndMount() {
-  const pageContent = document.getElementById('pageContent');
-  const template = document.getElementById('meetingTemplate');
-  if (pageContent && template && !mounted) {
-    pageContent.innerHTML = '';
-    pageContent.appendChild(template.content.cloneNode(true));
-    mounted = true;
-    initElements(); bindEvents(); renderRooms(); renderEquipment(); renderTimeSlots(); initAuth();
-    return;
-  }
-  setTimeout(waitForHeaderAndMount, 80);
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount);else mount();
+function mount(){
+ const target=document.getElementById('pageContent'),tpl=document.getElementById('meetingTemplate');
+ if(!target||!tpl){setTimeout(mount,80);return} if(state.mounted)return;
+ state.mounted=true;target.innerHTML='';target.appendChild(tpl.content.cloneNode(true));
+ ['meetingStatus','roomGrid','bookingSteps','bookingDate','attendees','capacityHint','startTime','endTime','selectedTimeText','bookerName','bookerDept','bookerPhone','bookerEmail','topic','detail','equipmentList','equipmentCount','meetingFiles','chooseFilesBtn','fileDropZone','fileList','summaryBox','summaryContent','submitBookingBtn','bookingCountBadge','bookingList','filterRoom','filterDate','filterSearch','exportCsvBtn','statTotal','statRoom1','statRoom2','statToday','statsYear','totalHours','room1Hours','room2Hours','averageHours'].forEach(id=>el[id]=document.getElementById(id));
+ bind();renderRooms();renderEquipment();renderFiles();renderList();renderStats();connectFirebase();
 }
-
-function initElements() {
-  ['meetingStatus','roomGrid','bookingSteps','bookingDate','attendees','capacityHint','timeSlots','selectedTimeText','bookerName','bookerDept','bookerPhone','bookerEmail','topic','detail','equipmentList','summaryBox','summaryContent','submitBookingBtn','bookingList','bookingCountBadge','filterRoom','filterDate','filterSearch','clearAllBtn','exportCsvBtn','statsYear','meetingFiles','chooseFilesBtn','fileDropZone','fileList','statTotal','statRoom1','statRoom2','statToday','totalHours','room1Hours','room2Hours','averageHours','peakMonth','totalSessions','room1Sessions','room2Sessions'].forEach(id => els[id] = document.getElementById(id));
+function bind(){
+ document.querySelectorAll('.meeting-tab').forEach(b=>b.onclick=()=>switchTab(b.dataset.tab));
+ el.bookingDate.onchange=()=>{checkTime();summary()};
+ el.startTime.onchange=()=>{state.start=el.startTime.value;checkTime();summary()};
+ el.endTime.onchange=()=>{state.end=el.endTime.value;checkTime();summary()};
+ el.attendees.oninput=()=>{limit();summary()};
+ [el.bookerName,el.bookerDept,el.bookerPhone,el.bookerEmail,el.topic,el.detail].forEach(x=>{x.oninput=summary;x.onchange=summary});
+ [el.filterRoom,el.filterDate,el.filterSearch].forEach(x=>{x.oninput=renderList;x.onchange=renderList});
+ el.statsYear.onchange=renderStats;el.exportCsvBtn.onclick=exportCsv;el.submitBookingBtn.onclick=save;
+ el.chooseFilesBtn.onclick=()=>el.meetingFiles.click();el.meetingFiles.onchange=e=>addFiles([...e.target.files]);
+ el.fileDropZone.ondragover=e=>{e.preventDefault();el.fileDropZone.classList.add('dragover')};
+ el.fileDropZone.ondragleave=()=>el.fileDropZone.classList.remove('dragover');
+ el.fileDropZone.ondrop=e=>{e.preventDefault();el.fileDropZone.classList.remove('dragover');addFiles([...e.dataTransfer.files])};
 }
-
-function bindEvents() {
-  document.querySelectorAll('.meeting-tab').forEach(btn => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
-  els.bookingDate?.addEventListener('change', () => { selectedStart = null; selectedEnd = null; renderTimeSlots(); updateSummary(); });
-  els.attendees?.addEventListener('input', () => { validateCapacity(); updateSummary(); });
-  [els.bookerName,els.bookerDept,els.bookerPhone,els.bookerEmail,els.topic,els.detail].forEach(el => ['input','change'].forEach(evt => el?.addEventListener(evt, updateSummary)));
-  els.submitBookingBtn?.addEventListener('click', submitBooking);
-  [els.filterRoom, els.filterDate, els.filterSearch].forEach(el => el?.addEventListener('input', renderBookingList));
-  [els.filterRoom, els.filterDate].forEach(el => el?.addEventListener('change', renderBookingList));
-  els.exportCsvBtn?.addEventListener('click', exportCsv);
-  els.clearAllBtn?.addEventListener('click', clearAllBookings);
-  els.statsYear?.addEventListener('change', renderStats);
-  els.chooseFilesBtn?.addEventListener('click', () => els.meetingFiles?.click());
-  els.meetingFiles?.addEventListener('change', e => addSelectedFiles(Array.from(e.target.files || [])));
-  els.fileDropZone?.addEventListener('dragover', e => { e.preventDefault(); els.fileDropZone.classList.add('dragover'); });
-  els.fileDropZone?.addEventListener('dragleave', () => els.fileDropZone.classList.remove('dragover'));
-  els.fileDropZone?.addEventListener('drop', e => { e.preventDefault(); els.fileDropZone.classList.remove('dragover'); addSelectedFiles(Array.from(e.dataTransfer.files || [])); });
+async function connectFirebase(){
+ try{
+  const cfg=await import('./firebase-config.js');
+  const a=await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js');
+  const f=await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js');
+  if(!cfg.auth||!cfg.db)throw Error('firebase-config.js ต้อง export auth และ db');
+  state.firebase={...f,db:cfg.db};
+  a.onAuthStateChanged(cfg.auth,user=>{state.user=user;if(!user){message('กรุณาเข้าสู่ระบบก่อนบันทึก','error');return}el.bookerEmail.value=el.bookerEmail.value||user.email||'';el.bookerName.value=el.bookerName.value||localStorage.getItem('user_name')||user.displayName||'';listen()});
+ }catch(e){console.error(e);message('หน้าใช้งานได้ แต่ยังเชื่อม Firebase ไม่สำเร็จ: '+e.message,'error')}
 }
-
-function initAuth() {
-  onAuthStateChanged(auth, user => {
-    if (!user) { showStatus('กรุณาเข้าสู่ระบบก่อนใช้งานระบบจองห้องประชุม', 'error'); return; }
-    currentUser = user;
-    if (els.bookerEmail && !els.bookerEmail.value) els.bookerEmail.value = user.email || '';
-    if (els.bookerName && !els.bookerName.value) els.bookerName.value = localStorage.getItem('user_name') || user.displayName || '';
-    listenBookings();
-  });
-}
-
-function listenBookings() {
-  if (typeof unsubscribeBookings === 'function') unsubscribeBookings();
-  const q = query(collection(db, COLLECTION), orderBy('date', 'desc'));
-  unsubscribeBookings = onSnapshot(q, snap => {
-    bookings = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    renderTimeSlots(); renderBookingList(); renderStats(); updateSummary();
-  }, err => showStatus(`โหลดรายการจองไม่สำเร็จ: ${err.code || err.message}`, 'error'));
-}
-
-function renderRooms() {
-  els.roomGrid.innerHTML = ROOMS.map(room => `<article class="room-card ${selectedRoom?.id===room.id?'active':''}" data-room-id="${room.id}"><span class="room-badge"><i class="fa-solid ${room.icon}"></i> รองรับ ${room.capacity} คน</span><div class="room-title">${escapeHtml(room.name)}</div><div class="room-detail">${escapeHtml(room.detail)}</div><div class="room-capacity"><i class="fa-solid fa-users"></i> ความจุสูงสุด ${room.capacity} คน</div></article>`).join('');
-  els.roomGrid.querySelectorAll('.room-card').forEach(card => card.addEventListener('click', () => { selectedRoom = ROOMS.find(r => r.id === card.dataset.roomId); selectedStart=null; selectedEnd=null; els.bookingSteps.classList.remove('disabled'); renderRooms(); renderTimeSlots(); validateCapacity(); updateSummary(); }));
-}
-
-function renderEquipment() {
-  els.equipmentList.innerHTML = EQUIPMENT.map(item => `<label class="equipment-item ${selectedEquipment.has(item)?'selected':''}"><input type="checkbox" class="hidden" value="${escapeAttr(item)}" ${selectedEquipment.has(item)?'checked':''}/><i class="fa-solid fa-check-circle"></i><span>${escapeHtml(item)}</span></label>`).join('');
-  els.equipmentList.querySelectorAll('.equipment-item').forEach(item => item.addEventListener('click', e => { e.preventDefault(); const value = item.querySelector('input')?.value; if (!value) return; selectedEquipment.has(value) ? selectedEquipment.delete(value) : selectedEquipment.add(value); renderEquipment(); updateSummary(); }));
-}
-
-function renderTimeSlots() {
-  if (!els.timeSlots) return;
-  const date = els.bookingDate?.value || '';
-  const booked = selectedRoom && date ? bookings.filter(b => b.roomId === selectedRoom.id && b.date === date && b.status !== 'cancelled') : [];
-  els.timeSlots.innerHTML = makeSlots().map(slot => {
-    const end = addMinutes(slot, SLOT_MINUTES);
-    const isBooked = booked.some(b => timeOverlaps(slot, end, b.startTime, b.endTime));
-    const isSelected = selectedStart && selectedEnd && slot >= selectedStart && slot < selectedEnd;
-    return `<button type="button" class="time-slot ${isBooked?'booked':''} ${isSelected?'selected':''}" data-time="${slot}" ${isBooked?'disabled':''}>${slot}</button>`;
-  }).join('');
-  els.timeSlots.querySelectorAll('.time-slot:not(.booked)').forEach(btn => btn.addEventListener('click', () => selectTime(btn.dataset.time)));
-  if (selectedStart && selectedEnd) { els.selectedTimeText.textContent = `เลือกเวลา ${selectedStart} - ${selectedEnd}`; els.selectedTimeText.classList.remove('hidden'); } else els.selectedTimeText.classList.add('hidden');
-}
-
-function selectTime(time) {
-  if (!selectedStart || selectedEnd) { selectedStart = time; selectedEnd = null; }
-  else {
-    selectedEnd = time <= selectedStart ? addMinutes(selectedStart, SLOT_MINUTES) : addMinutes(time, SLOT_MINUTES);
-    if (rangeHasBookedSlot(selectedStart, selectedEnd)) { showStatus('ช่วงเวลาที่เลือกทับกับรายการจองเดิม กรุณาเลือกช่วงเวลาใหม่', 'error'); selectedStart = null; selectedEnd = null; }
-  }
-  renderTimeSlots(); updateSummary();
-}
-
-function rangeHasBookedSlot(start, end) {
-  const date = els.bookingDate?.value || '';
-  if (!selectedRoom || !date) return false;
-  return bookings.some(b => b.roomId === selectedRoom.id && b.date === date && b.status !== 'cancelled' && timeOverlaps(start, end, b.startTime, b.endTime));
-}
-
-function validateCapacity() {
-  const attendees = Number(els.attendees?.value || 0);
-  if (!selectedRoom || !attendees) { els.capacityHint?.classList.add('hidden'); return true; }
-  els.capacityHint.classList.remove('hidden');
-  if (attendees > selectedRoom.capacity) { els.capacityHint.classList.add('error'); els.capacityHint.textContent = `จำนวนผู้เข้าร่วมเกินความจุของ${selectedRoom.name} ซึ่งรองรับสูงสุด ${selectedRoom.capacity} คน`; return false; }
-  els.capacityHint.classList.remove('error'); els.capacityHint.textContent = `${selectedRoom.name} รองรับได้สูงสุด ${selectedRoom.capacity} คน`; return true;
-}
-
-function addSelectedFiles(files) {
-  const allowed = ['pdf','doc','docx','xls','xlsx','ppt','pptx','jpg','jpeg','png'];
-  files.forEach(file => { const ext = (file.name.split('.').pop() || '').toLowerCase(); if (allowed.includes(ext)) selectedFiles.push(file); else showStatus(`ไม่รองรับไฟล์ ${file.name}`, 'error'); });
-  renderFileList(); updateSummary();
-}
-
-function renderFileList() {
-  if (!selectedFiles.length) { els.fileList.classList.add('hidden'); els.fileList.innerHTML = ''; return; }
-  els.fileList.classList.remove('hidden');
-  els.fileList.innerHTML = selectedFiles.map((file, i) => `<div class="file-item"><div><div class="file-name"><i class="fa-solid fa-paperclip"></i> ${escapeHtml(file.name)}</div><div class="file-meta">${formatBytes(file.size)}</div></div><button type="button" class="file-remove" data-index="${i}"><i class="fa-solid fa-xmark"></i></button></div>`).join('');
-  els.fileList.querySelectorAll('.file-remove').forEach(btn => btn.addEventListener('click', () => { selectedFiles.splice(Number(btn.dataset.index), 1); renderFileList(); updateSummary(); }));
-}
-
-function collectForm(throwError = true) {
-  const data = { date: els.bookingDate?.value || '', attendees: Number(els.attendees?.value || 0), name: els.bookerName?.value.trim() || '', dept: els.bookerDept?.value || '', phone: els.bookerPhone?.value.trim() || '', email: els.bookerEmail?.value.trim() || '', topic: els.topic?.value.trim() || '', detail: els.detail?.value.trim() || '' };
-  if (throwError) {
-    if (!selectedRoom) throw new Error('กรุณาเลือกห้องประชุม'); if (!data.date) throw new Error('กรุณาเลือกวันที่'); if (!data.attendees) throw new Error('กรุณาระบุจำนวนผู้เข้าร่วม'); if (!validateCapacity()) throw new Error('จำนวนผู้เข้าร่วมเกินความจุห้อง'); if (!selectedStart || !selectedEnd) throw new Error('กรุณาเลือกช่วงเวลา'); if (!data.name) throw new Error('กรุณาระบุชื่อผู้จอง'); if (!data.dept) throw new Error('กรุณาเลือกแผนก/ฝ่าย'); if (!data.phone) throw new Error('กรุณาระบุเบอร์โทร'); if (!data.topic) throw new Error('กรุณาระบุหัวข้อประชุม');
-  }
-  return data;
-}
-
-function updateSummary() {
-  const v = collectForm(false);
-  if (!selectedRoom || !v.date || !selectedStart || !selectedEnd || !v.name || !v.dept || !v.phone || !v.topic) { els.summaryBox.classList.add('hidden'); return; }
-  els.summaryBox.classList.remove('hidden');
-  els.summaryContent.innerHTML = `<div><strong>ห้อง:</strong> ${escapeHtml(selectedRoom.name)} <span class="muted">รองรับ ${selectedRoom.capacity} คน</span></div><div><strong>วันที่:</strong> ${formatThaiDate(v.date)}</div><div><strong>เวลา:</strong> ${selectedStart} - ${selectedEnd}</div><div><strong>ผู้จอง:</strong> ${escapeHtml(v.name)} / ${escapeHtml(v.dept)}</div><div><strong>หัวข้อ:</strong> ${escapeHtml(v.topic)}</div><div><strong>อุปกรณ์:</strong> ${selectedEquipment.size ? Array.from(selectedEquipment).map(escapeHtml).join(', ') : '-'}</div><div><strong>เอกสารแนบ:</strong> ${selectedFiles.length ? `${selectedFiles.length} ไฟล์` : '-'}</div>`;
-}
-
-async function submitBooking() {
-  try {
-    if (!currentUser) throw new Error('กรุณาเข้าสู่ระบบก่อนจองห้องประชุม');
-    const v = collectForm(true);
-    if (rangeHasBookedSlot(selectedStart, selectedEnd)) throw new Error('ช่วงเวลาที่เลือกถูกจองแล้ว กรุณาเลือกช่วงเวลาใหม่');
-    setSubmitting(true);
-    const docRef = await addDoc(collection(db, COLLECTION), { roomId:selectedRoom.id, roomName:selectedRoom.name, roomCapacity:selectedRoom.capacity, date:v.date, startTime:selectedStart, endTime:selectedEnd, attendees:v.attendees, bookerName:v.name, bookerDept:v.dept, bookerPhone:v.phone, bookerEmail:v.email, topic:v.topic, detail:v.detail, equipment:Array.from(selectedEquipment), attachments:[], status:'confirmed', createdBy:currentUser.uid, createdByEmail:currentUser.email || '', createdAt:serverTimestamp(), updatedAt:serverTimestamp() });
-    const attachments = await uploadAttachments(docRef.id);
-    if (attachments.length) await updateDoc(doc(db, COLLECTION, docRef.id), { attachments, updatedAt: serverTimestamp() });
-    showStatus('บันทึกการจองห้องประชุมเรียบร้อยแล้ว', 'success'); resetForm(); switchTab('list');
-  } catch(e) { console.error(e); showStatus(`บันทึกการจองไม่สำเร็จ: ${e.message || e}`, 'error'); }
-  finally { setSubmitting(false); }
-}
-
-async function uploadAttachments(bookingId) {
-  const out = [];
-  for (const file of selectedFiles) {
-    const path = `meeting_attachments/${currentUser.uid}/${bookingId}/${Date.now()}-${safeFileName(file.name)}`;
-    const ref = storageRef(storage, path);
-    const snap = await uploadBytes(ref, file, { contentType: file.type || 'application/octet-stream', customMetadata: { bookingId, uploadedBy: currentUser.uid }});
-    out.push({ name:file.name, size:file.size, type:file.type || '', path, url: await getDownloadURL(snap.ref), uploadedAt:new Date().toISOString() });
-  }
-  return out;
-}
-
-function renderBookingList() {
-  const list = getFilteredBookings();
-  els.bookingCountBadge.textContent = bookings.length; els.bookingCountBadge.classList.toggle('hidden', !bookings.length);
-  els.statTotal.textContent = bookings.length; els.statRoom1.textContent = bookings.filter(b=>b.roomId==='1').length; els.statRoom2.textContent = bookings.filter(b=>b.roomId==='2').length; els.statToday.textContent = bookings.filter(b=>b.date === new Date().toISOString().slice(0,10)).length;
-  if (!list.length) { els.bookingList.innerHTML = '<div class="meeting-alert info">ยังไม่มีรายการจองตามเงื่อนไขที่เลือก</div>'; return; }
-  els.bookingList.innerHTML = list.map(item => `<article class="booking-item"><div class="flex items-start justify-between gap-4 flex-wrap"><div><div class="booking-title">${escapeHtml(item.topic || '-')}</div><div class="booking-meta"><span><i class="fa-solid fa-door-open"></i> ${escapeHtml(item.roomName || `ห้อง ${item.roomId}`)}</span><span><i class="fa-solid fa-calendar"></i> ${formatThaiDate(item.date)}</span><span><i class="fa-solid fa-clock"></i> ${item.startTime} - ${item.endTime}</span><span><i class="fa-solid fa-users"></i> ${item.attendees || 0} คน</span></div><div class="booking-meta"><span><i class="fa-solid fa-user"></i> ${escapeHtml(item.bookerName || '-')}</span><span><i class="fa-solid fa-building"></i> ${escapeHtml(item.bookerDept || '-')}</span><span><i class="fa-solid fa-phone"></i> ${escapeHtml(item.bookerPhone || '-')}</span></div>${item.detail ? `<div class="booking-meta"><span>${escapeHtml(item.detail)}</span></div>` : ''}${renderAttachmentLinks(item.attachments)}</div><button class="btn-danger" type="button" onclick="window.cancelMeetingBooking('${item.id}')"><i class="fa-solid fa-trash"></i> ยกเลิก</button></div></article>`).join('');
-}
-
-function renderAttachmentLinks(files=[]) { return files.length ? `<div class="booking-files">${files.map(f => `<a class="booking-file-link" href="${escapeAttr(f.url)}" target="_blank" rel="noopener"><i class="fa-solid fa-paperclip"></i> ${escapeHtml(f.name || 'เอกสารแนบ')}</a>`).join('')}</div>` : ''; }
-
-window.cancelMeetingBooking = async id => { if (!confirm('ต้องการยกเลิกรายการจองนี้ใช่หรือไม่')) return; try { const b = bookings.find(x=>x.id===id); await deleteDoc(doc(db, COLLECTION, id)); await deleteAttachments(b?.attachments || []); showStatus('ยกเลิกรายการจองเรียบร้อยแล้ว','success'); } catch(e) { showStatus(`ยกเลิกไม่สำเร็จ: ${e.code || e.message}`,'error'); } };
-async function deleteAttachments(files) { for (const f of files) { if (!f.path) continue; try { await deleteObject(storageRef(storage, f.path)); } catch {} } }
-async function clearAllBookings(){ if(!bookings.length || !confirm('ต้องการล้างรายการจองทั้งหมดใช่หรือไม่')) return; for(const b of bookings){ await deleteDoc(doc(db,COLLECTION,b.id)); await deleteAttachments(b.attachments || []); } }
-function getFilteredBookings(){ const room=els.filterRoom?.value||'', date=els.filterDate?.value||'', search=(els.filterSearch?.value||'').toLowerCase().trim(); return [...bookings].filter(b=>!room||b.roomId===room).filter(b=>!date||b.date===date).filter(b=>!search||[b.topic,b.bookerName,b.bookerDept,b.roomName].some(v=>String(v||'').toLowerCase().includes(search))).sort((a,b)=>`${b.date} ${b.startTime}`.localeCompare(`${a.date} ${a.startTime}`)); }
-
-function renderStats(){ if(!els.statsYear) return; const years=new Set(bookings.map(b=>(b.date||'').slice(0,4)).filter(Boolean)); years.add(String(new Date().getFullYear())); const current=els.statsYear.value||String(new Date().getFullYear()); els.statsYear.innerHTML=Array.from(years).sort((a,b)=>b.localeCompare(a)).map(y=>`<option value="${y}">${Number(y)+543}</option>`).join(''); els.statsYear.value=years.has(current)?current:String(new Date().getFullYear()); const list=bookings.filter(b=>(b.date||'').startsWith(els.statsYear.value)); const room1=list.filter(b=>b.roomId==='1'), room2=list.filter(b=>b.roomId==='2'); const total=list.reduce((s,b)=>s+durationHours(b.startTime,b.endTime),0), h1=room1.reduce((s,b)=>s+durationHours(b.startTime,b.endTime),0), h2=room2.reduce((s,b)=>s+durationHours(b.startTime,b.endTime),0); els.totalHours.textContent=total.toFixed(1); els.room1Hours.textContent=h1.toFixed(1); els.room2Hours.textContent=h2.toFixed(1); els.averageHours.textContent=(total/12).toFixed(1); els.totalSessions.textContent=`${list.length} ครั้ง`; els.room1Sessions.textContent=`${room1.length} ครั้ง`; els.room2Sessions.textContent=`${room2.length} ครั้ง`; const monthly=Array.from({length:12},(_,i)=>({month:i+1,room1:0,room2:0})); list.forEach(b=>{const m=Number((b.date||'').slice(5,7)); if(monthly[m-1]) monthly[m-1][b.roomId==='1'?'room1':'room2']+=durationHours(b.startTime,b.endTime);}); const peak=monthly.reduce((best,row)=>(row.room1+row.room2)>(best.room1+best.room2)?row:best,monthly[0]); els.peakMonth.textContent=peak?`สูงสุดเดือน ${peak.month}`:'-'; renderStatsChart(monthly); }
-function renderStatsChart(monthly){ const c=document.getElementById('statsChart'); if(!c||typeof Chart==='undefined') return; if(statsChart) statsChart.destroy(); statsChart=new Chart(c,{type:'bar',data:{labels:monthly.map(r=>`เดือน ${r.month}`),datasets:[{label:'ห้องประชุม 1',data:monthly.map(r=>r.room1),backgroundColor:'#0284c7'},{label:'ห้องประชุม 2',data:monthly.map(r=>r.room2),backgroundColor:'#10b981'}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true}}}}); }
-function switchTab(tab){ document.querySelectorAll('.meeting-tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab)); document.querySelectorAll('.meeting-panel').forEach(p=>p.classList.toggle('active',p.id===`tab-${tab}`)); if(tab==='stats') renderStats(); }
-function exportCsv(){ const rows=[['ห้อง','วันที่','เวลาเริ่ม','เวลาสิ้นสุด','หัวข้อ','ผู้จอง','แผนก','จำนวนผู้เข้าร่วม','เอกสารแนบ']]; bookings.forEach(b=>rows.push([b.roomName||b.roomId,b.date,b.startTime,b.endTime,b.topic,b.bookerName,b.bookerDept,b.attendees,(b.attachments||[]).map(f=>f.name).join('; ')])); const csv=rows.map(row=>row.map(cell=>`"${String(cell??'').replace(/"/g,'""')}"`).join(',')).join('\n'); const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`meeting-bookings-${new Date().toISOString().slice(0,10)}.csv`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); }
-function resetForm(){ selectedRoom=null; selectedStart=null; selectedEnd=null; selectedEquipment.clear(); selectedFiles=[]; ['bookingDate','attendees','bookerName','bookerDept','bookerPhone','bookerEmail','topic','detail'].forEach(k=>{ if(els[k]) els[k].value='';}); if(els.meetingFiles) els.meetingFiles.value=''; els.bookingSteps.classList.add('disabled'); renderRooms(); renderEquipment(); renderFileList(); renderTimeSlots(); updateSummary(); }
-function setSubmitting(v){ if(!els.submitBookingBtn) return; els.submitBookingBtn.disabled=v; els.submitBookingBtn.innerHTML=v?'<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...':'<i class="fa-solid fa-paper-plane"></i> ยืนยันการจอง'; }
-function makeSlots(){ const a=[]; for(let h=TIME_START;h<TIME_END;h++){a.push(`${String(h).padStart(2,'0')}:00`);a.push(`${String(h).padStart(2,'0')}:30`)} return a; }
-function addMinutes(time,minutes){const [h,m]=time.split(':').map(Number),t=h*60+m+minutes;return `${String(Math.floor(t/60)).padStart(2,'0')}:${String(t%60).padStart(2,'0')}`}
-function toMinutes(time){const [h,m]=String(time||'00:00').split(':').map(Number);return h*60+m}
-function timeOverlaps(a,b,c,d){return toMinutes(a)<toMinutes(d)&&toMinutes(b)>toMinutes(c)}
-function durationHours(s,e){return Math.max(0,(toMinutes(e)-toMinutes(s))/60)}
-function showStatus(msg,type='info'){ if(!els.status) return; els.status.textContent=msg; els.status.className=`meeting-alert ${type}`; els.status.classList.remove('hidden'); setTimeout(()=>els.status?.classList.add('hidden'),4200); }
-function formatThaiDate(v){ if(!v) return '-'; return new Date(`${v}T00:00:00`).toLocaleDateString('th-TH',{year:'numeric',month:'short',day:'numeric'}); }
-function formatBytes(bytes){ if(!bytes) return '0 B'; const u=['B','KB','MB','GB']; let v=bytes,i=0; while(v>=1024&&i<u.length-1){v/=1024;i++} return `${v.toFixed(i===0?0:1)} ${u[i]}`; }
-function safeFileName(n){return String(n||'file').replace(/[^a-zA-Z0-9ก-๙_.-]/g,'_')}
-function escapeHtml(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
-function escapeAttr(v){return escapeHtml(v).replace(/`/g,'&#96;')}
+function listen(){const f=state.firebase;if(state.unsub)state.unsub();state.unsub=f.onSnapshot(f.query(f.collection(f.db,'meeting_bookings'),f.orderBy('date','desc')),s=>{state.bookings=s.docs.map(d=>({id:d.id,...d.data()}));renderList();renderStats();checkTime()},e=>message('โหลดรายการไม่สำเร็จ: '+(e.code||e.message),'error'))}
+function renderRooms(){el.roomGrid.innerHTML=ROOMS.map(r=>`<button type="button" class="room-card ${state.room?.id===r.id?'active':''}" data-id="${r.id}"><span class="room-badge"><i class="fa-solid ${r.icon}"></i> รองรับ ${r.capacity} คน</span><div class="room-title">${r.name}</div><div class="room-detail">${r.detail}</div><span class="room-capacity"><i class="fa-solid fa-users"></i> ความจุสูงสุด ${r.capacity} คน</span></button>`).join('');el.roomGrid.querySelectorAll('.room-card').forEach(b=>b.onclick=()=>{state.room=ROOMS.find(r=>r.id===b.dataset.id);state.start=state.end='';el.startTime.value=el.endTime.value='';el.bookingSteps.classList.remove('disabled');el.bookingSteps.style.opacity='1';el.bookingSteps.style.pointerEvents='auto';limit();renderRooms();checkTime();summary()})}
+function limit(){if(!state.room)return;el.attendees.max=state.room.capacity;el.attendees.placeholder=`สูงสุด ${state.room.capacity} คน`;if(+el.attendees.value>state.room.capacity)el.attendees.value=state.room.capacity;el.capacityHint.classList.remove('hidden');el.capacityHint.textContent=`${state.room.name} รองรับสูงสุด ${state.room.capacity} คน`}
+function checkTime(){state.start=el.startTime.value;state.end=el.endTime.value;if(!state.start||!state.end){el.selectedTimeText.classList.add('hidden');return false}el.selectedTimeText.classList.remove('hidden');if(mins(state.end)<=mins(state.start)){timeMsg('เวลาสิ้นสุดต้องมากกว่าเวลาเริ่มต้น','error');return false}if(conflict()){timeMsg('ช่วงเวลานี้มีรายการจองแล้ว กรุณาเลือกเวลาอื่น','error');return false}const d=mins(state.end)-mins(state.start),h=Math.floor(d/60),m=d%60;timeMsg(`เวลา ${state.start} - ${state.end} (${h?h+' ชม. ':''}${m?m+' นาที':''})`,'success');return true}
+function conflict(){if(!state.room||!el.bookingDate.value)return false;return state.bookings.some(b=>b.roomId===state.room.id&&b.date===el.bookingDate.value&&b.status!=='cancelled'&&mins(state.start)<mins(b.endTime)&&mins(state.end)>mins(b.startTime))}
+function timeMsg(t,type){el.selectedTimeText.className=`selected-time ${type}`;el.selectedTimeText.textContent=t}
+function renderEquipment(){el.equipmentList.innerHTML=EQUIPMENT.map(([name,icon,tone])=>`<button type="button" class="equipment-card tone-${tone} ${state.equipment.has(name)?'selected':''}" data-name="${name}"><span class="equipment-check"><i class="fa-solid fa-check"></i></span><span class="equipment-icon"><i class="fa-solid ${icon}"></i></span><strong>${name}</strong><small>เลือกใช้งานสำหรับการประชุม</small></button>`).join('');el.equipmentCount.textContent=`เลือก ${state.equipment.size} รายการ`;el.equipmentList.querySelectorAll('.equipment-card').forEach(b=>b.onclick=()=>{state.equipment.has(b.dataset.name)?state.equipment.delete(b.dataset.name):state.equipment.add(b.dataset.name);renderEquipment();summary()})}
+function addFiles(fs){const exts=['pdf','doc','docx','xls','xlsx','ppt','pptx','jpg','jpeg','png'];fs.forEach(f=>{if(state.files.length>=5)return message('แบบร่างแนบได้สูงสุด 5 ไฟล์','error');if(f.size>10*1024*1024)return message(`ไฟล์ ${f.name} เกิน 10 MB`,'error');if(!exts.includes((f.name.split('.').pop()||'').toLowerCase()))return message(`ไม่รองรับไฟล์ ${f.name}`,'error');state.files.push(f)});renderFiles();summary()}
+function renderFiles(){el.fileList.innerHTML=state.files.length?state.files.map((f,i)=>`<div class="file-item"><span><i class="fa-solid fa-paperclip"></i> ${esc(f.name)} <small>— แบบร่าง ยังไม่อัปโหลด</small></span><button class="file-remove" data-i="${i}">นำออก</button></div>`).join(''):'<div class="meeting-alert info">โหมดแบบร่าง: ยังไม่อัปโหลดไฟล์ไป Storage</div>';el.fileList.querySelectorAll('[data-i]').forEach(b=>b.onclick=()=>{state.files.splice(+b.dataset.i,1);renderFiles();summary()})}
+function values(){return{date:el.bookingDate.value,count:+el.attendees.value||0,name:el.bookerName.value.trim(),dept:el.bookerDept.value,phone:el.bookerPhone.value.trim(),email:el.bookerEmail.value.trim(),topic:el.topic.value.trim(),detail:el.detail.value.trim()}}
+function validate(){const v=values();if(!state.room)throw Error('กรุณาเลือกห้อง');if(!v.date)throw Error('กรุณาเลือกวันที่');if(!v.count)throw Error('กรุณาระบุจำนวนผู้เข้าร่วม');if(v.count>state.room.capacity)throw Error(`รองรับสูงสุด ${state.room.capacity} คน`);if(!checkTime())throw Error('กรุณาตรวจสอบเวลา');if(!v.name||!v.dept||!v.phone||!v.topic)throw Error('กรุณากรอกช่องที่จำเป็นให้ครบ');return v}
+function summary(){const v=values();if(!state.room||!v.date||!state.start||!state.end||!v.name||!v.dept||!v.phone||!v.topic){el.summaryBox.classList.add('hidden');return}el.summaryBox.classList.remove('hidden');el.summaryContent.innerHTML=`<p><b>ห้อง:</b> ${state.room.name}</p><p><b>วันที่/เวลา:</b> ${v.date} ${state.start}-${state.end}</p><p><b>หัวข้อ:</b> ${esc(v.topic)}</p><p><b>อุปกรณ์:</b> ${[...state.equipment].map(esc).join(', ')||'-'}</p><p><b>ไฟล์แบบร่าง:</b> ${state.files.length} ไฟล์</p>`}
+async function save(){try{if(!state.firebase||!state.user)throw Error('ยังไม่พร้อมเชื่อม Firebase หรือยังไม่ได้เข้าสู่ระบบ');const v=validate(),f=state.firebase;el.submitBookingBtn.disabled=true;await f.addDoc(f.collection(f.db,'meeting_bookings'),{roomId:state.room.id,roomName:state.room.name,roomCapacity:state.room.capacity,date:v.date,startTime:state.start,endTime:state.end,attendees:v.count,bookerName:v.name,bookerDept:v.dept,bookerPhone:v.phone,bookerEmail:v.email,topic:v.topic,detail:v.detail,equipment:[...state.equipment],attachments:[],attachmentDrafts:state.files.map(x=>({name:x.name,size:x.size,type:x.type,status:'draft_not_uploaded'})),attachmentMode:'draft_only',status:'confirmed',createdBy:state.user.uid,createdAt:f.serverTimestamp(),updatedAt:f.serverTimestamp()});message('บันทึกแล้ว ไฟล์แนบยังเป็นแบบร่าง','success');reset();switchTab('list')}catch(e){message('บันทึกไม่สำเร็จ: '+e.message,'error')}finally{el.submitBookingBtn.disabled=false}}
+function renderList(){const q=(el.filterSearch.value||'').toLowerCase(),list=state.bookings.filter(b=>(!el.filterRoom.value||b.roomId===el.filterRoom.value)&&(!el.filterDate.value||b.date===el.filterDate.value)&&(!q||[b.topic,b.bookerName,b.bookerDept].some(x=>String(x||'').toLowerCase().includes(q))));el.bookingCountBadge.textContent=state.bookings.length;el.bookingCountBadge.classList.toggle('hidden',!state.bookings.length);el.statTotal.textContent=state.bookings.length;el.statRoom1.textContent=state.bookings.filter(b=>b.roomId==='1').length;el.statRoom2.textContent=state.bookings.filter(b=>b.roomId==='2').length;el.statToday.textContent=state.bookings.filter(b=>b.date===new Date().toISOString().slice(0,10)).length;el.bookingList.innerHTML=list.length?list.map(b=>`<article class="booking-item"><div class="booking-title">${esc(b.topic||'-')}</div><div class="booking-meta"><span>${esc(b.roomName||'-')}</span><span>${esc(b.date||'-')}</span><span>${esc(b.startTime||'')}-${esc(b.endTime||'')}</span><span>${b.attendees||0} คน</span></div><button class="file-remove" data-del="${b.id}">ลบ</button></article>`).join(''):'<div class="meeting-alert info">ยังไม่มีรายการจอง</div>';el.bookingList.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>removeBooking(b.dataset.del))}
+async function removeBooking(id){if(!state.firebase||!confirm('ต้องการลบรายการนี้?'))return;try{await state.firebase.deleteDoc(state.firebase.doc(state.firebase.db,'meeting_bookings',id))}catch(e){message(e.message,'error')}}
+function renderStats(){if(!el.statsYear)return;const years=[...new Set(state.bookings.map(b=>String(b.date||'').slice(0,4)).filter(Boolean))];if(!years.length)years.push(String(new Date().getFullYear()));const old=el.statsYear.value;el.statsYear.innerHTML=years.sort().reverse().map(y=>`<option value="${y}">${+y+543}</option>`).join('');if(years.includes(old))el.statsYear.value=old;const list=state.bookings.filter(b=>String(b.date||'').startsWith(el.statsYear.value)),sum=a=>a.reduce((s,b)=>s+Math.max(0,mins(b.endTime)-mins(b.startTime))/60,0),r1=list.filter(b=>b.roomId==='1'),r2=list.filter(b=>b.roomId==='2'),total=sum(list);el.totalHours.textContent=total.toFixed(1);el.room1Hours.textContent=sum(r1).toFixed(1);el.room2Hours.textContent=sum(r2).toFixed(1);el.averageHours.textContent=(total/12).toFixed(1)}
+function switchTab(name){document.querySelectorAll('.meeting-tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));document.querySelectorAll('.meeting-panel').forEach(p=>p.classList.toggle('active',p.id===`tab-${name}`));if(name==='stats')renderStats()}
+function reset(){state.room=null;state.start=state.end='';state.equipment.clear();state.files=[];['bookingDate','attendees','startTime','endTime','bookerName','bookerDept','bookerPhone','bookerEmail','topic','detail'].forEach(id=>el[id].value='');el.bookingSteps.classList.add('disabled');el.bookingSteps.style.opacity='';el.bookingSteps.style.pointerEvents='';renderRooms();renderEquipment();renderFiles();summary()}
+function exportCsv(){const rows=[['ห้อง','วันที่','เริ่ม','สิ้นสุด','หัวข้อ'],...state.bookings.map(b=>[b.roomName,b.date,b.startTime,b.endTime,b.topic])],blob=new Blob(['\ufeff'+rows.map(r=>r.map(x=>`"${String(x||'').replace(/"/g,'""')}"`).join(',')).join('\n')],{type:'text/csv'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='meeting-bookings.csv';a.click()}
+function message(t,type='info'){el.meetingStatus.textContent=t;el.meetingStatus.className=`meeting-alert ${type}`;setTimeout(()=>el.meetingStatus.classList.add('hidden'),5000)}
+function mins(t){const[h,m]=String(t||'00:00').split(':').map(Number);return h*60+m}function esc(x){return String(x??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
