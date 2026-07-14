@@ -1,7 +1,7 @@
 import { auth, db } from './firebase-config.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
 import { collection, addDoc, deleteDoc, doc, onSnapshot, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
-console.log('meeting.js loaded: meeting-clean-v10');
+console.log('meeting.js loaded: meeting-glass-effects-v11');
 const ROOMS=[{id:'1',name:'ห้องประชุม 1'},{id:'2',name:'ห้องประชุม 2'}];
 const EQUIPMENT=[['โปรเจกเตอร์','fa-video','blue'],['จอรับภาพ','fa-display','indigo'],['ไมโครโฟน','fa-microphone-lines','rose'],['ลำโพง','fa-volume-high','amber'],['กล้องประชุมออนไลน์','fa-camera','emerald'],['สาย HDMI / Adapter','fa-plug','cyan'],['อินเทอร์เน็ตสำหรับประชุม','fa-wifi','sky']];
 let user=null,room=null,bookings=[],files=[],unsubscribe=null;const selected=new Set(),E={};
