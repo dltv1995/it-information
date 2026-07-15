@@ -13,6 +13,8 @@ console.log('dashboard restructure loaded: dashboard-section-cards-polish-v31');
     style.textContent = `
       #dashboardSectionSummaryHostV30 {
         position: relative;
+        margin-top: 28px !important;
+        margin-bottom: 28px !important;
         overflow: hidden !important;
         border: 1px solid rgba(148,163,184,.22) !important;
         border-radius: 26px !important;
@@ -189,6 +191,7 @@ console.log('dashboard restructure loaded: dashboard-section-cards-polish-v31');
         }
       }
       @media(max-width:700px){
+        #dashboardSectionSummaryHostV30 { margin-top: 20px !important; margin-bottom: 20px !important; }
         .dashboard-section-summary-head {
           align-items:stretch;
           flex-direction:column;
