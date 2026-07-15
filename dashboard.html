@@ -1,18 +1,19 @@
 <!DOCTYPE html>
+
 <html lang="th">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - ระบบบริหารจัดการงบประมาณและโครงการ</title>
-    <script type="module" src="assets/js/session-timeout.js?v=session-timeout-v1script>"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="assets/css/style.css">
-    <link rel="stylesheet" href="assets/css/header.css?v=shared-sidebar-v7">
-    <link rel="stylesheet" href="assets/css/dashboard.css?v=dashboard-popup-remove-v12">
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Dashboard - ระบบบริหารจัดการงบประมาณและโครงการ</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="assets/css/style.css" rel="stylesheet"/>
+<link href="assets/css/header.css?v=shared-sidebar-v7" rel="stylesheet"/>
+<link href="assets/css/dashboard.css?v=dashboard-popup-remove-v12" rel="stylesheet"/>
+<script src="https://unpkg.com/@phosphor-icons/web"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
         if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
             document.documentElement.classList.add('dark');
         } else {
@@ -32,104 +33,79 @@
             }
         };
     </script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet"/>
 </head>
-<body data-active-menu="dashboard" data-title="แดชบอร์ดงบประมาณและโครงการ" data-subtitle="ภาพรวมงบประมาณ งานโครงการ และรายการเร่งด่วน" id="appBody"
-      data-title="แดชบอร์ดงบประมาณและโครงการ"
-      data-subtitle="ภาพรวมงบประมาณ งานโครงการ ภาระงาน และรายการเร่งด่วนจาก Firebase"
-      class="bg-slate-50 dark:bg-slate-950 transition-theme font-sans text-slate-700 dark:text-slate-300 hidden m-0">
-    <div id="layoutRoot" class="flex h-screen overflow-hidden"></div>
-
-    <template id="dashboardTemplate">
-        <section class="space-y-6">
-            <div id="firebaseStatus" class="hidden rounded-2xl border px-4 py-3 text-sm"></div>
-
-            <div class="grid grid-cols-1 xl:grid-cols-3 gap-5">
-                <article class="dashboard-card metric-card rounded-2xl p-6" style="--accent:#2563eb">
-                    <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 rounded-2xl bg-blue-500/15 text-blue-500 flex items-center justify-center">
-                            <i class="ph-fill ph-file-text text-2xl"></i>
-                        </div>
-                        <div>
-                            <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">งบประมาณรวมฝ่าย</p>
-                            <h3 id="totalBudget" class="text-3xl font-extrabold text-slate-900 dark:text-white mt-1">฿0</h3>
-                            <p class="text-xs font-semibold text-blue-500 mt-1">อ่านจาก settings/budget.totalBudget</p>
-                        </div>
-                    </div>
-                </article>
-
-                <article class="dashboard-card metric-card rounded-2xl p-6" style="--accent:#f59e0b">
-                    <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 rounded-2xl bg-amber-500/15 text-amber-500 flex items-center justify-center">
-                            <i class="ph-fill ph-receipt text-2xl"></i>
-                        </div>
-                        <div>
-                            <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">งบที่อนุมัติแล้ว</p>
-                            <h3 id="usedBudget" class="text-3xl font-extrabold text-slate-900 dark:text-white mt-1">฿0</h3>
-                            <p id="usedPercent" class="text-xs font-semibold text-amber-500 mt-1">0% ของงบประมาณรวมฝ่าย</p>
-                        </div>
-                    </div>
-                </article>
-
-                <article class="dashboard-card metric-card rounded-2xl p-6" style="--accent:#10b981">
-                    <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 rounded-2xl bg-emerald-500/15 text-emerald-500 flex items-center justify-center">
-                            <i class="ph-fill ph-money text-2xl"></i>
-                        </div>
-                        <div>
-                            <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">งบประมาณรวมคงเหลือ</p>
-                            <h3 id="remainingBudget" class="text-3xl font-extrabold text-slate-900 dark:text-white mt-1">฿0</h3>
-                            <p id="remainingPercent" class="text-xs font-semibold text-emerald-500 mt-1">0% ของงบประมาณรวมฝ่าย</p>
-                        </div>
-                    </div>
-                </article>
-            </div>
-
-            <div class="grid grid-cols-1 2xl:grid-cols-7 gap-5">
-                <section class="dashboard-card rounded-2xl 2xl:col-span-4 overflow-hidden">
-                    <div class="px-6 py-5 border-b border-slate-200/70 dark:border-slate-700/70 flex items-center justify-between gap-4">
-                        <div>
-                            <h3 class="font-bold text-slate-900 dark:text-white">สถานะงบประมาณโครงการย่อย</h3>
-                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">แสดงโครงการและงบที่อนุมัติจาก Firebase</p>
-                        </div>
-                        <button id="addProjectBtn" onclick="window.location.href='projects.html'" class="inline-flex items-center gap-2 px-3 py-2 rounded-full border border-slate-300 dark:border-slate-700 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-                            <i class="ph ph-plus"></i> เพิ่มโครงการ
+<body class="bg-slate-50 dark:bg-slate-950 transition-theme font-sans text-slate-700 dark:text-slate-300 hidden m-0" data-active-menu="dashboard" data-subtitle="ภาพรวมงบประมาณ งานโครงการ และรายการเร่งด่วน" data-title="แดชบอร์ดงบประมาณและโครงการ" id="appBody">
+<div class="flex h-screen overflow-hidden" id="layoutRoot"></div>
+<template id="dashboardTemplate">
+<section class="space-y-6">
+<div class="hidden rounded-2xl border px-4 py-3 text-sm" id="firebaseStatus"></div>
+<div class="grid grid-cols-1 xl:grid-cols-3 gap-5">
+<article class="dashboard-card metric-card rounded-2xl p-6" style="--accent:#2563eb">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-2xl bg-blue-500/15 text-blue-500 flex items-center justify-center">
+<i class="ph-fill ph-file-text text-2xl"></i>
+</div>
+<div>
+<p class="text-xs font-semibold text-slate-500 dark:text-slate-400">งบประมาณรวมฝ่าย</p>
+<h3 class="text-3xl font-extrabold text-slate-900 dark:text-white mt-1" id="totalBudget">฿0</h3>
+<p class="text-xs font-semibold text-blue-500 mt-1">อ่านจาก settings/budget.totalBudget</p>
+</div>
+</div>
+</article>
+<article class="dashboard-card metric-card rounded-2xl p-6" style="--accent:#f59e0b">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-2xl bg-amber-500/15 text-amber-500 flex items-center justify-center">
+<i class="ph-fill ph-receipt text-2xl"></i>
+</div>
+<div>
+<p class="text-xs font-semibold text-slate-500 dark:text-slate-400">งบที่อนุมัติแล้ว</p>
+<h3 class="text-3xl font-extrabold text-slate-900 dark:text-white mt-1" id="usedBudget">฿0</h3>
+<p class="text-xs font-semibold text-amber-500 mt-1" id="usedPercent">0% ของงบประมาณรวมฝ่าย</p>
+</div>
+</div>
+</article>
+<article class="dashboard-card metric-card rounded-2xl p-6" style="--accent:#10b981">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-2xl bg-emerald-500/15 text-emerald-500 flex items-center justify-center">
+<i class="ph-fill ph-money text-2xl"></i>
+</div>
+<div>
+<p class="text-xs font-semibold text-slate-500 dark:text-slate-400">งบประมาณรวมคงเหลือ</p>
+<h3 class="text-3xl font-extrabold text-slate-900 dark:text-white mt-1" id="remainingBudget">฿0</h3>
+<p class="text-xs font-semibold text-emerald-500 mt-1" id="remainingPercent">0% ของงบประมาณรวมฝ่าย</p>
+</div>
+</div>
+</article>
+</div><section class="dashboard-card rounded-3xl overflow-hidden" id="dashboardSectionSummaryHostV30"><div class="dashboard-section-summary-head px-6 py-5 border-b border-slate-200/70 dark:border-slate-700/70 flex flex-col md:flex-row md:items-end md:justify-between gap-3"><div><h3 class="font-extrabold text-slate-900 dark:text-white">สรุปงบตามส่วนงาน</h3><p class="text-xs text-slate-500 dark:text-slate-400 mt-1">งบที่กระจาย / ใช้แล้วหรืออนุมัติแล้ว / งบคงเหลือของแต่ละส่วนงาน</p></div></div><div class="dashboard-hidden-chart-v30" id="dashboardHiddenBudgetChartV30"><canvas id="budgetChart"></canvas></div></section>
+<div class="grid grid-cols-1 gap-5 dashboard-project-grid-v30">
+<section class="dashboard-card rounded-2xl overflow-hidden dashboard-project-fullwidth-v30">
+<div class="px-6 py-5 border-b border-slate-200/70 dark:border-slate-700/70 flex items-center justify-between gap-4">
+<div>
+<h3 class="font-bold text-slate-900 dark:text-white">สถานะงบประมาณโครงการย่อย</h3>
+<p class="text-xs text-slate-500 dark:text-slate-400 mt-1">แสดงโครงการและงบที่อนุมัติจาก Firebase</p>
+</div>
+<button class="inline-flex items-center gap-2 px-3 py-2 rounded-full border border-slate-300 dark:border-slate-700 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" id="addProjectBtn" onclick="window.location.href='projects.html'">
+<i class="ph ph-plus"></i> เพิ่มโครงการ
                         </button>
-                    </div>
-                    <div id="projectList" class="p-5 space-y-4 max-h-[390px] overflow-y-auto soft-scroll"></div>
-                </section>
+</div>
+<div class="p-5 space-y-4 max-h-[620px] overflow-y-auto soft-scroll" id="projectList"></div>
+</section>
 
-                <section class="dashboard-card rounded-2xl 2xl:col-span-3 overflow-hidden">
-                    <div class="px-6 py-5 border-b border-slate-200/70 dark:border-slate-700/70">
-                        <h3 class="font-bold text-slate-900 dark:text-white">สัดส่วนงบประมาณตามส่วนงาน</h3>
-                    </div>
-                    <div class="p-5 chart-box">
-                        <canvas id="budgetChart"></canvas>
-                    </div>
-                </section>
-            </div>
+</div>
+<div class="grid grid-cols-1 gap-5">
 
-            <div class="grid grid-cols-1 2xl:grid-cols-2 gap-5">
-                <section class="dashboard-card rounded-2xl overflow-hidden">
-                    <div class="px-6 py-5 border-b border-slate-200/70 dark:border-slate-700/70">
-                        <h3 class="font-bold text-slate-900 dark:text-white">ภาระงานของทีมงานรายบุคคล</h3>
-                    </div>
-                    <div class="p-5 chart-box">
-                        <canvas id="workloadChart"></canvas>
-                    </div>
-                </section>
-                <section class="dashboard-card rounded-2xl overflow-hidden">
-                    <div class="px-6 py-5 border-b border-slate-200/70 dark:border-slate-700/70">
-                        <h3 class="font-bold text-slate-900 dark:text-white">งานที่ล่าช้าหรือใกล้ถึงกำหนดส่ง (Overdue / Urgent)</h3>
-                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">งานที่ต้องการการดูแลอย่างใกล้ชิด</p>
-                    </div>
-                    <div id="urgentList" class="p-5 space-y-3"></div>
-                </section>
-            </div>
-        </section>
-    </template>
-
-    <script src="assets/js/header.js?v=shared-sidebar-v7"></script>
-    <script type="module" src="assets/js/dashboard.js?v=dashboard-fiscal-filter-budget-v31.1script>"></script>
-</body>
+<section class="dashboard-card rounded-2xl overflow-hidden">
+<div class="px-6 py-5 border-b border-slate-200/70 dark:border-slate-700/70">
+<h3 class="font-bold text-slate-900 dark:text-white">งานที่ล่าช้าหรือใกล้ถึงกำหนดส่ง (Overdue / Urgent)</h3>
+<p class="text-xs text-slate-500 dark:text-slate-400 mt-1">งานที่ต้องการการดูแลอย่างใกล้ชิด</p>
+</div>
+<div class="p-5 space-y-3" id="urgentList"></div>
+</section>
+</div>
+</section>
+</template>
+<script src="assets/js/header.js?v=shared-sidebar-v7"></script>
+<script src="assets/js/dashboard.js?v=dashboard-layout-v30-fixed" type="module"></script>
+<script src="assets/js/dashboard-restructure-v30.js?v=dashboard-layout-v30-fixed"></script><script src="assets/js/session-timeout.js?v=session-timeout-v1" type="module"></script></body>
 </html>
