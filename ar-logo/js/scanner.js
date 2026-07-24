@@ -1,0 +1,26 @@
+"use strict";
+const agencyData=[
+ {title:"วิดีโอแนะนำ: หน่วยงานที่ 1",videoUrl:"./videos/agency1.mp4"},
+ {title:"วิดีโอแนะนำ: หน่วยงานที่ 2",videoUrl:"./videos/agency2.mp4"},
+ {title:"วิดีโอแนะนำ: หน่วยงานที่ 3",videoUrl:"./videos/agency3.mp4"},
+ {title:"วิดีโอแนะนำ: หน่วยงานที่ 4",videoUrl:"./videos/agency4.mp4"},
+ {title:"วิดีโอแนะนำ: หน่วยงานที่ 5",videoUrl:"./videos/agency5.mp4"},
+ {title:"วิดีโอแนะนำ: หน่วยงานที่ 6",videoUrl:"./videos/agency6.mp4"}
+];
+document.addEventListener("DOMContentLoaded",()=>{
+ const $=s=>document.querySelector(s),scene=$("#arScene"),startScreen=$("#startScreen"),startButton=$("#startButton"),overlay=$("#scannerOverlay"),status=$("#statusText"),modal=$("#videoModal"),player=$("#popupVideo"),title=$("#videoTitle"),message=$("#videoMessage"),sound=$("#soundButton"),errorPanel=$("#errorPanel"),errorText=$("#errorText");
+ let arSystem=null,starting=false,modalOpen=false;const blocked=new Set();
+ const setStatus=t=>status.textContent=t;
+ const fail=t=>{starting=false;startButton.disabled=false;startButton.textContent="เปิดกล้อง";errorText.textContent=t;errorPanel.classList.remove("hidden")};
+ scene.addEventListener("loaded",()=>{arSystem=scene.systems["mindar-image-system"]});
+ scene.addEventListener("arReady",()=>setStatus("พร้อมแล้ว กรุณาส่องกล้องไปที่โลโก้"));
+ scene.addEventListener("arError",()=>fail("เริ่มกล้องไม่สำเร็จ กรุณาตรวจสอบสิทธิ์กล้องและเปิดผ่าน HTTPS"));
+ async function getSystem(){if(arSystem)return arSystem;for(let i=0;i<60;i++){await new Promise(r=>setTimeout(r,100));arSystem=scene.systems["mindar-image-system"];if(arSystem)return arSystem}throw new Error("MindAR system not ready")}
+ async function start(){if(starting)return;starting=true;errorPanel.classList.add("hidden");startButton.disabled=true;startButton.textContent="กำลังเปิดกล้อง...";try{const system=await getSystem();await system.start();startScreen.classList.add("hidden");overlay.classList.remove("hidden");setStatus("พร้อมแล้ว กรุณาส่องกล้องไปที่โลโก้");starting=false}catch(e){console.error(e);fail("เปิดกล้องไม่สำเร็จ กรุณาอนุญาตสิทธิ์กล้อง ตรวจสอบ targets.mind และรีเฟรชหน้า")}}
+ async function openVideo(i){if(modalOpen||blocked.has(i))return;const data=agencyData[i];modalOpen=true;blocked.add(i);title.textContent=data.title;message.textContent="กำลังโหลดวิดีโอ...";message.classList.remove("hidden");modal.classList.remove("hidden");player.pause();player.removeAttribute("src");player.load();player.src=data.videoUrl;player.muted=true;sound.textContent="เปิดเสียง";player.load();try{await player.play()}catch(e){message.textContent="แตะปุ่มเล่นบนวิดีโอเพื่อเริ่มรับชม"}}
+ function closeVideo(){player.pause();player.removeAttribute("src");player.load();modal.classList.add("hidden");message.classList.remove("hidden");modalOpen=false;setStatus("ยกกล้องออกจากโลโก้ แล้วส่องใหม่เพื่อเล่นอีกครั้ง")}
+ agencyData.forEach((_,i)=>{const target=$(`#target-${i}`);target.addEventListener("targetFound",()=>{setStatus(`พบโลโก้หน่วยงานที่ ${i+1}`);openVideo(i)});target.addEventListener("targetLost",()=>{blocked.delete(i);if(!modalOpen)setStatus("กำลังค้นหาโลโก้...")})});
+ player.addEventListener("canplay",()=>message.classList.add("hidden"));player.addEventListener("playing",()=>message.classList.add("hidden"));player.addEventListener("waiting",()=>{message.textContent="กำลังโหลดวิดีโอ...";message.classList.remove("hidden")});player.addEventListener("error",()=>{message.textContent="ไม่พบไฟล์วิดีโอ กรุณาตรวจสอบชื่อไฟล์ในโฟลเดอร์ videos";message.classList.remove("hidden")});
+ sound.addEventListener("click",async()=>{player.muted=!player.muted;sound.textContent=player.muted?"เปิดเสียง":"ปิดเสียง";try{await player.play()}catch(e){console.warn(e)}});
+ startButton.addEventListener("click",start);$("#retryButton").addEventListener("click",start);$("#closeTop").addEventListener("click",closeVideo);$("#closeBottom").addEventListener("click",closeVideo);
+});
