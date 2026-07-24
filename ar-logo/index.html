@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <meta name="theme-color" content="#08090d">
+  <title>AR Logo Scanner</title>
+  <link rel="stylesheet" href="./css/style.css?v=7">
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+</head>
+<body>
+  <section id="startScreen" class="start-screen">
+    <div class="start-card">
+      <div class="logo-badge">AR</div>
+      <h1>ระบบสแกนโลโก้</h1>
+      <p>ส่องโลโก้หน่วยงานเพื่อเปิดวิดีโอแนะนำ</p>
+      <button id="startButton" class="button button-gold" type="button">เปิดกล้อง</button>
+      <small>กรุณาอนุญาตให้เว็บไซต์ใช้กล้อง</small>
+    </div>
+  </section>
+
+  <section id="scannerUi" class="scanner-ui hidden" aria-live="polite">
+    <div id="statusText" class="status-pill">กำลังเปิดกล้อง...</div>
+    <div id="scanBox" class="scan-box">
+      <i></i><i></i><i></i><i></i>
+      <div class="scan-line"></div>
+    </div>
+    <div class="scan-help">วางโลโก้ให้อยู่ภายในกรอบ</div>
+  </section>
+
+  <section id="resultModal" class="result-modal hidden" role="dialog" aria-modal="true" aria-labelledby="agencyTitle">
+    <div class="result-card">
+      <button id="closeTop" class="close-button" type="button" aria-label="ปิด">×</button>
+      <div class="found-icon">✓</div>
+      <div class="eyebrow">ตรวจพบโลโก้แล้ว</div>
+      <h2 id="agencyTitle">หน่วยงาน</h2>
+      <p id="agencyDescription">แตะปุ่มด้านล่างเพื่อเปิดวิดีโอใน Google Drive</p>
+      <div class="result-actions">
+        <button id="openDriveButton" class="button button-gold button-wide" type="button">เปิดรับชมวิดีโอ</button>
+        <button id="scanAgainButton" class="button button-dark button-wide" type="button">ปิดและสแกนต่อ</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="errorPanel" class="error-panel hidden" role="alert">
+    <strong>เริ่มระบบไม่สำเร็จ</strong>
+    <p id="errorText">กรุณาตรวจสอบสิทธิ์กล้องและไฟล์ targets.mind</p>
+    <button id="retryButton" class="button button-gold" type="button">ลองอีกครั้ง</button>
+  </section>
+
+  <a-scene id="arScene"
+    mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; maxTrack: 1; filterMinCF: 0.001; filterBeta: 0.01; warmupTolerance: 4; missTolerance: 8; uiLoading: no; uiScanning: no; uiError: no;"
+    color-space="sRGB"
+    renderer="colorManagement: true; physicallyCorrectLights: true; antialias: true; alpha: true;"
+    vr-mode-ui="enabled: false"
+    device-orientation-permission-ui="enabled: false"
+    loading-screen="enabled: false">
+    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+    <a-entity id="target-0" mindar-image-target="targetIndex: 0"></a-entity>
+    <a-entity id="target-1" mindar-image-target="targetIndex: 1"></a-entity>
+    <a-entity id="target-2" mindar-image-target="targetIndex: 2"></a-entity>
+    <a-entity id="target-3" mindar-image-target="targetIndex: 3"></a-entity>
+    <a-entity id="target-4" mindar-image-target="targetIndex: 4"></a-entity>
+    <a-entity id="target-5" mindar-image-target="targetIndex: 5"></a-entity>
+  </a-scene>
+
+  <script src="./js/config.js?v=7"></script>
+  <script src="./js/scanner.js?v=7"></script>
+</body>
+</html>
