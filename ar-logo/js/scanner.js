@@ -1,11 +1,29 @@
 "use strict";
-const agencyData=[
- {title:"วิดีโอแนะนำ: หน่วยงานที่ 1",videoUrl:"./videos/agency1.mp4"},
- {title:"วิดีโอแนะนำ: หน่วยงานที่ 2",videoUrl:"./videos/agency2.mp4"},
- {title:"วิดีโอแนะนำ: หน่วยงานที่ 3",videoUrl:"./videos/agency3.mp4"},
- {title:"วิดีโอแนะนำ: หน่วยงานที่ 4",videoUrl:"./videos/agency4.mp4"},
- {title:"วิดีโอแนะนำ: หน่วยงานที่ 5",videoUrl:"./videos/agency5.mp4"},
- {title:"วิดีโอแนะนำ: หน่วยงานที่ 6",videoUrl:"./videos/agency6.mp4"}
+const agencyData = [
+  {
+    title: "วิดีโอแนะนำ: หน่วยงานที่ 1",
+    driveUrl: "https://drive.google.com/file/d/1Kddr-ZIiviiKm2yCYJtZa7GFrcrlXjtF/view?usp=sharing"
+  },
+  {
+    title: "วิดีโอแนะนำ: หน่วยงานที่ 2",
+    driveUrl: "วางลิงก์ Google Drive คลิปที่ 2"
+  },
+  {
+    title: "วิดีโอแนะนำ: หน่วยงานที่ 3",
+    driveUrl: "วางลิงก์ Google Drive คลิปที่ 3"
+  },
+  {
+    title: "วิดีโอแนะนำ: หน่วยงานที่ 4",
+    driveUrl: "วางลิงก์ Google Drive คลิปที่ 4"
+  },
+  {
+    title: "วิดีโอแนะนำ: หน่วยงานที่ 5",
+    driveUrl: "วางลิงก์ Google Drive คลิปที่ 5"
+  },
+  {
+    title: "วิดีโอแนะนำ: หน่วยงานที่ 6",
+    driveUrl: "วางลิงก์ Google Drive คลิปที่ 6"
+  }
 ];
 document.addEventListener("DOMContentLoaded",()=>{
  const $=s=>document.querySelector(s),scene=$("#arScene"),startScreen=$("#startScreen"),startButton=$("#startButton"),overlay=$("#scannerOverlay"),status=$("#statusText"),modal=$("#videoModal"),player=$("#popupVideo"),title=$("#videoTitle"),message=$("#videoMessage"),sound=$("#soundButton"),errorPanel=$("#errorPanel"),errorText=$("#errorText");
