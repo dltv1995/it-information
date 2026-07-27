@@ -1,2 +1,0 @@
-"use strict";
-(()=>{const list=document.querySelector("#agencyList");(window.AR_AGENCIES||[]).forEach((a,i)=>{const b=document.createElement("button");b.type="button";b.className="agency-card";b.innerHTML=`<span class="agency-no">${String(i+1).padStart(2,"0")}</span><span class="logo-wrap"><img src="${a.logo||''}" alt="" onerror="this.parentElement.classList.add('no-image');this.remove()"></span><span class="agency-name">${a.title||`หน่วยงานที่ ${i+1}`}</span><span class="arrow">›</span>`;b.onclick=()=>location.href=`./scan.html?agency=${i}`;list.appendChild(b)})})();
