@@ -1,7 +1,7 @@
 import { auth, db } from './firebase-config.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
 import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
-console.log('meeting.js loaded: meeting-stats-bar-v21');
+console.log('meeting.js loaded: meeting-stats-bar-v22');
 const ROOMS=[{id:'1',name:'ห้องประชุม 1'},{id:'2',name:'ห้องประชุม 2'}];
 const EQUIPMENT=[['โปรเจกเตอร์','fa-video','blue'],['จอรับภาพ','fa-display','indigo'],['ไมโครโฟน','fa-microphone-lines','rose'],['ลำโพง','fa-volume-high','amber'],['กล้องประชุมออนไลน์','fa-camera','emerald'],['สาย HDMI / Adapter','fa-plug','cyan'],['อินเทอร์เน็ตสำหรับประชุม','fa-wifi','sky']];
 const E={},selected=new Set();let user=null,room=null,bookings=[],files=[],unsubscribe=null,pickerState={start:{hour:null,minute:null},end:{hour:null,minute:null}};
@@ -122,53 +122,7 @@ async function saveEditBooking(e){
   }catch(err){notify('แก้ไขไม่สำเร็จ: '+err.message,'error')}
   finally{const saveBtn=modal.querySelector('.edit-save-btn');saveBtn.disabled=false;saveBtn.innerHTML='<i class="fa-solid fa-floppy-disk"></i> บันทึกการแก้ไข'}
 }
-function renderStats(){
-  const years=[...new Set(bookings.map(b=>String(b.date||'').slice(0,4)).filter(y=>/^\d{4}$/.test(y)))];
-  if(!years.length)years.push(String(new Date().getFullYear()));
-  const selectedYear=E.statsYear.value;
-  E.statsYear.innerHTML=years.sort((a,b)=>b-a).map(y=>`<option value="${y}">พ.ศ. ${Number(y)+543}</option>`).join('');
-  if(years.includes(selectedYear))E.statsYear.value=selectedYear;
-  const startDate=E.statsStartDate.value;
-  const endDate=E.statsEndDate.value;
-  const data=bookings.filter(b=>{
-    const date=String(b.date||'');
-    if(startDate&&date<startDate)return false;
-    if(endDate&&date>endDate)return false;
-    if(!startDate&&!endDate&&!date.startsWith(E.statsYear.value))return false;
-    return true;
-  });
-  const getHours=list=>list.reduce((sum,b)=>sum+Math.max(0,toMinutes(b.endTime)-toMinutes(b.startTime))/60,0);
-  const room1=data.filter(b=>String(b.roomId)==='1');
-  const room2=data.filter(b=>String(b.roomId)==='2');
-  const totalHours=getHours(data),room1Hours=getHours(room1),room2Hours=getHours(room2);
-  E.totalHours.textContent=totalHours.toFixed(1);
-  E.room1Hours.textContent=room1Hours.toFixed(1);
-  E.room2Hours.textContent=room2Hours.toFixed(1);
-  const activeMonths=new Set(data.map(b=>String(b.date||'').slice(0,7)).filter(v=>/^\d{4}-\d{2}$/.test(v))).size;
-  E.averageHours.textContent=(activeMonths?totalHours/activeMonths:0).toFixed(1);
-  const rooms=[
-    {label:'ประชุม 1',count:room1.length,hours:room1Hours,className:'room1-column'},
-    {label:'ประชุม 2',count:room2.length,hours:room2Hours,className:'room2-column'}
-  ];
-  const highest=Math.max(1,...rooms.map(r=>r.count));
-  const axisMax=Math.max(5,Math.ceil(highest/5)*5);
-  const ticks=5;
-  E.monthlyChart.innerHTML=`<div class="stats-chart-inner">
-    <div class="stats-y-label">จำนวน (ครั้ง)</div>
-    <div class="stats-y-axis">${Array.from({length:ticks+1},(_,i)=>`<span style="bottom:${i*20}%">${Math.round(axisMax*i/ticks)}</span>`).join('')}</div>
-    <div class="stats-plot">
-      ${Array.from({length:ticks+1},(_,i)=>`<i class="stats-grid-line" style="bottom:${i*20}%"></i>`).join('')}
-      <div class="stats-columns">${rooms.map(r=>{
-        const height=r.count/axisMax*100;
-        return `<div class="stats-column-item">
-          <div class="stats-hours" style="bottom:calc(${height}% + 8px)">${r.hours.toFixed(1)} ชม.</div>
-          <div class="stats-column ${r.className}" style="height:${height}%"></div>
-          <strong>${r.label}</strong><small>${r.count} ครั้ง</small>
-        </div>`;
-      }).join('')}</div>
-    </div>
-  </div>`;
-}
+function renderStats(){const years=[...new Set(bookings.map(b=>String(b.date||'').slice(0,4)).filter(y=>/^\d{4}$/.test(y)))];if(!years.length)years.push(String(new Date().getFullYear()));const old=E.statsYear.value;E.statsYear.innerHTML=years.sort((a,b)=>b-a).map(y=>`<option value="${y}">พ.ศ. ${Number(y)+543}</option>`).join('');if(years.includes(old))E.statsYear.value=old;const startDate=E.statsStartDate.value,endDate=E.statsEndDate.value,data=bookings.filter(b=>{const d=String(b.date||'');if(startDate&&d<startDate)return false;if(endDate&&d>endDate)return false;return startDate||endDate?true:d.startsWith(E.statsYear.value)}),hours=a=>a.reduce((s,b)=>s+Math.max(0,toMinutes(b.endTime)-toMinutes(b.startTime))/60,0),r1=data.filter(b=>String(b.roomId)==='1'),r2=data.filter(b=>String(b.roomId)==='2'),total=hours(data);E.totalHours.textContent=total.toFixed(1);E.room1Hours.textContent=hours(r1).toFixed(1);E.room2Hours.textContent=hours(r2).toFixed(1);E.averageHours.textContent=`${data.length} ครั้ง`;const rooms=[{label:'ประชุม 1',count:r1.length,hours:hours(r1),cls:'room1-column'},{label:'ประชุม 2',count:r2.length,hours:hours(r2),cls:'room2-column'}],ticks=5,high=Math.max(1,...rooms.map(r=>r.count)),axisMax=Math.max(5,Math.ceil(high/5)*5);E.monthlyChart.innerHTML=`<div class="stats-chart-inner"><div class="stats-y-label">จำนวน (ครั้ง)</div><div class="stats-y-axis">${Array.from({length:ticks+1},(_,i)=>`<span style="bottom:${i*20}%">${Math.round(axisMax*i/ticks)}</span>`).join('')}</div><div class="stats-plot">${Array.from({length:ticks+1},(_,i)=>`<i class="stats-grid-line" style="bottom:${i*20}%"></i>`).join('')}<div class="stats-columns">${rooms.map(r=>{const h=r.count/axisMax*100;return `<div class="stats-column-item"><div class="stats-hours" style="bottom:calc(${h}% + 8px)">${r.hours.toFixed(1)} ชม.</div><div class="stats-column ${r.cls}" style="height:${h}%"></div><strong>${r.label}</strong><small>${r.count} ครั้ง</small></div>`}).join('')}</div></div></div>`}
 function switchTab(name){document.querySelectorAll('.meeting-tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));document.querySelectorAll('.meeting-panel').forEach(p=>p.classList.toggle('active',p.id===`tab-${name}`));if(name==='stats')renderStats()}
 function reset(){room=null;selected.clear();files=[];pickerState={start:{hour:null,minute:null},end:{hour:null,minute:null}};['bookingDate','startTime','endTime','attendees','bookerName','bookerDept','bookerPhone','externalOrgName','topic','detail'].forEach(id=>E[id].value='');document.querySelectorAll('.time-trigger strong').forEach(x=>x.textContent='--:--');E.phoneType.value='mobile';updatePhoneRules();E.externalOrgField.classList.add('hidden');E.bookingSteps.classList.add('disabled');renderRooms();renderEquipment();renderFiles();update()}
 function exportCsv(){const rows=[['ห้อง','วันที่','เริ่ม','สิ้นสุด','จำนวน','หัวข้อ'],...bookings.map(b=>[b.roomName,b.date,b.startTime,b.endTime,b.attendees,b.topic])],blob=new Blob(['\ufeff'+rows.map(r=>r.join(',')).join('\n')],{type:'text/csv'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='meeting.csv';a.click()}
