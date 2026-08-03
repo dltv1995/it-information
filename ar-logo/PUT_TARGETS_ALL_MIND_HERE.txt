@@ -1,1 +1,0 @@
-วาง targets-all.mind ข้าง index.html
