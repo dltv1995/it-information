@@ -1,0 +1,28 @@
+
+:root { --gold:#e2b33b; --gold-light:#fff0a8; --ink:#121008; }
+* { box-sizing:border-box; }
+html,body { width:100%; height:100%; margin:0; overflow:hidden; color:#fff; background:transparent!important; font-family:system-ui,-apple-system,"Segoe UI","Noto Sans Thai",sans-serif; }
+.hidden,.a-enter-vr,.a-orientation-modal { display:none!important; }
+#sceneHost,#arScene,#arScene .a-canvas { position:fixed!important; inset:0!important; width:100vw!important; height:100dvh!important; min-height:100vh!important; margin:0!important; background:transparent!important; }
+#arScene { z-index:1!important; }
+body>video,body video:not(.a-assets video) { position:fixed!important; inset:0!important; z-index:0!important; width:100vw!important; height:100dvh!important; min-height:100vh!important; object-fit:cover!important; background:#000!important; }
+.start-screen { position:fixed; inset:0; z-index:10000; display:grid; place-items:center; padding:22px; background:radial-gradient(circle at top,rgba(226,179,59,.3),transparent 34%),linear-gradient(160deg,#20190b,#090b10 58%); }
+.card { width:min(100%,460px); padding:34px 24px; text-align:center; border:1px solid rgba(255,231,151,.22); border-radius:28px; background:rgba(14,17,23,.97); box-shadow:0 30px 100px #000; }
+.brand,.mini-brand { display:grid; place-items:center; color:var(--ink); font-weight:950; background:linear-gradient(145deg,var(--gold-light),var(--gold)); }
+.brand { width:76px; height:76px; margin:0 auto 16px; border-radius:23px; font-size:27px; }
+.mini-brand { width:38px; height:38px; border-radius:12px; }
+.gold-text { color:#edca67; font-size:13px; font-weight:900; letter-spacing:.12em; }
+h1 { margin:0; font-size:clamp(29px,8vw,42px); }
+.card>p:not(.gold-text) { color:#d5d8df; line-height:1.6; }
+.mind-status { display:grid; gap:5px; margin:20px 0; padding:12px; text-align:left; border-radius:14px; background:#080a0f; }
+.mind-status span { color:#969aa5; font-size:12px; }.mind-status strong { overflow-wrap:anywhere; }.ok{color:#8ee5a6!important}.bad{color:#ff9da4!important}
+.button { width:100%; min-height:50px; padding:12px 20px; border:0; border-radius:999px; color:var(--ink); font-weight:850; background:linear-gradient(135deg,var(--gold-light),var(--gold)); }
+.spinner { width:38px; height:38px; margin:18px auto; border:4px solid rgba(255,255,255,.18); border-top-color:var(--gold); border-radius:50%; animation:spin .8s linear infinite; }
+.scanner-ui { position:fixed; inset:0; z-index:9000; display:grid; place-items:center; pointer-events:none; }
+.scanner-header { position:fixed; top:max(12px,env(safe-area-inset-top)); left:12px; display:flex; align-items:center; gap:10px; padding:8px 13px; border-radius:18px; background:rgba(0,0,0,.62); }.scanner-header small,.scanner-header strong{display:block}.scanner-header small{font-size:10px;color:#bbb}
+.status { position:fixed; top:max(82px,calc(env(safe-area-inset-top) + 70px)); left:50%; transform:translateX(-50%); max-width:calc(100vw - 28px); padding:9px 16px; white-space:nowrap; border-radius:999px; background:rgba(0,0,0,.64); }
+.frame { position:relative; width:min(76vw,360px); aspect-ratio:1; overflow:hidden; border:1px solid rgba(255,255,255,.25); border-radius:26px; }.frame.detecting{transform:scale(1.025);border-color:var(--gold-light);box-shadow:0 0 30px rgba(255,224,130,.25)}
+.frame i{position:absolute;width:58px;height:58px;color:var(--gold-light)}.frame i:nth-child(1){top:-3px;left:-3px;border-top:5px solid;border-left:5px solid}.frame i:nth-child(2){top:-3px;right:-3px;border-top:5px solid;border-right:5px solid}.frame i:nth-child(3){bottom:-3px;left:-3px;border-bottom:5px solid;border-left:5px solid}.frame i:nth-child(4){right:-3px;bottom:-3px;border-right:5px solid;border-bottom:5px solid}.frame span{position:absolute;left:7%;right:7%;top:12%;height:2px;background:linear-gradient(90deg,transparent,var(--gold-light),transparent);animation:scan 2.2s ease-in-out infinite}
+.instruction { position:fixed; bottom:max(24px,env(safe-area-inset-bottom)); left:50%; transform:translateX(-50%); width:min(calc(100% - 28px),440px); padding:11px 16px; text-align:center; border-radius:999px; background:rgba(0,0,0,.64); }
+.error { position:fixed; z-index:30000; left:50%; bottom:20px; transform:translateX(-50%); width:min(calc(100% - 28px),500px); padding:18px; border:1px solid #a94a50; border-radius:18px; background:#511319; }
+@keyframes spin{to{transform:rotate(360deg)}} @keyframes scan{0%,100%{top:12%}50%{top:88%}}
