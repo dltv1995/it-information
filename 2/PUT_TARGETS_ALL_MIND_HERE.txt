@@ -1,0 +1,1 @@
+วาง targets-all.mind ระดับเดียวกับ index.html
