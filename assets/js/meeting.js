@@ -1,7 +1,7 @@
 import { auth, db } from './firebase-config.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
 import { collection, updateDoc, deleteDoc, doc, onSnapshot, serverTimestamp, setDoc } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
-console.log('meeting.js loaded: meeting-drive-parallel-v27');
+console.log('meeting.js loaded: meeting-drive-parallel-v28');
 // ===== ตั้งค่า Google Apps Script Web App ตรงนี้ =====
 const MEETING_DRIVE_API_URL = 'https://script.google.com/macros/s/AKfycbyPvAKHa1OYf7lAKYWMdZv7wrqtT80JVWODKci7vVlzgxVgBa8QaAqKDESHS6QMmNK6dw/exec';
 const MAX_FILES = 5;
