@@ -63,7 +63,7 @@
 
       <article class="meeting-card accent-orange"><header class="section-head"><span class="section-icon orange"><i class="fa-solid fa-wand-magic-sparkles"></i></span><div><h2>อุปกรณ์ที่ต้องการ</h2><p>เลือกได้หลายรายการ</p></div><span id="equipmentCount" class="selected-count">เลือกแล้ว 0 รายการ</span></header><div id="equipmentList" class="equipment-grid"></div></article>
 
-      <article class="meeting-card accent-emerald"><header class="section-head"><span class="section-icon emerald"><i class="fa-solid fa-file-circle-plus"></i></span><div><h2>เอกสารการประชุม <small>แบบร่าง</small></h2><p>เลือกไฟล์ไว้เป็นข้อมูลร่าง ยังไม่อัปโหลด Storage</p></div></header><div class="file-drop"><input id="meetingFiles" type="file" multiple hidden><span class="upload-icon"><i class="fa-solid fa-cloud-arrow-up"></i></span><div><strong>เลือกไฟล์แบบร่าง</strong><p>สูงสุด 5 ไฟล์ ไฟล์ละไม่เกิน 10 MB</p></div><button id="chooseFilesBtn" type="button" class="secondary-btn">เลือกไฟล์</button></div><div id="fileList" class="file-list"></div></article>
+      <article class="meeting-card accent-emerald"><header class="section-head"><span class="section-icon emerald"><i class="fa-solid fa-file-circle-plus"></i></span><div><h2>เอกสารการประชุม <small>Google Drive</small></h2><p>เลือกไฟล์แล้วระบบจะอัปโหลดไป Google Drive อัตโนมัติ</p></div></header><div class="file-drop"><input id="meetingFiles" type="file" multiple hidden><span class="upload-icon"><i class="fa-solid fa-cloud-arrow-up"></i></span><div><strong>เลือกไฟล์เอกสาร</strong><p>สูงสุด 5 ไฟล์ ไฟล์ละไม่เกิน 10 MB</p></div><button id="chooseFilesBtn" type="button" class="secondary-btn">เลือกไฟล์</button></div><div id="fileList" class="file-list"></div></article>
 
       <div id="summaryContent" class="booking-summary summary-empty-state"><span class="summary-placeholder-icon"><i class="fa-solid fa-clipboard-list"></i></span><div><strong>สรุปรายการจอง</strong><p>เลือกห้องและกรอกข้อมูล ระบบจะแสดงรายละเอียดแบบเรียลไทม์ที่นี่</p></div></div>
       <div class="book-now-bar"><div class="book-copy"><span><i class="fa-solid fa-bolt"></i></span><div><h3>จองได้ทันที</h3><p>บันทึกเป็นรายการยืนยันใน Firebase Firestore</p></div></div><button id="bookNowBtn" class="book-now-btn" type="button"><i class="fa-solid fa-calendar-check"></i> ระบบจองห้องประชุม</button></div>
@@ -77,6 +77,6 @@
 </template>
 <!-- โหลดตัวสร้าง layout เพียงครั้งเดียว ป้องกัน pageContent ถูกสร้างทับหลัง meeting mount -->
 <script src="assets/js/header.js?v=shared-sidebar-v7"></script>
-  <script type="module" src="assets/js/meeting.js?v=meeting-drive-parallel-v30"></script>
+  <script type="module" src="assets/js/meeting.js?v=meeting-drive-folder-fix-v31"></script>
 <script type="module" src="assets/js/session-timeout.js?v=session-timeout-v1"></script>
 </body></html>
