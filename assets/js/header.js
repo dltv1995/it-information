@@ -1,7 +1,7 @@
-// assets/js/header.js - Shared Sidebar v8
-console.log('header.js loaded: shared-sidebar-v8');
+// assets/js/header.js - Shared Sidebar v9
+console.log('header.js loaded: shared-sidebar-v9');
 
-const HEADER_VERSION = 'shared-sidebar-v8';
+const HEADER_VERSION = 'shared-sidebar-v9';
 const ROLE_LABELS = {
   admin: 'ผู้ดูแลระบบ', administrator: 'ผู้ดูแลระบบ',
   manager: 'หัวหน้าฝ่าย', head: 'หัวหน้าฝ่าย', department_head: 'หัวหน้าฝ่าย',
