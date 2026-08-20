@@ -1,77 +1,57 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="th">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>จัดเก็บเอกสาร</title>
+  <script>
+    (()=>{const saved=localStorage.getItem('color-theme');const dark=saved?saved==='dark':matchMedia('(prefers-color-scheme:dark)').matches;document.documentElement.classList.toggle('dark',dark)})();
+  </script>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-  <link rel="stylesheet" href="assets/css/documents.css?v=document-library-v3">
+  <link rel="stylesheet" href="assets/css/documents.css?v=document-explorer-v4">
 </head>
-<body id="appBody" class="hidden bg-slate-50" data-title="จัดเก็บเอกสาร" data-subtitle="จัดการไฟล์บน Google Drive" data-active-menu="documents">
+<body id="appBody" class="hidden" data-title="จัดเก็บเอกสาร" data-subtitle="จัดการไฟล์บน Google Drive" data-active-menu="documents">
   <div id="layoutRoot" class="min-h-screen md:flex"></div>
-
   <template id="documentsTemplate">
-    <section class="docs-page">
-      <header class="docs-hero">
-        <span class="docs-hero-icon"><i class="fa-brands fa-google-drive"></i></span>
-        <div class="docs-hero-copy">
-          <h1>จัดเก็บเอกสาร</h1>
-          <p>ลากไฟล์มาวางเพื่ออัปโหลดเข้าสู่ Google Drive โดยตรง</p>
-        </div>
-        <button id="newFolderBtn" class="primary-btn" type="button"><i class="fa-solid fa-folder-plus"></i> สร้างโฟลเดอร์</button>
+    <section class="explorer-shell">
+      <header class="explorer-hero">
+        <span class="hero-icon"><i class="fa-brands fa-google-drive"></i></span>
+        <div><h1>จัดเก็บเอกสาร</h1><p>พื้นที่เอกสารทั่วไปบน Google Drive</p></div>
+        <button id="newFolderBtn" class="btn primary"><i class="fa-solid fa-folder-plus"></i> สร้างโฟลเดอร์</button>
       </header>
 
-      <div class="docs-toolbar">
+      <div class="explorer-toolbar">
         <div id="breadcrumbs" class="breadcrumbs"></div>
-        <div class="toolbar-actions">
-          <label class="search-box"><i class="fa-solid fa-magnifying-glass"></i><input id="docSearch" placeholder="ค้นหาไฟล์หรือโฟลเดอร์"></label>
-          <button id="selectModeBtn" class="icon-text-btn" type="button"><i class="fa-regular fa-square-check"></i> เลือกหลายรายการ</button>
-          <button id="listViewBtn" class="view-btn active" type="button" title="แสดงเป็นรายการ"><i class="fa-solid fa-list"></i></button>
-          <button id="gridViewBtn" class="view-btn" type="button" title="แสดงเป็นไอคอนใหญ่"><i class="fa-solid fa-grip"></i></button>
-          <button id="refreshDocsBtn" class="view-btn" type="button" title="รีเฟรช"><i class="fa-solid fa-rotate"></i></button>
+        <label class="search"><i class="fa-solid fa-magnifying-glass"></i><input id="docSearch" placeholder="ค้นหาไฟล์หรือโฟลเดอร์"></label>
+        <button id="selectModeBtn" class="btn"><i class="fa-regular fa-square-check"></i><span>เลือกหลายรายการ</span></button>
+        <div class="zoom-control" title="ขนาดมุมมองแบบ Windows Explorer">
+          <i class="fa-solid fa-list"></i><input id="viewZoom" type="range" min="0" max="4" step="1" value="0"><i class="fa-solid fa-table-cells-large"></i>
         </div>
+        <button id="autoViewBtn" class="tool-btn active" title="ปรับมุมมองอัตโนมัติตามความกว้าง"><i class="fa-solid fa-wand-magic-sparkles"></i></button>
+        <button id="refreshBtn" class="tool-btn" title="รีเฟรช"><i class="fa-solid fa-rotate"></i></button>
       </div>
 
-      <div id="selectionBar" class="selection-bar hidden">
-        <strong id="selectionCount">เลือกแล้ว 0 รายการ</strong>
-        <span>ลากรายการที่เลือกไปวางบนโฟลเดอร์เพื่อย้าย</span>
-        <button id="deleteSelectedBtn" type="button" class="danger-btn"><i class="fa-solid fa-trash"></i> ลบที่เลือก</button>
-        <button id="clearSelectionBtn" type="button" class="secondary-btn">ยกเลิกการเลือก</button>
-      </div>
+      <div id="selectionBar" class="selection-bar hidden"><strong id="selectionCount">เลือกแล้ว 0 รายการ</strong><span>ลากรายการที่เลือกไปวางบนโฟลเดอร์เพื่อย้าย</span><button id="deleteSelectedBtn" class="btn danger"><i class="fa-solid fa-trash"></i> ลบที่เลือก</button><button id="clearSelectionBtn" class="btn">ยกเลิก</button></div>
 
-      <div id="dropZone" class="drop-zone" tabindex="0">
-        <input id="libraryFiles" type="file" multiple hidden>
-        <span class="drop-icon"><i class="fa-solid fa-cloud-arrow-up"></i></span>
-        <div><strong>ลากไฟล์มาวางที่นี่</strong><p>หรือเลือกหลายไฟล์จากเครื่อง ระบบอัปโหลดพร้อมกันสูงสุด 3 ไฟล์</p></div>
-        <button id="chooseLibraryFilesBtn" class="secondary-btn" type="button">เลือกไฟล์</button>
-      </div>
+      <div id="dropZone" class="drop-zone"><input id="fileInput" type="file" multiple hidden><span><i class="fa-solid fa-cloud-arrow-up"></i></span><div><strong>ลากไฟล์จากเครื่องมาวางที่นี่</strong><p>อัปโหลดพร้อมกันสูงสุด 3 ไฟล์ ไฟล์ละไม่เกิน 10 MB</p></div><button id="chooseFilesBtn" class="btn">เลือกไฟล์</button></div>
       <div id="uploadQueue" class="upload-queue"></div>
 
-      <div class="content-head">
-        <div><h2>ไฟล์และโฟลเดอร์</h2><span id="itemCount">0 รายการ</span></div>
-        <div id="viewLabel" class="view-chip"><i class="fa-solid fa-list"></i> รายการ</div>
-      </div>
-      <div id="documentGrid" class="document-grid list-view"><div class="docs-empty">กำลังโหลด...</div></div>
+      <div class="items-heading"><div><h2>ไฟล์และโฟลเดอร์</h2><small id="itemCount">0 รายการ</small></div><span id="viewName" class="view-name">รายละเอียด</span></div>
+      <div id="itemsArea" class="items-area" data-view="details"></div>
 
       <div id="contextMenu" class="context-menu hidden">
-        <button data-context-action="open"><i class="fa-solid fa-arrow-up-right-from-square"></i> เปิด</button>
-        <button data-context-action="details"><i class="fa-solid fa-circle-info"></i> รายละเอียด</button>
-        <button data-context-action="select"><i class="fa-regular fa-square-check"></i> เลือกรายการนี้</button>
-        <button data-context-action="delete" class="context-danger"><i class="fa-solid fa-trash"></i> ลบ</button>
+        <button data-action="open"><i class="fa-solid fa-arrow-up-right-from-square"></i> เปิด</button>
+        <button data-action="details"><i class="fa-solid fa-circle-info"></i> รายละเอียด</button>
+        <button data-action="select"><i class="fa-regular fa-square-check"></i> เลือก</button>
+        <button data-action="delete" class="danger-text"><i class="fa-solid fa-trash"></i> ลบ</button>
       </div>
 
-      <div id="detailsModal" class="details-overlay hidden" role="dialog" aria-modal="true">
-        <div class="details-panel">
-          <header><div><i id="detailsIcon" class="fa-solid fa-file"></i><h3>รายละเอียด</h3></div><button id="closeDetailsBtn" type="button"><i class="fa-solid fa-xmark"></i></button></header>
-          <div id="detailsBody" class="details-body"></div>
-        </div>
-      </div>
+      <div id="detailsModal" class="modal-backdrop hidden"><section class="details-modal"><header><div><i id="detailIcon" class="fa-solid fa-file"></i><h3>รายละเอียด</h3></div><button id="closeDetailsBtn"><i class="fa-solid fa-xmark"></i></button></header><div id="detailsBody"></div></section></div>
     </section>
   </template>
-
-  <script src="assets/js/header.js?v=shared-sidebar-v9"></script>
-  <script type="module" src="assets/js/documents.js?v=document-library-v3"></script>
+  <script src="assets/js/header.js?v=shared-sidebar-v10"></script>
+  <script type="module" src="assets/js/documents.js?v=document-explorer-v4"></script>
   <script type="module" src="assets/js/session-timeout.js?v=session-timeout-v1"></script>
 </body>
 </html>

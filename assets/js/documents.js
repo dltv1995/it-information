@@ -1,7 +1,7 @@
 import { auth } from './firebase-config.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
 
-console.log('documents.js loaded: document-library-v3');
+console.log('documents.js loaded: document-explorer-v4');
 
 const API_URL = 'https://script.google.com/macros/s/AKfycbyPvAKHa1OYf7lAKYWMdZv7wrqtT80JVWODKci7vVlzgxVgBa8QaAqKDESHS6QMmNK6dw/exec';
 const API_VERSION = 'meeting-drive-v33';
@@ -15,7 +15,10 @@ let crumbs = [{ id: '', name: 'จัดเก็บเอกสาร' }];
 let items = [];
 let queue = [];
 let uploadWorkers = 0;
-let viewMode = localStorage.getItem('document-library-view') || 'list';
+const VIEW_LEVELS=['details','list','small','medium','large'];
+let viewMode=localStorage.getItem('document-explorer-view')||'details';
+let autoView=localStorage.getItem('document-explorer-auto')!=='false';
+let resizeObserver=null;
 let selectMode = false;
 let selectedIds = new Set();
 let contextItem = null;
@@ -33,15 +36,18 @@ function mount() {
 
   page.replaceChildren(template.content.cloneNode(true));
   [
-    'breadcrumbs', 'docSearch', 'refreshDocsBtn', 'newFolderBtn', 'dropZone',
-    'libraryFiles', 'chooseLibraryFilesBtn', 'uploadQueue', 'documentGrid',
-    'itemCount', 'listViewBtn', 'gridViewBtn', 'viewLabel', 'selectModeBtn',
+    'breadcrumbs', 'docSearch', 'refreshBtn', 'newFolderBtn', 'dropZone',
+    'fileInput', 'chooseFilesBtn', 'uploadQueue', 'itemsArea',
+    'itemCount', 'viewZoom', 'autoViewBtn', 'viewName', 'selectModeBtn',
     'selectionBar', 'selectionCount', 'deleteSelectedBtn', 'clearSelectionBtn',
     'contextMenu', 'detailsModal', 'detailsBody', 'detailsIcon', 'closeDetailsBtn'
   ].forEach(id => E[id] = document.getElementById(id));
 
   bind();
-  setView(viewMode);
+  applyView(viewMode);
+  E.autoViewBtn.classList.toggle('active',autoView);
+  resizeObserver=new ResizeObserver(()=>{if(autoView)applyResponsiveView()});
+  resizeObserver.observe(E.itemsArea);
   onAuthStateChanged(auth, account => {
     user = account;
     if (account) loadItems();
@@ -50,8 +56,8 @@ function mount() {
 }
 
 function bind() {
-  E.chooseLibraryFilesBtn.onclick = () => E.libraryFiles.click();
-  E.libraryFiles.onchange = event => {
+  E.chooseFilesBtn.onclick = () => E.fileInput.click();
+  E.fileInput.onchange = event => {
     addFiles([...event.target.files]);
     event.target.value = '';
   };
@@ -67,10 +73,10 @@ function bind() {
   E.dropZone.addEventListener('drop', event => addFiles([...event.dataTransfer.files]));
 
   E.newFolderBtn.onclick = createFolder;
-  E.refreshDocsBtn.onclick = loadItems;
+  E.refreshBtn.onclick = loadItems;
   E.docSearch.oninput = renderItems;
-  E.listViewBtn.onclick = () => setView('list');
-  E.gridViewBtn.onclick = () => setView('grid');
+  E.viewZoom.oninput=()=>{autoView=false;localStorage.setItem('document-explorer-auto','false');E.autoViewBtn.classList.remove('active');applyView(VIEW_LEVELS[Number(E.viewZoom.value)]||'details')};
+  E.autoViewBtn.onclick=()=>{autoView=!autoView;localStorage.setItem('document-explorer-auto',String(autoView));E.autoViewBtn.classList.toggle('active',autoView);if(autoView)applyResponsiveView()};
   E.selectModeBtn.onclick = () => setSelectMode(!selectMode);
   E.clearSelectionBtn.onclick = clearSelection;
   E.deleteSelectedBtn.onclick = deleteSelected;
@@ -106,7 +112,7 @@ async function api(payload) {
 }
 
 async function loadItems() {
-  E.documentGrid.innerHTML = '<div class="docs-empty">กำลังโหลด...</div>';
+  E.itemsArea.innerHTML = '<div class="empty">กำลังโหลด...</div>';
   try {
     const result = await api({ action: 'libraryListV1', folderId: currentFolderId });
     items = result.items || [];
@@ -115,7 +121,7 @@ async function loadItems() {
     renderItems();
     updateSelectionBar();
   } catch (error) {
-    E.documentGrid.innerHTML = `<div class="docs-empty">${escapeHtml(error.message)}</div>`;
+    E.itemsArea.innerHTML = `<div class="empty">${escapeHtml(error.message)}</div>`;
   }
 }
 
@@ -138,35 +144,35 @@ function renderItems() {
   const query = E.docSearch.value.trim().toLowerCase();
   const filtered = items.filter(item => item.name.toLowerCase().includes(query));
   E.itemCount.textContent = `${filtered.length} รายการ`;
-  E.documentGrid.className = `document-grid ${viewMode}-view`;
+  E.itemsArea.className='items-area';E.itemsArea.dataset.view=viewMode;
 
   if (!filtered.length) {
-    E.documentGrid.innerHTML = '<div class="docs-empty">ยังไม่มีไฟล์หรือโฟลเดอร์</div>';
+    E.itemsArea.innerHTML = '<div class="empty">ยังไม่มีไฟล์หรือโฟลเดอร์</div>';
     return;
   }
 
-  E.documentGrid.innerHTML = filtered.map(item => {
+  E.itemsArea.innerHTML = filtered.map(item => {
     const selected = selectedIds.has(item.id);
     const icon = item.type === 'folder' ? 'fa-folder' : fileIcon(item.mimeType, item.name);
-    return `<article class="doc-item ${selected ? 'selected' : ''}" data-id="${item.id}" data-type="${item.type}" draggable="true">
-      <input class="doc-check ${selectMode || selected ? '' : 'hidden'}" type="checkbox" ${selected ? 'checked' : ''} aria-label="เลือก ${escapeHtml(item.name)}">
-      <div class="doc-main">
-        <i class="doc-icon fa-solid ${icon}"></i>
-        <span class="doc-name" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</span>
+    return `<article class="item ${selected ? 'selected' : ''}" data-id="${item.id}" data-type="${item.type}" draggable="true">
+      <input class="item-check ${selectMode || selected ? '' : 'hidden'}" type="checkbox" ${selected ? 'checked' : ''} aria-label="เลือก ${escapeHtml(item.name)}">
+      <div class="item-main">
+        <i class="item-icon fa-solid ${icon}"></i>
+        <span class="item-name" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</span>
       </div>
-      <div class="doc-meta">${item.type === 'folder' ? 'โฟลเดอร์' : formatSize(item.size)}</div>
-      <div class="doc-meta">${item.updatedAt ? new Date(item.updatedAt).toLocaleString('th-TH') : '-'}</div>
-      <button class="doc-menu" type="button" title="เมนู"><i class="fa-solid fa-ellipsis-vertical"></i></button>
+      <div class="item-meta">${item.type === 'folder' ? 'โฟลเดอร์' : formatSize(item.size)}</div>
+      <div class="item-meta">${item.updatedAt ? new Date(item.updatedAt).toLocaleString('th-TH') : '-'}</div>
+      <button class="item-menu" type="button" title="เมนู"><i class="fa-solid fa-ellipsis-vertical"></i></button>
     </article>`;
   }).join('');
 
-  E.documentGrid.querySelectorAll('.doc-item').forEach(row => bindItem(row));
+  E.itemsArea.querySelectorAll('.item').forEach(row => bindItem(row));
 }
 
 function bindItem(row) {
   const item = items.find(value => value.id === row.dataset.id);
-  const checkbox = row.querySelector('.doc-check');
-  const menu = row.querySelector('.doc-menu');
+  const checkbox = row.querySelector('.item-check');
+  const menu = row.querySelector('.item-menu');
 
   checkbox.onclick = event => {
     event.stopPropagation();
@@ -209,28 +215,22 @@ function bindItem(row) {
       if (!event.dataTransfer.types.includes('application/x-library-items')) return;
       event.preventDefault();
       event.dataTransfer.dropEffect = 'move';
-      row.classList.add('folder-drop');
+      row.classList.add('folder-target');
     };
-    row.ondragleave = () => row.classList.remove('folder-drop');
+    row.ondragleave = () => row.classList.remove('folder-target');
     row.ondrop = async event => {
       const raw = event.dataTransfer.getData('application/x-library-items');
       if (!raw) return;
       event.preventDefault();
-      row.classList.remove('folder-drop');
+      row.classList.remove('folder-target');
       const ids = JSON.parse(raw).filter(id => id !== item.id);
       if (ids.length) await moveItems(ids, item.id, item.name);
     };
   }
 }
 
-function setView(mode) {
-  viewMode = mode;
-  localStorage.setItem('document-library-view', mode);
-  E.listViewBtn.classList.toggle('active', mode === 'list');
-  E.gridViewBtn.classList.toggle('active', mode === 'grid');
-  E.viewLabel.innerHTML = mode === 'list' ? '<i class="fa-solid fa-list"></i> รายการ' : '<i class="fa-solid fa-grip"></i> ไอคอนใหญ่';
-  if (E.documentGrid) renderItems();
-}
+function applyResponsiveView(){const width=E.itemsArea.getBoundingClientRect().width;const next=width>=1180?'details':width>=900?'list':width>=660?'small':width>=430?'medium':'large';applyView(next)}
+function applyView(mode){viewMode=VIEW_LEVELS.includes(mode)?mode:'details';localStorage.setItem('document-explorer-view',viewMode);E.viewZoom.value=String(VIEW_LEVELS.indexOf(viewMode));const labels={details:'รายละเอียด',list:'รายการ',small:'ไอคอนเล็ก',medium:'ไอคอนกลาง',large:'ไอคอนใหญ่'};E.viewName.textContent=labels[viewMode];if(E.itemsArea){E.itemsArea.className='items-area';E.itemsArea.dataset.view=viewMode;renderItems()}}
 
 function setSelectMode(enabled) {
   selectMode = enabled;
@@ -250,7 +250,7 @@ function clearSelection() {
   selectedIds.clear();
   selectMode = false;
   if (E.selectModeBtn) E.selectModeBtn.classList.remove('active');
-  if (E.documentGrid) renderItems();
+  if (E.itemsArea) renderItems();
   updateSelectionBar();
 }
 
@@ -394,13 +394,13 @@ async function upload(item) {
 }
 
 function renderQueue() {
-  E.uploadQueue.innerHTML = queue.map((item, index) => `<div class="upload-row upload-${item.status}">
+  E.uploadQueue.innerHTML = queue.map((item, index) => `<div class="upload-item upload-${item.status}">
     <i class="fa-solid fa-file-arrow-up"></i>
     <div>
       <strong>${escapeHtml(item.file.name)}</strong>
       <small>${formatSize(item.file.size)}</small>
       <div class="upload-state">${item.status === 'queued' ? 'รอคิว' : item.status === 'uploading' ? 'กำลังอัปโหลด...' : item.status === 'success' ? 'อัปโหลดสำเร็จ' : `ผิดพลาด: ${escapeHtml(item.error)}`}</div>
-      ${item.status === 'uploading' ? '<div class="upload-bar"><i></i></div>' : ''}
+      ${item.status === 'uploading' ? '<div class="upload-progress"><i></i></div>' : ''}
     </div>
     ${item.status === 'error' ? `<button class="secondary-btn" data-retry="${index}">ลองใหม่</button>` : ''}
     ${['success', 'error'].includes(item.status) ? `<button class="upload-close" data-close="${index}" title="ปิด"><i class="fa-solid fa-xmark"></i></button>` : ''}
