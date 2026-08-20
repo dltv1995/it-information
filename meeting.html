@@ -10,10 +10,8 @@
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/style.css">
   <link rel="stylesheet" href="assets/css/header.css?v=shared-sidebar-v7">
-  <link rel="stylesheet" href="assets/css/meeting.css?v=meeting-drive-appscript-v23">
-<style>
-.meeting-drive-fields{margin-bottom:16px}.drive-note{display:flex;gap:9px;align-items:center;margin-top:12px;padding:10px 13px;border-radius:12px;background:#ecfdf5;color:#047857;font-size:12px;font-weight:600}.file-item .file-meta{display:flex;align-items:center;gap:9px}.file-item small{display:block;color:#64748b;font-size:11px}.booking-attachments{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}.attachment-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid #cbd5e1;border-radius:999px;background:#fff;color:#0369a1;font-size:12px;font-weight:700;text-decoration:none}.edit-files-panel{grid-column:1/-1;padding:14px;border:1px solid #dbeafe;border-radius:16px;background:#f8fafc}.edit-files-panel h4{margin:0 0 10px;color:#0f172a}.edit-file-row{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:8px 10px;margin-top:7px;border-radius:10px;background:#fff;border:1px solid #e2e8f0}.edit-file-row a{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#0369a1;font-weight:700}.edit-file-delete{color:#dc2626;font-weight:800}.edit-upload-status{font-size:12px;color:#64748b;margin-top:8px}.dark .edit-files-panel,.dark .edit-file-row,.dark .attachment-chip{background:#1e293b;border-color:#475569;color:#e2e8f0}
-</style>
+  <link rel="stylesheet" href="assets/css/meeting.css?v=meeting-stats-bar-v22">
+<style id="drive-v25">.edit-files-panel{grid-column:1/-1;padding:16px;border:1px solid #bfdbfe;border-radius:16px;background:#f8fafc}.edit-files-panel h4{margin:0 0 12px}.edit-file-row{display:flex;justify-content:space-between;gap:10px;padding:9px;margin:7px 0;border:1px solid #e2e8f0;border-radius:10px;background:#fff}.edit-file-delete{color:#dc2626;font-weight:800}.edit-upload-status{margin:9px 0;color:#64748b;font-size:12px}</style>
 </head>
 <body data-active-menu="meeting" data-title="ระบบจองห้องประชุม" data-subtitle="จองห้อง ตรวจสอบรายการ และดูสถิติการใช้งาน" id="appBody" data-title="ระบบจองห้องประชุม" data-subtitle="เลือกห้อง กำหนดเวลา และจองได้ทันที" data-active-menu="meeting" class="bg-slate-50 font-sans text-slate-700 hidden m-0">
 <div id="layoutRoot" class="flex h-screen overflow-hidden"></div>
@@ -64,7 +62,7 @@
 
       <article class="meeting-card accent-orange"><header class="section-head"><span class="section-icon orange"><i class="fa-solid fa-wand-magic-sparkles"></i></span><div><h2>อุปกรณ์ที่ต้องการ</h2><p>เลือกได้หลายรายการ</p></div><span id="equipmentCount" class="selected-count">เลือกแล้ว 0 รายการ</span></header><div id="equipmentList" class="equipment-grid"></div></article>
 
-      <article class="meeting-card accent-emerald"><header class="section-head"><span class="section-icon emerald"><i class="fa-brands fa-google-drive"></i></span><div><h2>เอกสารการประชุม <small>Google Drive</small></h2><p>ระบบจัดเก็บตาม ปี พ.ศ. / หัวข้อประชุม / รหัสการจอง และสร้างโฟลเดอร์ให้อัตโนมัติ</p></div></header><div class="form-grid two meeting-drive-fields"><label class="field"><span>ปีเอกสาร พ.ศ. *</span><select id="documentYear" class="form-control"></select></label><label class="field"><span>โฟลเดอร์หัวข้อ</span><input id="documentTopicPreview" class="form-control" readonly placeholder="กรอกหัวข้อประชุมด้านบน"></label></div><div class="file-drop"><input id="meetingFiles" type="file" multiple hidden><span class="upload-icon"><i class="fa-solid fa-cloud-arrow-up"></i></span><div><strong>เลือกไฟล์เอกสาร</strong><p>แนบได้หลายไฟล์ สูงสุด 5 ไฟล์ ไฟล์ละไม่เกิน 10 MB</p></div><button id="chooseFilesBtn" type="button" class="secondary-btn">เลือกไฟล์</button></div><div id="fileList" class="file-list"></div><div class="drive-note"><i class="fa-solid fa-shield-halved"></i><span>ไฟล์จะอัปโหลดเมื่อบันทึกรายการจอง และเปิดดูได้จากหน้ารายการ</span></div></article>
+      <article class="meeting-card accent-emerald"><header class="section-head"><span class="section-icon emerald"><i class="fa-solid fa-file-circle-plus"></i></span><div><h2>เอกสารการประชุม <small>แบบร่าง</small></h2><p>เลือกไฟล์ไว้เป็นข้อมูลร่าง ยังไม่อัปโหลด Storage</p></div></header><div class="file-drop"><input id="meetingFiles" type="file" multiple hidden><span class="upload-icon"><i class="fa-solid fa-cloud-arrow-up"></i></span><div><strong>เลือกไฟล์แบบร่าง</strong><p>สูงสุด 5 ไฟล์ ไฟล์ละไม่เกิน 10 MB</p></div><button id="chooseFilesBtn" type="button" class="secondary-btn">เลือกไฟล์</button></div><div id="fileList" class="file-list"></div></article>
 
       <div id="summaryContent" class="booking-summary summary-empty-state"><span class="summary-placeholder-icon"><i class="fa-solid fa-clipboard-list"></i></span><div><strong>สรุปรายการจอง</strong><p>เลือกห้องและกรอกข้อมูล ระบบจะแสดงรายละเอียดแบบเรียลไทม์ที่นี่</p></div></div>
       <div class="book-now-bar"><div class="book-copy"><span><i class="fa-solid fa-bolt"></i></span><div><h3>จองได้ทันที</h3><p>บันทึกเป็นรายการยืนยันใน Firebase Firestore</p></div></div><button id="bookNowBtn" class="book-now-btn" type="button"><i class="fa-solid fa-calendar-check"></i> ระบบจองห้องประชุม</button></div>
@@ -78,6 +76,6 @@
 </template>
 <script src="assets/js/header.js?v=header-global-meeting-v6"></script>
 <script src="assets/js/header.js?v=shared-sidebar-v7"></script>
-  <script type="module" src="assets/js/meeting.js?v=meeting-drive-appscript-v23"></script>
+  <script type="module" src="assets/js/meeting.js?v=meeting-drive-appscript-v25"></script>
 <script type="module" src="assets/js/session-timeout.js?v=session-timeout-v1"></script>
 </body></html>
