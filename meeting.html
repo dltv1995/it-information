@@ -75,8 +75,8 @@
   <div id="tab-stats" class="meeting-panel"><article class="meeting-card stats-card"><header class="section-head"><span class="section-icon blue"><i class="fa-solid fa-chart-column"></i></span><div><h2>สถิติการใช้งานห้องประชุม</h2><p>สรุปจำนวนรายการและชั่วโมงการใช้งานรายเดือน</p></div><div class="stats-filter"><label><span>ปี</span><select id="statsYear" class="form-control year-select"></select></label><label><span>วันเริ่มต้น</span><input id="statsStartDate" type="date" class="form-control"></label><label><span>วันสิ้นสุด</span><input id="statsEndDate" type="date" class="form-control"></label><button id="statsClearDate" type="button" class="stats-clear-btn"><i class="fa-solid fa-rotate-left"></i> ล้างวันที่</button></div></header><div class="stats-kpis"><div class="kpi blue-kpi"><i class="fa-solid fa-clock"></i><div><small>ชั่วโมงรวม</small><strong id="totalHours">0.0</strong></div></div><div class="kpi cyan-kpi"><i class="fa-solid fa-door-open"></i><div><small>ห้องประชุม 1</small><strong id="room1Hours">0.0</strong></div></div><div class="kpi violet-kpi"><i class="fa-solid fa-door-closed"></i><div><small>ห้องประชุม 2</small><strong id="room2Hours">0.0</strong></div></div><div class="kpi emerald-kpi"><i class="fa-solid fa-chart-line"></i><div><small>รวมจำนวนครั้งทั้ง 2 ห้อง</small><strong id="averageHours">0 ครั้ง</strong></div></div></div><div id="monthlyChart" class="monthly-chart"></div></article></div>
 </section>
 </template>
-<script src="assets/js/header.js?v=header-global-meeting-v6"></script>
+<!-- โหลดตัวสร้าง layout เพียงครั้งเดียว ป้องกัน pageContent ถูกสร้างทับหลัง meeting mount -->
 <script src="assets/js/header.js?v=shared-sidebar-v7"></script>
-  <script type="module" src="assets/js/meeting.js?v=meeting-drive-parallel-v29"></script>
+  <script type="module" src="assets/js/meeting.js?v=meeting-drive-parallel-v30"></script>
 <script type="module" src="assets/js/session-timeout.js?v=session-timeout-v1"></script>
 </body></html>
