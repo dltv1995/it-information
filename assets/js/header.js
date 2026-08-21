@@ -1,7 +1,7 @@
-// assets/js/header.js - Shared Sidebar v7.3
-console.log("header.js loaded: shared-sidebar-v7.3-themefix");
+// assets/js/header.js - Shared Sidebar v7.4
+console.log("header.js loaded: shared-sidebar-v7.4-theme");
 
-const HEADER_VERSION = "shared-sidebar-v7.3-themefix";
+const HEADER_VERSION = "shared-sidebar-v7.4-theme";
 const ROLE_LABELS = {
   admin: "ผู้ดูแลระบบ",
   administrator: "ผู้ดูแลระบบ",
@@ -30,7 +30,6 @@ if (document.readyState === "loading") {
 async function initSharedHeader() {
   try {
     await mountSharedLayout();
-    ensureDocumentsTheme();
     setTitles();
     setActiveMenu();
     bindSharedHeader();
@@ -75,63 +74,6 @@ async function mountSharedLayout() {
   if (oldOverlay && newOverlay) oldOverlay.replaceWith(newOverlay);
   if (oldSidebar && newSidebar) oldSidebar.replaceWith(newSidebar);
   if (oldTopHeader && newTopHeader) oldTopHeader.replaceWith(newTopHeader);
-}
-
-function ensureDocumentsTheme() {
-  const fileName = (location.pathname.split("/").pop() || "").toLowerCase();
-  const isDocumentsPage =
-    fileName === "documents.html" ||
-    document.body.dataset.activeMenu === "documents";
-
-  if (!isDocumentsPage) return;
-
-  if (!document.getElementById("documentsThemeCompat")) {
-    const themeLink = document.createElement("link");
-    themeLink.id = "documentsThemeCompat";
-    themeLink.rel = "stylesheet";
-    themeLink.href = "assets/css/documents-theme-compat.css?v=theme-compat-v3";
-    document.head.appendChild(themeLink);
-  }
-
-  if (!document.getElementById("documentsThemeCritical")) {
-    const style = document.createElement("style");
-    style.id = "documentsThemeCritical";
-    style.textContent = `
-      #sidebar { background: #0f172a !important; }
-      #sidebar > div:first-of-type,
-      #sidebar > div:last-of-type { background: rgba(15,23,42,.88) !important; }
-      .theme-toggle-icon { display: none !important; }
-      html:not(.dark) #themeToggleBtn .moon-icon { display: inline-block !important; }
-      html.dark #themeToggleBtn .sun-icon { display: inline-block !important; }
-      html:not(.dark) main { background: #f8fafc !important; }
-      html:not(.dark) main > header { background: #fff !important; }
-      html.dark main { background: #0f172a !important; }
-      html.dark main > header { background: #1e293b !important; border-color: #334155 !important; }
-      html.dark #pageContent { background: #0f172a !important; }
-      html.dark .drop-zone,
-      html.dark .explorer-hero,
-      html.dark .explorer-toolbar,
-      html.dark .items-heading,
-      html.dark .items-area,
-      html.dark .upload-item,
-      html.dark .context-menu,
-      html.dark .details-modal { background: #f8fafc !important; border-color: #cbd5e1 !important; color: #0f172a !important; }
-      html.dark .explorer-hero h1,
-      html.dark .drop-copy strong,
-      html.dark .items-heading h2,
-      html.dark .doc-entry-name { color: #0f172a !important; }
-      html.dark .explorer-hero p,
-      html.dark .drop-copy p,
-      html.dark .doc-entry-meta,
-      html.dark .view-name { color: #64748b !important; }
-      html.dark .search,
-      html.dark .zoom-control,
-      html.dark .btn,
-      html.dark .tool-btn { background: #fff !important; border-color: #cbd5e1 !important; color: #0f172a !important; }
-      html.dark .search input { color: #0f172a !important; }
-    `;
-    document.head.appendChild(style);
-  }
 }
 
 function setTitles() {
@@ -180,14 +122,6 @@ function bindSharedHeader() {
   document.getElementById("mobileMenuBtn")?.addEventListener("click", open);
   document.getElementById("closeSidebarBtn")?.addEventListener("click", close);
   overlay?.addEventListener("click", close);
-
-  document.getElementById("themeToggleBtn")?.addEventListener("click", () => {
-    document.documentElement.classList.toggle("dark");
-    localStorage.setItem(
-      "color-theme",
-      document.documentElement.classList.contains("dark") ? "dark" : "light",
-    );
-  });
 
   document.getElementById("logoutBtn")?.addEventListener("click", async () => {
     localStorage.removeItem("user_name");

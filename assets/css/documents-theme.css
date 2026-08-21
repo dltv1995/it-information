@@ -1,0 +1,147 @@
+/* assets/css/documents-theme.css - Document Explorer theme v4
+   Uses the exact base palette defined by style.css:
+   Light body #f8fafc, dark body #0f172a, dark panels #1e293b.
+*/
+
+/* Brand fallbacks required by the standalone documents page. */
+.bg-brand-900 {
+  background-color: #0f172a !important;
+}
+
+.bg-brand-600 {
+  background-color: #2563eb !important;
+}
+
+.text-brand-400 {
+  color: #60a5fa !important;
+}
+
+/* Sidebar stays navy in both themes, matching header.css. */
+#sidebar {
+  background: linear-gradient(180deg, #0f172a 0%, #0b1427 100%) !important;
+}
+
+/* Light mode */
+html:not(.dark) body,
+html:not(.dark) main,
+html:not(.dark) #pageContent {
+  background: #f8fafc !important;
+  color: #334155 !important;
+}
+
+html:not(.dark) main > header {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-color: #e2e8f0 !important;
+}
+
+html:not(.dark) .drop-zone,
+html:not(.dark) .explorer-hero,
+html:not(.dark) .explorer-toolbar,
+html:not(.dark) .items-heading,
+html:not(.dark) .items-area,
+html:not(.dark) .upload-item,
+html:not(.dark) .context-menu,
+html:not(.dark) .details-modal {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #334155 !important;
+}
+
+/* Dark mode follows style.css and dashboard.css panel treatment. */
+html.dark body,
+html.dark main,
+html.dark #pageContent {
+  background: #0f172a !important;
+  color: #f1f5f9 !important;
+}
+
+html.dark main > header {
+  background: rgba(30, 41, 59, 0.9) !important;
+  border-color: #334155 !important;
+}
+
+html.dark .drop-zone,
+html.dark .explorer-hero,
+html.dark .explorer-toolbar,
+html.dark .items-heading,
+html.dark .items-area,
+html.dark .upload-item,
+html.dark .context-menu,
+html.dark .details-modal {
+  background: linear-gradient(
+    180deg,
+    rgba(30, 41, 59, 0.96),
+    rgba(15, 23, 42, 0.96)
+  ) !important;
+  border-color: rgba(71, 85, 105, 0.72) !important;
+  color: #f8fafc !important;
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.16) !important;
+}
+
+html.dark .drop-zone {
+  border-color: #38bdf8 !important;
+}
+
+html.dark .explorer-hero h1,
+html.dark .drop-copy strong,
+html.dark .items-heading h2,
+html.dark .doc-entry-name,
+html.dark .upload-item strong,
+html.dark .details-modal h3 {
+  color: #f8fafc !important;
+}
+
+html.dark .explorer-hero p,
+html.dark .drop-copy p,
+html.dark .view-name,
+html.dark .doc-entry-meta,
+html.dark .upload-item small,
+html.dark .upload-state,
+html.dark .detail span {
+  color: #94a3b8 !important;
+}
+
+html.dark .search,
+html.dark .zoom-control,
+html.dark .btn,
+html.dark .tool-btn,
+html.dark .upload-close,
+html.dark .details-modal header button {
+  background: #1e293b !important;
+  border-color: #475569 !important;
+  color: #e2e8f0 !important;
+}
+
+html.dark .search input {
+  background: transparent !important;
+  color: #f8fafc !important;
+}
+
+html.dark .search input::placeholder {
+  color: #94a3b8 !important;
+}
+
+html.dark .btn.primary {
+  color: #ffffff !important;
+  border-color: transparent !important;
+  background: linear-gradient(135deg, #0284c7, #2563eb) !important;
+}
+
+html.dark .doc-entry:hover,
+html.dark .context-menu button:hover {
+  background: #273449 !important;
+}
+
+html.dark .doc-entry.selected,
+html.dark .selection-bar {
+  background: #1e3a8a !important;
+  border-color: #60a5fa !important;
+  color: #f8fafc !important;
+}
+
+html.dark .doc-entry-icon,
+html.dark .drop-icon,
+html.dark .hero-icon {
+  background: #dbeafe !important;
+  color: #2563eb !important;
+}
