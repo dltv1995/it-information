@@ -1,9 +1,18 @@
-// assets/js/theme-toggle.js - shared theme toggle v1
+// assets/js/theme-toggle.js - shared theme toggle v3
 (() => {
+  const STORAGE_KEY = "color-theme";
+
+  function currentTheme() {
+    return document.documentElement.classList.contains("dark")
+      ? "dark"
+      : "light";
+  }
+
   function applyTheme(theme) {
     const dark = theme === "dark";
     document.documentElement.classList.toggle("dark", dark);
-    localStorage.setItem("color-theme", dark ? "dark" : "light");
+    localStorage.setItem(STORAGE_KEY, dark ? "dark" : "light");
+    document.documentElement.style.colorScheme = dark ? "dark" : "light";
     document.dispatchEvent(
       new CustomEvent("app:theme-change", {
         detail: { theme: dark ? "dark" : "light" },
@@ -11,26 +20,26 @@
     );
   }
 
-  function bindThemeToggle() {
-    const button = document.getElementById("themeToggleBtn");
-    if (!button || button.dataset.themeBound === "true") return;
+  function onThemeClick(event) {
+    const button = event.target.closest("#themeToggleBtn");
+    if (!button) return;
 
-    button.dataset.themeBound = "true";
-    button.addEventListener("click", () => {
-      applyTheme(
-        document.documentElement.classList.contains("dark") ? "light" : "dark",
-      );
-    });
+    // Capture phase blocks old Leave/Projects listeners from toggling a second time.
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+
+    applyTheme(currentTheme() === "dark" ? "light" : "dark");
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", bindThemeToggle, {
-      once: true,
-    });
-  } else {
-    bindThemeToggle();
+  function initializeThemeController() {
+    if (document.documentElement.dataset.sharedThemeController === "v3") return;
+    document.documentElement.dataset.sharedThemeController = "v3";
+    document.addEventListener("click", onThemeClick, true);
+
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved === "dark" || saved === "light") applyTheme(saved);
   }
 
-  document.addEventListener("shared:header-ready", bindThemeToggle);
-  document.addEventListener("shared:layout-ready", bindThemeToggle);
+  initializeThemeController();
 })();

@@ -145,3 +145,54 @@ html.dark .hero-icon {
   background: #dbeafe !important;
   color: #2563eb !important;
 }
+
+/* v6: dark text visibility and header consistency */
+html.dark #pageTitle,
+html.dark #pageSubtitle,
+html.dark .explorer-shell,
+html.dark .drop-zone,
+html.dark .explorer-hero,
+html.dark .explorer-toolbar,
+html.dark .items-heading,
+html.dark .items-area {
+  color: #f8fafc !important;
+}
+
+html.dark #pageTitle {
+  opacity: 1 !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+
+html.dark #pageSubtitle,
+html.dark .explorer-hero p,
+html.dark .drop-copy p,
+html.dark .doc-entry-meta,
+html.dark .view-name,
+html.dark .upload-state {
+  color: #cbd5e1 !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+html.dark .breadcrumbs .crumb {
+  color: #7dd3fc !important;
+  -webkit-text-fill-color: #7dd3fc !important;
+}
+
+html.dark .drop-copy strong,
+html.dark .explorer-hero h1,
+html.dark .items-heading h2,
+html.dark .doc-entry-name,
+html.dark .empty,
+html.dark .context-menu button,
+html.dark .details-modal strong {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+
+html.dark .search input,
+html.dark .btn,
+html.dark .tool-btn,
+html.dark .zoom-control {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}

@@ -1,10 +1,10 @@
-// assets/js/theme-init.js - shared theme state v1
-// Load this synchronously in <head> before Tailwind and page styles.
+// assets/js/theme-init.js - shared theme state v3
 (() => {
-  const savedTheme = localStorage.getItem("color-theme");
-  const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-  const useDark = savedTheme ? savedTheme === "dark" : prefersDark;
-
-  document.documentElement.classList.toggle("dark", useDark);
-  document.documentElement.dataset.themeReady = "true";
+  const saved = localStorage.getItem("color-theme");
+  const fallback = matchMedia("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "light";
+  const theme = saved === "dark" || saved === "light" ? saved : fallback;
+  document.documentElement.classList.toggle("dark", theme === "dark");
+  document.documentElement.style.colorScheme = theme;
 })();

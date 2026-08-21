@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="th">
   <head>
-    <script src="assets/js/theme-init.js?v=theme-state-v2"></script>
+    <script src="assets/js/theme-init.js?v=theme-state-v3"></script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>ระบบจองห้องประชุม</title>
@@ -28,10 +28,7 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="assets/css/style.css" />
-    <link
-      rel="stylesheet"
-      href="assets/css/header.css?v=shared-sidebar-v8-theme"
-    />
+    <link rel="stylesheet" href="assets/css/header.css?v=shared-sidebar-v7" />
     <link
       rel="stylesheet"
       href="assets/css/meeting.css?v=meeting-stats-bar-v22"
@@ -164,7 +161,7 @@
     data-title="ระบบจองห้องประชุม"
     data-subtitle="เลือกห้อง กำหนดเวลา และจองได้ทันที"
     data-active-menu="meeting"
-    class="bg-slate-50 dark:bg-slate-900 transition-theme font-sans text-slate-700 dark:text-slate-300 hidden m-0"
+    class="bg-slate-50 font-sans text-slate-700 hidden m-0"
   >
     <div id="layoutRoot" class="flex h-screen overflow-hidden"></div>
     <template id="meetingTemplate">
@@ -513,7 +510,7 @@
       </section>
     </template>
     <!-- โหลดตัวสร้าง layout เพียงครั้งเดียว ป้องกัน pageContent ถูกสร้างทับหลัง meeting mount -->
-    <script src="assets/js/header.js?v=shared-sidebar-v8-theme"></script>
+    <script src="assets/js/header.js?v=shared-sidebar-v7"></script>
     <script
       type="module"
       src="assets/js/meeting.js?v=meeting-drive-v33"
@@ -522,6 +519,6 @@
       type="module"
       src="assets/js/session-timeout.js?v=session-timeout-v1"
     ></script>
-    <script src="assets/js/theme-toggle.js?v=theme-toggle-v2"></script>
+    <script src="assets/js/theme-toggle.js?v=theme-toggle-v3"></script>
   </body>
 </html>
