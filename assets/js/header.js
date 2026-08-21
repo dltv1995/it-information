@@ -1,7 +1,7 @@
-// assets/js/header.js - Shared Sidebar v8
-console.log("header.js loaded: shared-sidebar-v8-theme");
+// assets/js/header.js - Shared Sidebar v9
+console.log("header.js loaded: shared-sidebar-v9");
 
-const HEADER_VERSION = "shared-sidebar-v8-theme";
+const HEADER_VERSION = "shared-sidebar-v9";
 const ROLE_LABELS = {
   admin: "ผู้ดูแลระบบ",
   administrator: "ผู้ดูแลระบบ",
@@ -30,9 +30,11 @@ if (document.readyState === "loading") {
 async function initSharedHeader() {
   try {
     await mountSharedLayout();
+    enforceSidebarNavy();
     setTitles();
     setActiveMenu();
     bindSharedHeader();
+    applyStoredTheme();
     await loadSharedUser();
   } catch (error) {
     console.error("Shared header initialization failed:", error);
@@ -76,6 +78,20 @@ async function mountSharedLayout() {
   if (oldTopHeader && newTopHeader) oldTopHeader.replaceWith(newTopHeader);
 }
 
+function enforceSidebarNavy() {
+  const sidebar = document.getElementById("sidebar");
+  if (!sidebar) return;
+
+  sidebar.style.setProperty("background", "#0f172a", "important");
+  sidebar.style.setProperty("color", "#cbd5e1", "important");
+
+  [sidebar.firstElementChild, sidebar.children[1], sidebar.lastElementChild]
+    .filter(Boolean)
+    .forEach((section) => {
+      section.style.setProperty("background", "#0f172a", "important");
+    });
+}
+
 function setTitles() {
   const title = document.getElementById("pageTitle");
   const subtitle = document.getElementById("pageSubtitle");
@@ -107,6 +123,27 @@ function setActiveMenu() {
   });
 }
 
+function paintThemeIcon() {
+  const icon = document.getElementById("themeIcon");
+  if (!icon) return;
+
+  const dark = document.documentElement.classList.contains("dark");
+  icon.className = dark
+    ? "fa-solid fa-sun text-xl"
+    : "fa-solid fa-moon text-xl";
+}
+
+function applyStoredTheme() {
+  const saved = localStorage.getItem("color-theme");
+  const dark = saved
+    ? saved === "dark"
+    : window.matchMedia("(prefers-color-scheme: dark)").matches;
+
+  document.documentElement.classList.toggle("dark", dark);
+  document.documentElement.style.colorScheme = dark ? "dark" : "light";
+  paintThemeIcon();
+}
+
 function bindSharedHeader() {
   const sidebar = document.getElementById("sidebar");
   const overlay = document.getElementById("mobileOverlay");
@@ -123,6 +160,14 @@ function bindSharedHeader() {
   document.getElementById("mobileMenuBtn")?.addEventListener("click", open);
   document.getElementById("closeSidebarBtn")?.addEventListener("click", close);
   overlay?.addEventListener("click", close);
+
+  document.getElementById("themeToggleBtn")?.addEventListener("click", () => {
+    const dark = !document.documentElement.classList.contains("dark");
+    document.documentElement.classList.toggle("dark", dark);
+    document.documentElement.style.colorScheme = dark ? "dark" : "light";
+    localStorage.setItem("color-theme", dark ? "dark" : "light");
+    paintThemeIcon();
+  });
 
   document.getElementById("logoutBtn")?.addEventListener("click", async () => {
     localStorage.removeItem("user_name");

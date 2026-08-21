@@ -1,5 +1,5 @@
 <!-- components/header.html -->
-<!-- Shared Header v8: unified theme -->
+<!-- Shared Header v9: navy sidebar and single theme icon -->
 <div
   id="mobileOverlay"
   class="fixed inset-0 bg-slate-900/50 dark:bg-black/60 backdrop-blur-sm z-40 hidden md:hidden transition-opacity duration-300 opacity-0"
@@ -7,10 +7,12 @@
 
 <aside
   id="sidebar"
+  style="background: #0f172a !important; color: #cbd5e1 !important"
   class="fixed inset-y-0 left-0 z-50 w-72 bg-brand-900 text-slate-300 flex flex-col shadow-xl transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-300 ease-in-out border-r border-slate-800 transition-theme"
 >
   <div
-    class="p-6 flex items-center justify-between border-b border-slate-800 bg-slate-900/50"
+    style="background: #0f172a !important"
+    class="p-6 flex items-center justify-between border-b border-slate-800"
   >
     <div class="flex items-center gap-3">
       <div
@@ -37,7 +39,10 @@
     </button>
   </div>
 
-  <div class="p-6 flex-1 overflow-y-auto">
+  <div
+    style="background: #0f172a !important"
+    class="p-6 flex-1 overflow-y-auto"
+  >
     <div
       class="text-[11px] text-slate-500 uppercase tracking-wider mb-3 font-semibold"
     >
@@ -73,7 +78,7 @@
         data-page="meeting"
         class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
       >
-        <i class="fa-solid fa-calendar-check text-lg"></i>
+        <i class="fa-solid fa-person-chalkboard text-lg"></i>
         <span>ระบบจองห้องประชุม</span>
       </a>
       <a
@@ -105,7 +110,10 @@
     </div>
   </div>
 
-  <div class="p-6 border-t border-slate-800 bg-slate-900/80">
+  <div
+    style="background: #0f172a !important"
+    class="p-6 border-t border-slate-800"
+  >
     <div class="flex items-center gap-3 mb-4">
       <div
         class="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-300 border border-slate-700"
@@ -167,8 +175,7 @@
         id="themeToggleBtn"
         class="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 flex items-center justify-center text-slate-600 dark:text-yellow-400 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors theme-toggle-btn"
       >
-        <i class="fa-solid fa-sun text-xl theme-toggle-icon sun-icon"></i>
-        <i class="fa-solid fa-moon text-xl theme-toggle-icon moon-icon"></i>
+        <i id="themeIcon" class="fa-solid fa-moon text-xl"></i>
       </button>
       <button
         class="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-brand-600 dark:hover:text-sky-400 hover:bg-brand-50 dark:hover:bg-slate-600 transition-colors relative"

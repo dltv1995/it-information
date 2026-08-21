@@ -4,63 +4,26 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>จัดเก็บเอกสาร</title>
-
     <script>
       (() => {
-        const savedTheme = localStorage.getItem("color-theme");
-        const prefersDark = window.matchMedia(
-          "(prefers-color-scheme: dark)",
-        ).matches;
-        const useDark = savedTheme
-          ? savedTheme === "dark"
-          : prefersDark;
-
-        document.documentElement.classList.toggle("dark", useDark);
-        document.documentElement.style.colorScheme = useDark
-          ? "dark"
-          : "light";
+        const saved = localStorage.getItem("color-theme");
+        const dark = saved
+          ? saved === "dark"
+          : matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.classList.toggle("dark", dark);
+        document.documentElement.style.colorScheme = dark ? "dark" : "light";
       })();
     </script>
-
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        darkMode: "class",
-        theme: {
-          extend: {
-            fontFamily: {
-              sans: ["Prompt", "sans-serif"],
-            },
-            colors: {
-              brand: {
-                50: "#eff6ff",
-                100: "#dbeafe",
-                500: "#3b82f6",
-                600: "#2563eb",
-                700: "#1d4ed8",
-                800: "#1e40af",
-                900: "#0f172a",
-              },
-            },
-          },
-        },
-      };
-    </script>
-
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap"
-    />
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
     />
     <link
       rel="stylesheet"
-      href="assets/css/documents.css?v=document-explorer-v10"
+      href="assets/css/documents.css?v=document-explorer-v11"
     />
   </head>
-
   <body
     id="appBody"
     class="hidden"
@@ -74,18 +37,14 @@
       <section class="explorer-shell">
         <section id="dropZone" class="drop-zone">
           <input id="fileInput" type="file" multiple hidden />
-
-          <span class="drop-icon" aria-hidden="true">
+          <span class="drop-icon">
             <i class="fa-solid fa-cloud-arrow-up"></i>
           </span>
-
           <div class="drop-copy">
             <strong>ลากไฟล์จากเครื่องมาวางที่นี่</strong>
             <p>อัปโหลดพร้อมกันสูงสุด 3 ไฟล์ ไฟล์ละไม่เกิน 10 MB</p>
           </div>
-
           <button id="chooseFilesBtn" class="btn" type="button">
-            <i class="fa-solid fa-file-arrow-up"></i>
             เลือกไฟล์
           </button>
         </section>
@@ -93,15 +52,13 @@
         <div id="uploadQueue" class="upload-queue"></div>
 
         <header class="explorer-hero">
-          <span class="hero-icon" aria-hidden="true">
+          <span class="hero-icon">
             <i class="fa-brands fa-google-drive"></i>
           </span>
-
-          <div class="hero-copy">
+          <div>
             <h1>จัดเก็บเอกสาร</h1>
             <p>พื้นที่เอกสารทั่วไปบน Google Drive</p>
           </div>
-
           <button id="newFolderBtn" class="btn primary" type="button">
             <i class="fa-solid fa-folder-plus"></i>
             สร้างโฟลเดอร์
@@ -115,62 +72,47 @@
             aria-label="เส้นทางโฟลเดอร์"
           ></div>
 
-          <div class="toolbar-actions">
-            <label class="search">
-              <i class="fa-solid fa-magnifying-glass"></i>
-              <input
-                id="docSearch"
-                type="search"
-                placeholder="ค้นหาไฟล์หรือโฟลเดอร์"
-                autocomplete="off"
-              />
-            </label>
+          <label class="search">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input id="docSearch" placeholder="ค้นหาไฟล์หรือโฟลเดอร์" />
+          </label>
 
-            <button id="selectModeBtn" class="btn" type="button">
-              <i class="fa-regular fa-square-check"></i>
-              <span>เลือกหลายรายการ</span>
-            </button>
+          <button id="selectModeBtn" class="btn" type="button">
+            <i class="fa-regular fa-square-check"></i>
+            <span>เลือกหลายรายการ</span>
+          </button>
 
-            <div class="zoom-control" title="ปรับขนาดมุมมอง">
-              <i class="fa-solid fa-list"></i>
-              <input
-                id="viewZoom"
-                type="range"
-                min="0"
-                max="4"
-                step="1"
-                value="0"
-                aria-label="ปรับขนาดมุมมอง"
-              />
-              <i class="fa-solid fa-table-cells-large"></i>
-            </div>
-
-            <button
-              id="autoViewBtn"
-              class="tool-btn active"
-              type="button"
-              title="ปรับมุมมองอัตโนมัติ"
-              aria-label="ปรับมุมมองอัตโนมัติ"
-            >
-              <i class="fa-solid fa-wand-magic-sparkles"></i>
-            </button>
-
-            <button
-              id="refreshBtn"
-              class="tool-btn"
-              type="button"
-              title="รีเฟรช"
-              aria-label="รีเฟรช"
-            >
-              <i class="fa-solid fa-rotate"></i>
-            </button>
+          <div class="zoom-control" title="รายละเอียด ไปจนถึงไอคอนใหญ่">
+            <i class="fa-solid fa-list"></i>
+            <input
+              id="viewZoom"
+              type="range"
+              min="0"
+              max="4"
+              step="1"
+              value="0"
+            />
+            <i class="fa-solid fa-table-cells-large"></i>
           </div>
+
+          <button
+            id="autoViewBtn"
+            class="tool-btn active"
+            type="button"
+            title="ปรับตามความกว้างและ Browser zoom"
+          >
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+          </button>
+
+          <button id="refreshBtn" class="tool-btn" type="button" title="รีเฟรช">
+            <i class="fa-solid fa-rotate"></i>
+          </button>
         </div>
 
         <div id="selectionBar" class="selection-bar hidden">
           <strong id="selectionCount">เลือกแล้ว 0 รายการ</strong>
           <span>
-            ลากรายการไปวางบนโฟลเดอร์ หรือวางบนเส้นทางด้านบน
+            ลากรายการไปวางบนโฟลเดอร์ หรือวางบน breadcrumb
             เพื่อย้ายออกจากโฟลเดอร์
           </span>
           <button id="deleteSelectedBtn" class="btn danger" type="button">
@@ -218,11 +160,7 @@
                 <i id="detailIcon" class="fa-solid fa-file"></i>
                 <h3>รายละเอียด</h3>
               </div>
-              <button
-                id="closeDetailsBtn"
-                type="button"
-                aria-label="ปิดหน้าต่าง"
-              >
+              <button id="closeDetailsBtn" type="button">
                 <i class="fa-solid fa-xmark"></i>
               </button>
             </header>
@@ -232,7 +170,7 @@
       </section>
     </template>
 
-    <script src="assets/js/header.js?v=shared-sidebar-v14"></script>
+    <script src="assets/js/header.js?v=shared-sidebar-v9"></script>
     <script
       type="module"
       src="assets/js/documents.js?v=document-explorer-v8"
@@ -241,59 +179,5 @@
       type="module"
       src="assets/js/session-timeout.js?v=session-timeout-v1"
     ></script>
-
-    <script>
-      (() => {
-        let boundButton = null;
-
-        function paintThemeIcon() {
-          const button = document.getElementById("themeToggleBtn");
-          if (!button) return;
-
-          const dark = document.documentElement.classList.contains("dark");
-          const singleIcon = button.querySelector("#themeIcon");
-          const sunIcon = button.querySelector(".sun-icon");
-          const moonIcon = button.querySelector(".moon-icon");
-
-          if (singleIcon) {
-            singleIcon.className = dark
-              ? "fa-solid fa-sun"
-              : "fa-solid fa-moon";
-          }
-
-          if (sunIcon) sunIcon.style.display = dark ? "inline-block" : "none";
-          if (moonIcon) moonIcon.style.display = dark ? "none" : "inline-block";
-        }
-
-        function bindThemeButton() {
-          const button = document.getElementById("themeToggleBtn");
-          if (!button || button === boundButton) return;
-
-          boundButton = button;
-          button.addEventListener("click", () => {
-            const dark = !document.documentElement.classList.contains("dark");
-            document.documentElement.classList.toggle("dark", dark);
-            document.documentElement.style.colorScheme = dark
-              ? "dark"
-              : "light";
-            localStorage.setItem("color-theme", dark ? "dark" : "light");
-            paintThemeIcon();
-          });
-
-          paintThemeIcon();
-        }
-
-        const observer = new MutationObserver(bindThemeButton);
-        observer.observe(document.body, { childList: true, subtree: true });
-
-        if (document.readyState === "loading") {
-          document.addEventListener("DOMContentLoaded", bindThemeButton, {
-            once: true,
-          });
-        } else {
-          bindThemeButton();
-        }
-      })();
-    </script>
   </body>
 </html>
