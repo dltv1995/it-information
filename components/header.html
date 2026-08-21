@@ -1,51 +1,5 @@
-<style id="sidebar-v16-isolation">
-  #sidebarNav {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 6px !important;
-  }
-  #sidebarNav .sidebar-link-v16 {
-    display: flex !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    width: 100% !important;
-    min-height: 48px !important;
-    align-items: center !important;
-    flex: 0 0 auto !important;
-  }
-  #sidebarNav .sidebar-link-v16 > i {
-    display: inline-block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    width: 20px !important;
-    flex: 0 0 20px !important;
-    text-align: center !important;
-  }
-  #sidebarNav .sidebar-link-v16 > span {
-    display: block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    white-space: nowrap !important;
-  }
-  #sidebarNav .sidebar-link-v16.sidebar-current-v16 {
-    position: relative !important;
-    color: #fff !important;
-    background: linear-gradient(135deg, #2f8bd5, #3867f4) !important;
-    box-shadow: 0 12px 28px rgba(37, 99, 235, 0.24) !important;
-  }
-  #sidebarNav .sidebar-link-v16.sidebar-current-v16:before {
-    content: "";
-    position: absolute;
-    left: -7px;
-    top: 13px;
-    bottom: 13px;
-    width: 3px;
-    border-radius: 99px;
-    background: #67e8f9;
-  }
-</style>
 <!-- components/header.html -->
-<!-- Shared Header v6: includes Meeting menu -->
+<!-- Shared Header v7.2: stable structure with Meeting and Documents -->
 <div
   id="mobileOverlay"
   class="fixed inset-0 bg-slate-900/50 dark:bg-black/60 backdrop-blur-sm z-40 hidden md:hidden transition-opacity duration-300 opacity-0"
@@ -93,7 +47,7 @@
       <a
         href="dashboard.html"
         data-page="dashboard"
-        class="sidebar-link-v16 flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
       >
         <i class="fa-solid fa-table-cells-large text-lg"></i>
         <span>ภาพรวม (Dashboard)</span>
@@ -101,7 +55,7 @@
       <a
         href="leave.html"
         data-page="leave"
-        class="sidebar-link-v16 flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
       >
         <i class="fa-regular fa-calendar text-lg"></i>
         <span>ระบบจัดการวันลา</span>
@@ -109,7 +63,7 @@
       <a
         href="projects.html"
         data-page="projects"
-        class="sidebar-link-v16 flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
       >
         <i class="fa-solid fa-chart-line text-lg"></i>
         <span>โครงการและงบประมาณ</span>
@@ -117,7 +71,7 @@
       <a
         href="meeting.html"
         data-page="meeting"
-        class="sidebar-link-v16 flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
       >
         <i class="fa-solid fa-calendar-check text-lg"></i>
         <span>ระบบจองห้องประชุม</span>
@@ -125,7 +79,7 @@
       <a
         href="documents.html"
         data-page="documents"
-        class="sidebar-link-v16 flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
       >
         <i class="fa-solid fa-folder text-lg"></i>
         <span>จัดเก็บเอกสาร</span>

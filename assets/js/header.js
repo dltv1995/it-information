@@ -1,7 +1,7 @@
-// assets/js/header.js - Shared Sidebar v7
-console.log("header.js loaded: shared-sidebar-v16-stable");
+// assets/js/header.js - Shared Sidebar v7.2
+console.log("header.js loaded: shared-sidebar-v7.2-stable");
 
-const HEADER_VERSION = "shared-sidebar-v16-stable";
+const HEADER_VERSION = "shared-sidebar-v7.2-stable";
 const ROLE_LABELS = {
   admin: "ผู้ดูแลระบบ",
   administrator: "ผู้ดูแลระบบ",
@@ -32,7 +32,6 @@ async function initSharedHeader() {
     await mountSharedLayout();
     setTitles();
     setActiveMenu();
-    protectMainSidebarLinks();
     bindSharedHeader();
     await loadSharedUser();
   } catch (error) {
@@ -101,35 +100,10 @@ function setActiveMenu() {
   };
   const activePage =
     document.body.dataset.activeMenu || map[file] || "dashboard";
-  document.querySelectorAll("#sidebarNav .sidebar-link-v16").forEach((item) => {
+  document.querySelectorAll(".nav-item").forEach((item) => {
     const active = item.dataset.page === activePage;
-    item.classList.toggle("sidebar-current-v16", active);
+    item.classList.toggle("active", active);
     item.setAttribute("aria-current", active ? "page" : "false");
-  });
-}
-
-function protectMainSidebarLinks() {
-  const nav = document.getElementById("sidebarNav");
-  if (!nav) return;
-
-  const enforce = () => {
-    nav.style.setProperty("display", "flex", "important");
-    nav.style.setProperty("flex-direction", "column", "important");
-    nav.querySelectorAll(".sidebar-link-v16").forEach((link) => {
-      link.hidden = false;
-      link.removeAttribute("aria-hidden");
-      link.style.setProperty("display", "flex", "important");
-      link.style.setProperty("visibility", "visible", "important");
-      link.style.setProperty("opacity", "1", "important");
-    });
-  };
-
-  enforce();
-  new MutationObserver(enforce).observe(nav, {
-    subtree: true,
-    childList: true,
-    attributes: true,
-    attributeFilter: ["class", "style", "hidden", "aria-hidden"],
   });
 }
 

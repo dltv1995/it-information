@@ -1,0 +1,104 @@
+/* assets/css/documents-theme-compat.css
+   ทำให้หน้า Documents ใช้ Light/Dark foundation เดียวกับ Dashboard/Meeting เดิม */
+
+body {
+  font-family: "Prompt", sans-serif;
+}
+
+html:not(.dark) body {
+  background: #f8fafc !important;
+  color: #334155 !important;
+}
+
+html.dark body {
+  background: #020617 !important;
+  color: #cbd5e1 !important;
+}
+
+html.dark main {
+  background: #0f172a !important;
+}
+
+html.dark main > header {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+}
+
+html.dark .explorer-shell {
+  color: #e2e8f0;
+}
+
+html.dark .drop-zone,
+html.dark .explorer-hero,
+html.dark .explorer-toolbar,
+html.dark .selection-bar,
+html.dark .items-heading,
+html.dark .items-area,
+html.dark .upload-item,
+html.dark .context-menu,
+html.dark .details-modal {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #e2e8f0 !important;
+}
+
+html.dark .drop-zone {
+  background: #0f172a !important;
+  border-color: #38bdf8 !important;
+}
+
+html.dark .doc-entry,
+html.dark .doc-entry-main,
+html.dark .doc-entry-name,
+html.dark .items-heading h2,
+html.dark .explorer-hero h1,
+html.dark .drop-copy strong {
+  color: #f8fafc !important;
+}
+
+html.dark .doc-entry:hover,
+html.dark .context-menu button:hover {
+  background: #334155 !important;
+}
+
+html.dark .search,
+html.dark .btn,
+html.dark .tool-btn,
+html.dark .zoom-control,
+html.dark .upload-close {
+  background: #0f172a !important;
+  border-color: #475569 !important;
+  color: #e2e8f0 !important;
+}
+
+html.dark .search input {
+  color: #f8fafc !important;
+}
+
+html.dark .search input::placeholder {
+  color: #94a3b8 !important;
+}
+
+html.dark .btn.primary {
+  color: #ffffff !important;
+  background: linear-gradient(135deg, #0284c7, #2563eb) !important;
+}
+
+html.dark .doc-entry.selected,
+html.dark .selection-bar {
+  background: #1e3a8a !important;
+  border-color: #60a5fa !important;
+}
+
+/* ใช้ระบบไอคอน Theme เดิมจาก header.css */
+.theme-toggle-icon {
+  display: none;
+}
+
+html:not(.dark) .theme-toggle-icon.moon-icon {
+  display: inline-block;
+}
+
+html.dark .theme-toggle-icon.sun-icon {
+  display: inline-block;
+}
