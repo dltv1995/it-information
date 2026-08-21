@@ -1,7 +1,7 @@
-// assets/js/header.js - Shared Sidebar v7.4
-console.log("header.js loaded: shared-sidebar-v7.4-theme");
+// assets/js/header.js - Shared Sidebar v8
+console.log("header.js loaded: shared-sidebar-v8-theme");
 
-const HEADER_VERSION = "shared-sidebar-v7.4-theme";
+const HEADER_VERSION = "shared-sidebar-v8-theme";
 const ROLE_LABELS = {
   admin: "ผู้ดูแลระบบ",
   administrator: "ผู้ดูแลระบบ",
@@ -95,6 +95,7 @@ function setActiveMenu() {
     "leave.html": "leave",
     "projects.html": "projects",
     "meeting.html": "meeting",
+    "documents.html": "documents",
     "admin.html": "admin",
   };
   const activePage =
