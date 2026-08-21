@@ -1,7 +1,7 @@
 import { auth } from "./firebase-config.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-console.log("documents.js loaded: document-explorer-v6");
+console.log("documents.js loaded: document-explorer-v7");
 
 const API_URL =
   "https://script.google.com/macros/s/AKfycbyPvAKHa1OYf7lAKYWMdZv7wrqtT80JVWODKci7vVlzgxVgBa8QaAqKDESHS6QMmNK6dw/exec";
@@ -24,6 +24,7 @@ let selectionMode = false;
 let contextItem = null;
 let longPressTimer = null;
 let pointerMoved = false;
+let longPressActivated = false;
 let automaticView =
   localStorage.getItem("document-explorer-auto-v6") !== "false";
 let viewMode = localStorage.getItem("document-explorer-view-v6") || "details";
@@ -279,23 +280,23 @@ function renderItems() {
 
       return `
         <article
-          class="item ${selected ? "selected" : ""}"
+          class="doc-entry ${selected ? "selected" : ""}"
           data-id="${escapeHtml(item.id)}"
           draggable="true"
         >
           <input
-            class="item-check ${selectionMode || selected ? "" : "hidden"}"
+            class="doc-entry-check ${selectionMode || selected ? "" : "hidden"}"
             type="checkbox"
             ${selected ? "checked" : ""}
             aria-label="เลือก ${escapeHtml(item.name)}"
           >
-          <div class="item-main">
-            <i class="item-icon fa-solid ${iconClass}"></i>
-            <span class="item-name" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</span>
+          <div class="doc-entry-main">
+            <i class="doc-entry-icon fa-solid ${iconClass}"></i>
+            <span class="doc-entry-name" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</span>
           </div>
-          <span class="item-meta">${item.type === "folder" ? "โฟลเดอร์" : formatSize(item.size)}</span>
-          <span class="item-meta">${item.updatedAt ? new Date(item.updatedAt).toLocaleString("th-TH") : "-"}</span>
-          <button class="item-menu" type="button" aria-label="เมนู ${escapeHtml(item.name)}">
+          <span class="doc-entry-meta">${item.type === "folder" ? "โฟลเดอร์" : formatSize(item.size)}</span>
+          <span class="doc-entry-meta">${item.updatedAt ? new Date(item.updatedAt).toLocaleString("th-TH") : "-"}</span>
+          <button class="doc-entry-menu" type="button" aria-label="เมนู ${escapeHtml(item.name)}">
             <i class="fa-solid fa-ellipsis-vertical"></i>
           </button>
         </article>
@@ -303,13 +304,13 @@ function renderItems() {
     })
     .join("");
 
-  elements.itemsArea.querySelectorAll(".item").forEach(bindItemEvents);
+  elements.itemsArea.querySelectorAll(".doc-entry").forEach(bindItemEvents);
 }
 
 function bindItemEvents(itemElement) {
   const item = items.find((value) => value.id === itemElement.dataset.id);
-  const checkbox = itemElement.querySelector(".item-check");
-  const menuButton = itemElement.querySelector(".item-menu");
+  const checkbox = itemElement.querySelector(".doc-entry-check");
+  const menuButton = itemElement.querySelector(".doc-entry-menu");
 
   checkbox.addEventListener("click", (event) => {
     event.stopPropagation();
@@ -330,7 +331,9 @@ function bindItemEvents(itemElement) {
     if (event.button !== 0 || event.target.closest("button,input")) return;
 
     pointerMoved = false;
+    longPressActivated = false;
     longPressTimer = window.setTimeout(() => {
+      longPressActivated = true;
       selectionMode = true;
       selectedIds.add(item.id);
       renderItems();
@@ -353,6 +356,10 @@ function bindItemEvents(itemElement) {
 
   itemElement.addEventListener("click", (event) => {
     if (event.target.closest("button,input") || pointerMoved) return;
+    if (longPressActivated) {
+      longPressActivated = false;
+      return;
+    }
 
     if (selectionMode || event.ctrlKey || event.metaKey) {
       toggleSelection(item.id, !selectedIds.has(item.id));
@@ -369,16 +376,13 @@ function bindItemEvents(itemElement) {
   itemElement.addEventListener("dragstart", (event) => {
     window.clearTimeout(longPressTimer);
 
-    if (!selectedIds.has(item.id)) {
-      selectedIds.clear();
-      selectedIds.add(item.id);
-      updateSelectionBar();
-    }
+    const draggedIds =
+      selectionMode && selectedIds.has(item.id) ? [...selectedIds] : [item.id];
 
     event.dataTransfer.effectAllowed = "move";
     event.dataTransfer.setData(
       "application/x-document-library-items",
-      JSON.stringify([...selectedIds]),
+      JSON.stringify(draggedIds),
     );
     itemElement.classList.add("dragging");
   });

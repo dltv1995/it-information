@@ -305,23 +305,23 @@ body {
   user-select: none;
 }
 
-.item.selected {
+.doc-entry.selected {
   background: var(--selected) !important;
   outline: 2px solid #60a5fa;
 }
 
-.item.dragging {
+.doc-entry.dragging {
   opacity: 0.45;
 }
 
-.item-main {
+.doc-entry-main {
   display: flex;
   align-items: center;
   gap: 10px;
   min-width: 0;
 }
 
-.item-icon {
+.doc-entry-icon {
   display: grid;
   place-items: center;
   flex: 0 0 auto;
@@ -330,7 +330,7 @@ body {
   color: #2563eb;
 }
 
-.item-name {
+.doc-entry-name {
   min-width: 0;
   font-weight: 800;
   white-space: normal;
@@ -338,12 +338,12 @@ body {
   line-height: 1.28;
 }
 
-.item-meta {
+.doc-entry-meta {
   color: var(--muted);
   font-size: 12px;
 }
 
-.item-menu {
+.doc-entry-menu {
   border: 0;
   background: transparent;
   color: var(--muted);
@@ -356,7 +356,7 @@ body {
   color: var(--muted);
 }
 
-.items-area[data-view="details"] .item {
+.items-area[data-view="details"] .doc-entry {
   display: grid;
   grid-template-columns: 30px minmax(420px, 1fr) 150px 175px 45px;
   align-items: center;
@@ -365,7 +365,7 @@ body {
   border-top: 1px solid var(--line);
 }
 
-.items-area[data-view="details"] .item-icon {
+.items-area[data-view="details"] .doc-entry-icon {
   width: 34px;
   height: 34px;
 }
@@ -376,18 +376,18 @@ body {
   padding: 8px;
 }
 
-.items-area[data-view="list"] .item {
+.items-area[data-view="list"] .doc-entry {
   display: grid;
   grid-template-columns: 25px 1fr 35px;
   padding: 9px;
 }
 
-.items-area[data-view="list"] .item-icon {
+.items-area[data-view="list"] .doc-entry-icon {
   width: 34px;
   height: 34px;
 }
 
-.items-area[data-view="list"] .item-meta {
+.items-area[data-view="list"] .doc-entry-meta {
   display: none;
 }
 
@@ -411,9 +411,9 @@ body {
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
 }
 
-.items-area[data-view="small"] .item,
-.items-area[data-view="medium"] .item,
-.items-area[data-view="large"] .item {
+.items-area[data-view="small"] .doc-entry,
+.items-area[data-view="medium"] .doc-entry,
+.items-area[data-view="large"] .doc-entry {
   position: relative;
   min-height: 150px;
   padding: 16px;
@@ -421,54 +421,54 @@ body {
   border-radius: 14px;
 }
 
-.items-area[data-view="large"] .item {
+.items-area[data-view="large"] .doc-entry {
   min-height: 210px;
 }
 
-.items-area[data-view="small"] .item-main,
-.items-area[data-view="medium"] .item-main,
-.items-area[data-view="large"] .item-main {
+.items-area[data-view="small"] .doc-entry-main,
+.items-area[data-view="medium"] .doc-entry-main,
+.items-area[data-view="large"] .doc-entry-main {
   height: 100%;
   flex-direction: column;
   justify-content: center;
   text-align: center;
 }
 
-.items-area[data-view="small"] .item-icon {
+.items-area[data-view="small"] .doc-entry-icon {
   width: 52px;
   height: 52px;
   font-size: 25px;
 }
 
-.items-area[data-view="medium"] .item-icon {
+.items-area[data-view="medium"] .doc-entry-icon {
   width: 75px;
   height: 75px;
   font-size: 35px;
 }
 
-.items-area[data-view="large"] .item-icon {
+.items-area[data-view="large"] .doc-entry-icon {
   width: 110px;
   height: 110px;
   font-size: 52px;
 }
 
-.items-area[data-view="small"] .item-meta,
-.items-area[data-view="medium"] .item-meta,
-.items-area[data-view="large"] .item-meta {
+.items-area[data-view="small"] .doc-entry-meta,
+.items-area[data-view="medium"] .doc-entry-meta,
+.items-area[data-view="large"] .doc-entry-meta {
   display: none;
 }
 
-.items-area[data-view="small"] .item-check,
-.items-area[data-view="medium"] .item-check,
-.items-area[data-view="large"] .item-check {
+.items-area[data-view="small"] .doc-entry-check,
+.items-area[data-view="medium"] .doc-entry-check,
+.items-area[data-view="large"] .doc-entry-check {
   position: absolute;
   left: 11px;
   top: 11px;
 }
 
-.items-area[data-view="small"] .item-menu,
-.items-area[data-view="medium"] .item-menu,
-.items-area[data-view="large"] .item-menu {
+.items-area[data-view="small"] .doc-entry-menu,
+.items-area[data-view="medium"] .doc-entry-menu,
+.items-area[data-view="large"] .doc-entry-menu {
   position: absolute;
   right: 11px;
   top: 11px;
@@ -597,7 +597,36 @@ body {
     overflow: auto;
   }
 
-  .items-area[data-view="details"] .item {
+  .items-area[data-view="details"] .doc-entry {
     min-width: 900px;
   }
+}
+
+/* v7: isolated document entry layout, no collision with global .item rules */
+.doc-entry {
+  min-width: 0;
+}
+
+.items-area[data-view="details"] .doc-entry-main {
+  min-width: 0;
+  width: 100%;
+}
+
+.items-area[data-view="details"] .doc-entry-name {
+  display: block;
+  width: 100%;
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+.items-area[data-view="small"] .doc-entry-name,
+.items-area[data-view="medium"] .doc-entry-name,
+.items-area[data-view="large"] .doc-entry-name {
+  width: 100%;
+  min-height: 2.6em;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: normal;
 }

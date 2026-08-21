@@ -1,6 +1,6 @@
-console.log("header.js loaded: shared-sidebar-v12");
+console.log("header.js loaded: shared-sidebar-v13");
 
-const HEADER_VERSION = "shared-sidebar-v12";
+const HEADER_VERSION = "shared-sidebar-v13";
 
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", initializeHeader, {
