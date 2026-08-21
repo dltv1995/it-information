@@ -1,7 +1,7 @@
 // assets/js/app-router-fetch.js
-// Version: app-shell-fetch-v3
+// Version: app-shell-fetch-v4
 
-console.log("app-router-fetch.js loaded: app-shell-fetch-v3");
+console.log("app-router-fetch.js loaded: app-shell-fetch-v4");
 
 (() => {
   const THEME_KEY = "color-theme";
@@ -30,33 +30,48 @@ console.log("app-router-fetch.js loaded: app-shell-fetch-v3");
   const content = document.getElementById("pageContent");
   let currentScript = null;
 
-  function getActiveTheme() {
-    return document.documentElement.classList.contains("dark")
-      ? "dark"
-      : "light";
+  function isDarkTheme() {
+    return document.documentElement.classList.contains("dark");
   }
 
   function updateThemeIcon() {
     const themeButton = document.getElementById("themeToggleBtn");
     if (!themeButton) return;
 
-    const isDark = getActiveTheme() === "dark";
+    const dark = isDarkTheme();
+    const singleIcon = themeButton.querySelector("#themeIcon");
     const sunIcon = themeButton.querySelector(".sun-icon");
     const moonIcon = themeButton.querySelector(".moon-icon");
 
+    // Header รุ่นใหม่ใช้ไอคอนเดียว
+    if (singleIcon) {
+      singleIcon.className = dark
+        ? "fa-solid fa-sun text-xl"
+        : "fa-solid fa-moon text-xl";
+    }
+
+    // รองรับ App Shell รุ่นเดิมที่ยังมีไอคอนคู่
     if (sunIcon) {
-      sunIcon.hidden = !isDark;
-      sunIcon.style.display = isDark ? "inline-block" : "none";
+      sunIcon.hidden = !dark;
+      sunIcon.style.setProperty(
+        "display",
+        dark ? "inline-block" : "none",
+        "important",
+      );
     }
 
     if (moonIcon) {
-      moonIcon.hidden = isDark;
-      moonIcon.style.display = isDark ? "none" : "inline-block";
+      moonIcon.hidden = dark;
+      moonIcon.style.setProperty(
+        "display",
+        dark ? "none" : "inline-block",
+        "important",
+      );
     }
 
     themeButton.setAttribute(
       "aria-label",
-      isDark ? "เปลี่ยนเป็นโหมดสว่าง" : "เปลี่ยนเป็นโหมดมืด",
+      dark ? "เปลี่ยนเป็นโหมดสว่าง" : "เปลี่ยนเป็นโหมดมืด",
     );
   }
 
@@ -66,11 +81,11 @@ console.log("app-router-fetch.js loaded: app-shell-fetch-v3");
       "(prefers-color-scheme: dark)",
     ).matches;
 
-    const isDark =
+    const dark =
       savedTheme === "dark" || (savedTheme !== "light" && systemPrefersDark);
 
-    document.documentElement.classList.toggle("dark", isDark);
-    document.documentElement.style.colorScheme = isDark ? "dark" : "light";
+    document.documentElement.classList.toggle("dark", dark);
+    document.documentElement.style.colorScheme = dark ? "dark" : "light";
     updateThemeIcon();
   }
 
@@ -78,12 +93,11 @@ console.log("app-router-fetch.js loaded: app-shell-fetch-v3");
     event.preventDefault();
     event.stopPropagation();
 
-    const nextIsDark = !document.documentElement.classList.contains("dark");
+    const dark = !isDarkTheme();
 
-    document.documentElement.classList.toggle("dark", nextIsDark);
-    document.documentElement.style.colorScheme = nextIsDark ? "dark" : "light";
-
-    localStorage.setItem(THEME_KEY, nextIsDark ? "dark" : "light");
+    document.documentElement.classList.toggle("dark", dark);
+    document.documentElement.style.colorScheme = dark ? "dark" : "light";
+    localStorage.setItem(THEME_KEY, dark ? "dark" : "light");
     updateThemeIcon();
   }
 
@@ -199,7 +213,7 @@ console.log("app-router-fetch.js loaded: app-shell-fetch-v3");
 
     try {
       const response = await fetch(
-        `${route.file}?v=app-shell-fetch-v3&t=${Date.now()}`,
+        `${route.file}?v=app-shell-fetch-v4&t=${Date.now()}`,
         { cache: "no-store" },
       );
 
@@ -212,11 +226,11 @@ console.log("app-router-fetch.js loaded: app-shell-fetch-v3");
 
       currentScript = document.createElement("script");
       currentScript.type = "module";
-      currentScript.src = `assets/js/${route.script}?v=app-shell-fetch-v3&t=${Date.now()}`;
+      currentScript.src = `assets/js/${route.script}?v=app-shell-fetch-v4&t=${Date.now()}`;
       document.body.appendChild(currentScript);
 
-      // เปลี่ยน Route แล้วต้องคง Theme และไอคอนเดิมไว้
       applySavedTheme();
+      requestAnimationFrame(updateThemeIcon);
 
       requestAnimationFrame(() => {
         content.classList.remove("opacity-0");
@@ -242,6 +256,10 @@ console.log("app-router-fetch.js loaded: app-shell-fetch-v3");
 
   window.addEventListener("hashchange", () => {
     navigate(location.hash.replace("#", "") || "projects", false);
+  });
+
+  window.addEventListener("storage", (event) => {
+    if (event.key === THEME_KEY) applySavedTheme();
   });
 
   setupShell();
