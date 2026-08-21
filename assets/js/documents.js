@@ -1,450 +1,734 @@
-import { auth } from './firebase-config.js';
-import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
+import { auth } from "./firebase-config.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-console.log('documents.js loaded: document-explorer-v4');
+console.log("documents.js loaded: document-explorer-v6");
 
-const API_URL = 'https://script.google.com/macros/s/AKfycbyPvAKHa1OYf7lAKYWMdZv7wrqtT80JVWODKci7vVlzgxVgBa8QaAqKDESHS6QMmNK6dw/exec';
-const API_VERSION = 'meeting-drive-v33';
-const UPLOAD_LIMIT = 3;
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
-const E = {};
+const API_URL =
+  "https://script.google.com/macros/s/AKfycbyPvAKHa1OYf7lAKYWMdZv7wrqtT80JVWODKci7vVlzgxVgBa8QaAqKDESHS6QMmNK6dw/exec";
+const API_VERSION = "meeting-drive-v33";
+const VIEW_LEVELS = ["details", "list", "small", "medium", "large"];
+const LONG_PRESS_MS = 3000;
+const MAX_UPLOAD_SIZE = 10 * 1024 * 1024;
+const MAX_UPLOAD_WORKERS = 3;
 
-let user = null;
-let currentFolderId = '';
-let crumbs = [{ id: '', name: 'จัดเก็บเอกสาร' }];
+const elements = {};
+
+let currentUser = null;
+let currentFolderId = "";
+let breadcrumbs = [{ id: "", name: "จัดเก็บเอกสาร" }];
 let items = [];
-let queue = [];
-let uploadWorkers = 0;
-const VIEW_LEVELS=['details','list','small','medium','large'];
-let viewMode=localStorage.getItem('document-explorer-view')||'details';
-let autoView=localStorage.getItem('document-explorer-auto')!=='false';
-let resizeObserver=null;
-let selectMode = false;
 let selectedIds = new Set();
+let uploadQueue = [];
+let uploadWorkers = 0;
+let selectionMode = false;
 let contextItem = null;
+let longPressTimer = null;
+let pointerMoved = false;
+let automaticView =
+  localStorage.getItem("document-explorer-auto-v6") !== "false";
+let viewMode = localStorage.getItem("document-explorer-view-v6") || "details";
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', mount, { once: true });
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", mount, { once: true });
 } else {
   mount();
 }
 
 function mount() {
-  const page = document.getElementById('pageContent');
-  const template = document.getElementById('documentsTemplate');
-  if (!page || !template) return setTimeout(mount, 80);
+  const pageContent = document.getElementById("pageContent");
+  const template = document.getElementById("documentsTemplate");
 
-  page.replaceChildren(template.content.cloneNode(true));
-  [
-    'breadcrumbs', 'docSearch', 'refreshBtn', 'newFolderBtn', 'dropZone',
-    'fileInput', 'chooseFilesBtn', 'uploadQueue', 'itemsArea',
-    'itemCount', 'viewZoom', 'autoViewBtn', 'viewName', 'selectModeBtn',
-    'selectionBar', 'selectionCount', 'deleteSelectedBtn', 'clearSelectionBtn',
-    'contextMenu', 'detailsModal', 'detailsBody', 'detailsIcon', 'closeDetailsBtn'
-  ].forEach(id => E[id] = document.getElementById(id));
-
-  bind();
-  applyView(viewMode);
-  E.autoViewBtn.classList.toggle('active',autoView);
-  resizeObserver=new ResizeObserver(()=>{if(autoView)applyResponsiveView()});
-  resizeObserver.observe(E.itemsArea);
-  onAuthStateChanged(auth, account => {
-    user = account;
-    if (account) loadItems();
-    else location.href = 'login.html';
-  });
-}
-
-function bind() {
-  E.chooseFilesBtn.onclick = () => E.fileInput.click();
-  E.fileInput.onchange = event => {
-    addFiles([...event.target.files]);
-    event.target.value = '';
-  };
-
-  ['dragenter', 'dragover'].forEach(name => E.dropZone.addEventListener(name, event => {
-    event.preventDefault();
-    E.dropZone.classList.add('dragover');
-  }));
-  ['dragleave', 'drop'].forEach(name => E.dropZone.addEventListener(name, event => {
-    event.preventDefault();
-    E.dropZone.classList.remove('dragover');
-  }));
-  E.dropZone.addEventListener('drop', event => addFiles([...event.dataTransfer.files]));
-
-  E.newFolderBtn.onclick = createFolder;
-  E.refreshBtn.onclick = loadItems;
-  E.docSearch.oninput = renderItems;
-  E.viewZoom.oninput=()=>{autoView=false;localStorage.setItem('document-explorer-auto','false');E.autoViewBtn.classList.remove('active');applyView(VIEW_LEVELS[Number(E.viewZoom.value)]||'details')};
-  E.autoViewBtn.onclick=()=>{autoView=!autoView;localStorage.setItem('document-explorer-auto',String(autoView));E.autoViewBtn.classList.toggle('active',autoView);if(autoView)applyResponsiveView()};
-  E.selectModeBtn.onclick = () => setSelectMode(!selectMode);
-  E.clearSelectionBtn.onclick = clearSelection;
-  E.deleteSelectedBtn.onclick = deleteSelected;
-  E.closeDetailsBtn.onclick = closeDetails;
-  E.detailsModal.onclick = event => {
-    if (event.target === E.detailsModal) closeDetails();
-  };
-
-  document.addEventListener('click', event => {
-    if (!event.target.closest('#contextMenu')) hideContextMenu();
-  });
-  window.addEventListener('blur', hideContextMenu);
-  window.addEventListener('scroll', hideContextMenu, true);
-
-  E.contextMenu.querySelectorAll('[data-context-action]').forEach(button => {
-    button.onclick = () => runContextAction(button.dataset.contextAction);
-  });
-}
-
-async function api(payload) {
-  if (!user) throw Error('กรุณาเข้าสู่ระบบ');
-  const idToken = await user.getIdToken(true);
-  const response = await fetch(API_URL, {
-    method: 'POST',
-    redirect: 'follow',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ ...payload, idToken })
-  });
-  const data = await response.json();
-  if (data.apiVersion !== API_VERSION) throw Error('Apps Script ยังไม่ใช่รุ่นที่รองรับ Document Library');
-  if (!data.success) throw Error(data.message || 'ดำเนินการไม่สำเร็จ');
-  return data;
-}
-
-async function loadItems() {
-  E.itemsArea.innerHTML = '<div class="empty">กำลังโหลด...</div>';
-  try {
-    const result = await api({ action: 'libraryListV1', folderId: currentFolderId });
-    items = result.items || [];
-    selectedIds = new Set([...selectedIds].filter(id => items.some(item => item.id === id)));
-    renderCrumbs();
-    renderItems();
-    updateSelectionBar();
-  } catch (error) {
-    E.itemsArea.innerHTML = `<div class="empty">${escapeHtml(error.message)}</div>`;
-  }
-}
-
-function renderCrumbs() {
-  E.breadcrumbs.innerHTML = crumbs.map((crumb, index) =>
-    `${index ? '<i class="fa-solid fa-chevron-right"></i>' : ''}<button class="crumb" data-crumb="${index}">${escapeHtml(crumb.name)}</button>`
-  ).join('');
-  E.breadcrumbs.querySelectorAll('[data-crumb]').forEach(button => {
-    button.onclick = () => {
-      const index = Number(button.dataset.crumb);
-      crumbs = crumbs.slice(0, index + 1);
-      currentFolderId = crumbs[index].id;
-      clearSelection();
-      loadItems();
-    };
-  });
-}
-
-function renderItems() {
-  const query = E.docSearch.value.trim().toLowerCase();
-  const filtered = items.filter(item => item.name.toLowerCase().includes(query));
-  E.itemCount.textContent = `${filtered.length} รายการ`;
-  E.itemsArea.className='items-area';E.itemsArea.dataset.view=viewMode;
-
-  if (!filtered.length) {
-    E.itemsArea.innerHTML = '<div class="empty">ยังไม่มีไฟล์หรือโฟลเดอร์</div>';
+  if (!pageContent || !template) {
+    window.setTimeout(mount, 80);
     return;
   }
 
-  E.itemsArea.innerHTML = filtered.map(item => {
-    const selected = selectedIds.has(item.id);
-    const icon = item.type === 'folder' ? 'fa-folder' : fileIcon(item.mimeType, item.name);
-    return `<article class="item ${selected ? 'selected' : ''}" data-id="${item.id}" data-type="${item.type}" draggable="true">
-      <input class="item-check ${selectMode || selected ? '' : 'hidden'}" type="checkbox" ${selected ? 'checked' : ''} aria-label="เลือก ${escapeHtml(item.name)}">
-      <div class="item-main">
-        <i class="item-icon fa-solid ${icon}"></i>
-        <span class="item-name" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</span>
-      </div>
-      <div class="item-meta">${item.type === 'folder' ? 'โฟลเดอร์' : formatSize(item.size)}</div>
-      <div class="item-meta">${item.updatedAt ? new Date(item.updatedAt).toLocaleString('th-TH') : '-'}</div>
-      <button class="item-menu" type="button" title="เมนู"><i class="fa-solid fa-ellipsis-vertical"></i></button>
-    </article>`;
-  }).join('');
+  pageContent.replaceChildren(template.content.cloneNode(true));
 
-  E.itemsArea.querySelectorAll('.item').forEach(row => bindItem(row));
+  [
+    "dropZone",
+    "fileInput",
+    "chooseFilesBtn",
+    "uploadQueue",
+    "newFolderBtn",
+    "breadcrumbs",
+    "docSearch",
+    "selectModeBtn",
+    "viewZoom",
+    "autoViewBtn",
+    "refreshBtn",
+    "selectionBar",
+    "selectionCount",
+    "deleteSelectedBtn",
+    "clearSelectionBtn",
+    "itemCount",
+    "viewName",
+    "itemsArea",
+    "contextMenu",
+    "detailsModal",
+    "detailIcon",
+    "detailsBody",
+    "closeDetailsBtn",
+  ].forEach((id) => {
+    elements[id] = document.getElementById(id);
+  });
+
+  bindPageEvents();
+  applyView(viewMode);
+  elements.autoViewBtn.classList.toggle("active", automaticView);
+
+  const resizeObserver = new ResizeObserver(() => {
+    if (automaticView) applyResponsiveView();
+  });
+  resizeObserver.observe(elements.itemsArea);
+
+  onAuthStateChanged(auth, (user) => {
+    currentUser = user;
+    if (user) {
+      loadItems();
+    } else {
+      window.location.href = "login.html";
+    }
+  });
 }
 
-function bindItem(row) {
-  const item = items.find(value => value.id === row.dataset.id);
-  const checkbox = row.querySelector('.item-check');
-  const menu = row.querySelector('.item-menu');
+function bindPageEvents() {
+  elements.chooseFilesBtn.addEventListener("click", () =>
+    elements.fileInput.click(),
+  );
 
-  checkbox.onclick = event => {
-    event.stopPropagation();
-    toggleSelection(item.id, checkbox.checked);
-  };
-  row.onclick = event => {
-    if (event.target.closest('button,input')) return;
-    if (selectMode || event.ctrlKey || event.metaKey) toggleSelection(item.id, !selectedIds.has(item.id));
-    else if (item.type === 'folder') openFolder(item);
-    else window.open(item.viewUrl, '_blank', 'noopener');
-  };
-  row.ondblclick = event => {
-    if (event.target.closest('button,input')) return;
-    if (item.type === 'folder') openFolder(item);
-    else window.open(item.viewUrl, '_blank', 'noopener');
-  };
-  menu.onclick = event => {
-    event.stopPropagation();
-    showContextMenu(event.clientX, event.clientY, item);
-  };
-  row.oncontextmenu = event => {
-    event.preventDefault();
-    showContextMenu(event.clientX, event.clientY, item);
-  };
-  row.ondragstart = event => {
-    if (!selectedIds.has(item.id)) {
-      if (!event.ctrlKey && !event.metaKey) selectedIds.clear();
-      selectedIds.add(item.id);
-      renderItems();
-      updateSelectionBar();
-    }
-    row.classList.add('dragging');
-    event.dataTransfer.effectAllowed = 'move';
-    event.dataTransfer.setData('application/x-library-items', JSON.stringify([...selectedIds]));
-  };
-  row.ondragend = () => row.classList.remove('dragging');
+  elements.fileInput.addEventListener("change", (event) => {
+    addUploads([...event.target.files]);
+    event.target.value = "";
+  });
 
-  if (item.type === 'folder') {
-    row.ondragover = event => {
-      if (!event.dataTransfer.types.includes('application/x-library-items')) return;
+  ["dragenter", "dragover"].forEach((eventName) => {
+    elements.dropZone.addEventListener(eventName, (event) => {
       event.preventDefault();
-      event.dataTransfer.dropEffect = 'move';
-      row.classList.add('folder-target');
-    };
-    row.ondragleave = () => row.classList.remove('folder-target');
-    row.ondrop = async event => {
-      const raw = event.dataTransfer.getData('application/x-library-items');
-      if (!raw) return;
+      elements.dropZone.classList.add("dragover");
+    });
+  });
+
+  ["dragleave", "drop"].forEach((eventName) => {
+    elements.dropZone.addEventListener(eventName, (event) => {
       event.preventDefault();
-      row.classList.remove('folder-target');
-      const ids = JSON.parse(raw).filter(id => id !== item.id);
-      if (ids.length) await moveItems(ids, item.id, item.name);
-    };
+      elements.dropZone.classList.remove("dragover");
+    });
+  });
+
+  elements.dropZone.addEventListener("drop", (event) => {
+    addUploads([...event.dataTransfer.files]);
+  });
+
+  elements.newFolderBtn.addEventListener("click", createFolder);
+  elements.refreshBtn.addEventListener("click", loadItems);
+  elements.docSearch.addEventListener("input", renderItems);
+
+  elements.selectModeBtn.addEventListener("click", () => {
+    selectionMode = !selectionMode;
+    renderItems();
+    updateSelectionBar();
+  });
+
+  elements.clearSelectionBtn.addEventListener("click", clearSelection);
+  elements.deleteSelectedBtn.addEventListener("click", deleteSelectedItems);
+
+  elements.viewZoom.addEventListener("input", () => {
+    automaticView = false;
+    localStorage.setItem("document-explorer-auto-v6", "false");
+    elements.autoViewBtn.classList.remove("active");
+    applyView(VIEW_LEVELS[Number(elements.viewZoom.value)] || "details");
+  });
+
+  elements.autoViewBtn.addEventListener("click", () => {
+    automaticView = !automaticView;
+    localStorage.setItem("document-explorer-auto-v6", String(automaticView));
+    elements.autoViewBtn.classList.toggle("active", automaticView);
+    if (automaticView) applyResponsiveView();
+  });
+
+  elements.closeDetailsBtn.addEventListener("click", closeDetails);
+  elements.detailsModal.addEventListener("click", (event) => {
+    if (event.target === elements.detailsModal) closeDetails();
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest("#contextMenu")) hideContextMenu();
+  });
+
+  elements.contextMenu.querySelectorAll("[data-action]").forEach((button) => {
+    button.addEventListener("click", () =>
+      runContextAction(button.dataset.action),
+    );
+  });
+}
+
+async function callApi(payload) {
+  if (!currentUser) throw new Error("กรุณาเข้าสู่ระบบ");
+
+  const idToken = await currentUser.getIdToken(true);
+  const response = await fetch(API_URL, {
+    method: "POST",
+    redirect: "follow",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ ...payload, idToken }),
+  });
+
+  const result = await response.json();
+
+  if (result.apiVersion !== API_VERSION) {
+    throw new Error("Apps Script ยังไม่ใช่รุ่น Document Library ล่าสุด");
+  }
+
+  if (!result.success) {
+    throw new Error(result.message || "ดำเนินการไม่สำเร็จ");
+  }
+
+  return result;
+}
+
+async function loadItems() {
+  elements.itemsArea.innerHTML = '<div class="empty">กำลังโหลด...</div>';
+
+  try {
+    const result = await callApi({
+      action: "libraryListV1",
+      folderId: currentFolderId,
+    });
+
+    items = result.items || [];
+    selectedIds = new Set(
+      [...selectedIds].filter((id) => items.some((item) => item.id === id)),
+    );
+
+    renderBreadcrumbs();
+    renderItems();
+    updateSelectionBar();
+  } catch (error) {
+    elements.itemsArea.innerHTML = `<div class="empty">${escapeHtml(error.message)}</div>`;
   }
 }
 
-function applyResponsiveView(){const width=E.itemsArea.getBoundingClientRect().width;const next=width>=1180?'details':width>=900?'list':width>=660?'small':width>=430?'medium':'large';applyView(next)}
-function applyView(mode){viewMode=VIEW_LEVELS.includes(mode)?mode:'details';localStorage.setItem('document-explorer-view',viewMode);E.viewZoom.value=String(VIEW_LEVELS.indexOf(viewMode));const labels={details:'รายละเอียด',list:'รายการ',small:'ไอคอนเล็ก',medium:'ไอคอนกลาง',large:'ไอคอนใหญ่'};E.viewName.textContent=labels[viewMode];if(E.itemsArea){E.itemsArea.className='items-area';E.itemsArea.dataset.view=viewMode;renderItems()}}
+function renderBreadcrumbs() {
+  elements.breadcrumbs.innerHTML = breadcrumbs
+    .map(
+      (crumb, index) => `
+        ${index ? '<i class="fa-solid fa-chevron-right"></i>' : ""}
+        <button
+          class="crumb"
+          type="button"
+          data-index="${index}"
+          data-folder-id="${escapeHtml(crumb.id)}"
+        >${escapeHtml(crumb.name)}</button>
+      `,
+    )
+    .join("");
 
-function setSelectMode(enabled) {
-  selectMode = enabled;
-  E.selectModeBtn.classList.toggle('active', enabled);
-  if (!enabled && !selectedIds.size) E.selectionBar.classList.add('hidden');
-  renderItems();
-  updateSelectionBar();
+  elements.breadcrumbs.querySelectorAll(".crumb").forEach((button) => {
+    button.addEventListener("click", () =>
+      openBreadcrumb(Number(button.dataset.index)),
+    );
+
+    button.addEventListener("dragover", (event) => {
+      if (!hasInternalDrag(event)) return;
+      event.preventDefault();
+      button.classList.add("folder-target");
+    });
+
+    button.addEventListener("dragleave", () => {
+      button.classList.remove("folder-target");
+    });
+
+    button.addEventListener("drop", (event) => {
+      const ids = readDraggedIds(event);
+      button.classList.remove("folder-target");
+      if (ids.length) {
+        moveItems(ids, button.dataset.folderId, button.textContent.trim());
+      }
+    });
+  });
 }
 
-function toggleSelection(id, selected) {
-  if (selected) selectedIds.add(id); else selectedIds.delete(id);
+function openBreadcrumb(index) {
+  breadcrumbs = breadcrumbs.slice(0, index + 1);
+  currentFolderId = breadcrumbs[index].id;
+  clearSelection();
+  loadItems();
+}
+
+function renderItems() {
+  const searchQuery = (elements.docSearch.value || "").trim().toLowerCase();
+  const visibleItems = items.filter((item) =>
+    item.name.toLowerCase().includes(searchQuery),
+  );
+
+  elements.itemCount.textContent = `${visibleItems.length} รายการ`;
+  elements.itemsArea.dataset.view = viewMode;
+
+  if (!visibleItems.length) {
+    elements.itemsArea.innerHTML =
+      '<div class="empty">ยังไม่มีไฟล์หรือโฟลเดอร์</div>';
+    return;
+  }
+
+  elements.itemsArea.innerHTML = visibleItems
+    .map((item) => {
+      const selected = selectedIds.has(item.id);
+      const iconClass =
+        item.type === "folder" ? "fa-folder" : getFileIcon(item);
+
+      return `
+        <article
+          class="item ${selected ? "selected" : ""}"
+          data-id="${escapeHtml(item.id)}"
+          draggable="true"
+        >
+          <input
+            class="item-check ${selectionMode || selected ? "" : "hidden"}"
+            type="checkbox"
+            ${selected ? "checked" : ""}
+            aria-label="เลือก ${escapeHtml(item.name)}"
+          >
+          <div class="item-main">
+            <i class="item-icon fa-solid ${iconClass}"></i>
+            <span class="item-name" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</span>
+          </div>
+          <span class="item-meta">${item.type === "folder" ? "โฟลเดอร์" : formatSize(item.size)}</span>
+          <span class="item-meta">${item.updatedAt ? new Date(item.updatedAt).toLocaleString("th-TH") : "-"}</span>
+          <button class="item-menu" type="button" aria-label="เมนู ${escapeHtml(item.name)}">
+            <i class="fa-solid fa-ellipsis-vertical"></i>
+          </button>
+        </article>
+      `;
+    })
+    .join("");
+
+  elements.itemsArea.querySelectorAll(".item").forEach(bindItemEvents);
+}
+
+function bindItemEvents(itemElement) {
+  const item = items.find((value) => value.id === itemElement.dataset.id);
+  const checkbox = itemElement.querySelector(".item-check");
+  const menuButton = itemElement.querySelector(".item-menu");
+
+  checkbox.addEventListener("click", (event) => {
+    event.stopPropagation();
+    toggleSelection(item.id, checkbox.checked);
+  });
+
+  menuButton.addEventListener("click", (event) => {
+    event.stopPropagation();
+    showContextMenu(event.clientX, event.clientY, item);
+  });
+
+  itemElement.addEventListener("contextmenu", (event) => {
+    event.preventDefault();
+    showContextMenu(event.clientX, event.clientY, item);
+  });
+
+  itemElement.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0 || event.target.closest("button,input")) return;
+
+    pointerMoved = false;
+    longPressTimer = window.setTimeout(() => {
+      selectionMode = true;
+      selectedIds.add(item.id);
+      renderItems();
+      updateSelectionBar();
+      navigator.vibrate?.(40);
+    }, LONG_PRESS_MS);
+  });
+
+  itemElement.addEventListener("pointermove", () => {
+    pointerMoved = true;
+    window.clearTimeout(longPressTimer);
+  });
+
+  itemElement.addEventListener("pointerup", () =>
+    window.clearTimeout(longPressTimer),
+  );
+  itemElement.addEventListener("pointercancel", () =>
+    window.clearTimeout(longPressTimer),
+  );
+
+  itemElement.addEventListener("click", (event) => {
+    if (event.target.closest("button,input") || pointerMoved) return;
+
+    if (selectionMode || event.ctrlKey || event.metaKey) {
+      toggleSelection(item.id, !selectedIds.has(item.id));
+      return;
+    }
+
+    if (item.type === "folder") {
+      openFolder(item);
+    } else {
+      window.open(item.viewUrl, "_blank", "noopener");
+    }
+  });
+
+  itemElement.addEventListener("dragstart", (event) => {
+    window.clearTimeout(longPressTimer);
+
+    if (!selectedIds.has(item.id)) {
+      selectedIds.clear();
+      selectedIds.add(item.id);
+      updateSelectionBar();
+    }
+
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData(
+      "application/x-document-library-items",
+      JSON.stringify([...selectedIds]),
+    );
+    itemElement.classList.add("dragging");
+  });
+
+  itemElement.addEventListener("dragend", () =>
+    itemElement.classList.remove("dragging"),
+  );
+
+  if (item.type === "folder") {
+    itemElement.addEventListener("dragover", (event) => {
+      if (!hasInternalDrag(event)) return;
+      event.preventDefault();
+      itemElement.classList.add("folder-target");
+    });
+
+    itemElement.addEventListener("dragleave", () => {
+      itemElement.classList.remove("folder-target");
+    });
+
+    itemElement.addEventListener("drop", (event) => {
+      const ids = readDraggedIds(event).filter((id) => id !== item.id);
+      itemElement.classList.remove("folder-target");
+      if (ids.length) moveItems(ids, item.id, item.name);
+    });
+  }
+}
+
+function hasInternalDrag(event) {
+  return [...event.dataTransfer.types].includes(
+    "application/x-document-library-items",
+  );
+}
+
+function readDraggedIds(event) {
+  const raw = event.dataTransfer.getData(
+    "application/x-document-library-items",
+  );
+  if (!raw) return [];
+  event.preventDefault();
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return [];
+  }
+}
+
+async function moveItems(ids, targetFolderId, targetName) {
+  try {
+    await callApi({
+      action: "libraryMoveItemsV1",
+      ids,
+      targetFolderId,
+    });
+
+    clearSelection();
+    await loadItems();
+    showToast(`ย้าย ${ids.length} รายการไปยัง “${targetName}” แล้ว`);
+  } catch (error) {
+    window.alert(error.message);
+  }
+}
+
+function openFolder(item) {
+  currentFolderId = item.id;
+  breadcrumbs.push({ id: item.id, name: item.name });
+  clearSelection();
+  loadItems();
+}
+
+function toggleSelection(id, enabled) {
+  if (enabled) selectedIds.add(id);
+  else selectedIds.delete(id);
+
   renderItems();
   updateSelectionBar();
 }
 
 function clearSelection() {
   selectedIds.clear();
-  selectMode = false;
-  if (E.selectModeBtn) E.selectModeBtn.classList.remove('active');
-  if (E.itemsArea) renderItems();
+  selectionMode = false;
+  if (elements.itemsArea) renderItems();
   updateSelectionBar();
 }
 
 function updateSelectionBar() {
   const count = selectedIds.size;
-  E.selectionCount.textContent = `เลือกแล้ว ${count} รายการ`;
-  E.selectionBar.classList.toggle('hidden', count === 0);
+  if (!elements.selectionBar) return;
+
+  elements.selectionCount.textContent = `เลือกแล้ว ${count} รายการ`;
+  elements.selectionBar.classList.toggle("hidden", count === 0);
+  elements.selectModeBtn.classList.toggle("active", selectionMode);
 }
 
-async function moveItems(ids, targetFolderId, targetName) {
+async function deleteSelectedItems() {
+  const selectedItems = items.filter((item) => selectedIds.has(item.id));
+  if (!selectedItems.length) return;
+  if (!window.confirm(`ลบ ${selectedItems.length} รายการหรือไม่?`)) return;
+
   try {
-    await api({ action: 'libraryMoveItemsV1', ids, targetFolderId });
+    await callApi({
+      action: "libraryDeleteItemsV1",
+      items: selectedItems.map((item) => ({ id: item.id, type: item.type })),
+    });
+
     clearSelection();
-    await loadItems();
-    showToast(`ย้าย ${ids.length} รายการไปยัง “${targetName}” แล้ว`);
+    loadItems();
   } catch (error) {
-    alert(error.message);
+    window.alert(error.message);
   }
 }
 
 async function createFolder() {
-  const name = prompt('ชื่อโฟลเดอร์ใหม่');
+  const name = window.prompt("ชื่อโฟลเดอร์ใหม่");
   if (!name?.trim()) return;
+
   try {
-    await api({ action: 'libraryCreateFolderV1', parentFolderId: currentFolderId, name: name.trim() });
+    await callApi({
+      action: "libraryCreateFolderV1",
+      parentFolderId: currentFolderId,
+      name: name.trim(),
+    });
     loadItems();
   } catch (error) {
-    alert(error.message);
+    window.alert(error.message);
   }
-}
-
-async function deleteSelected() {
-  const chosen = items.filter(item => selectedIds.has(item.id));
-  if (!chosen.length || !confirm(`ลบ ${chosen.length} รายการที่เลือกหรือไม่?`)) return;
-  try {
-    await api({ action: 'libraryDeleteItemsV1', items: chosen.map(item => ({ id: item.id, type: item.type })) });
-    clearSelection();
-    loadItems();
-  } catch (error) {
-    alert(error.message);
-  }
-}
-
-async function removeItem(item) {
-  if (!confirm(`ต้องการลบ${item.type === 'folder' ? 'โฟลเดอร์' : 'ไฟล์'} “${item.name}” หรือไม่?`)) return;
-  try {
-    await api({ action: item.type === 'folder' ? 'libraryDeleteFolderV1' : 'libraryDeleteFileV1', id: item.id });
-    selectedIds.delete(item.id);
-    loadItems();
-  } catch (error) {
-    alert(error.message);
-  }
-}
-
-function openFolder(item) {
-  currentFolderId = item.id;
-  crumbs.push({ id: item.id, name: item.name });
-  clearSelection();
-  loadItems();
 }
 
 function showContextMenu(x, y, item) {
   contextItem = item;
-  const openButton = E.contextMenu.querySelector('[data-context-action="open"]');
-  openButton.innerHTML = item.type === 'folder' ? '<i class="fa-solid fa-folder-open"></i> เปิดโฟลเดอร์' : '<i class="fa-solid fa-arrow-up-right-from-square"></i> เปิดไฟล์';
-  E.contextMenu.classList.remove('hidden');
-  const width = 210, height = 176;
-  E.contextMenu.style.left = `${Math.min(x, innerWidth - width - 8)}px`;
-  E.contextMenu.style.top = `${Math.min(y, innerHeight - height - 8)}px`;
+  elements.contextMenu.classList.remove("hidden");
+  elements.contextMenu.style.left = `${Math.min(x, window.innerWidth - 220)}px`;
+  elements.contextMenu.style.top = `${Math.min(y, window.innerHeight - 185)}px`;
 }
 
 function hideContextMenu() {
-  E.contextMenu?.classList.add('hidden');
+  elements.contextMenu?.classList.add("hidden");
 }
 
 function runContextAction(action) {
   const item = contextItem;
   hideContextMenu();
   if (!item) return;
-  if (action === 'open') item.type === 'folder' ? openFolder(item) : window.open(item.viewUrl, '_blank', 'noopener');
-  if (action === 'details') showDetails(item);
-  if (action === 'select') toggleSelection(item.id, true);
-  if (action === 'delete') removeItem(item);
+
+  if (action === "open") {
+    item.type === "folder"
+      ? openFolder(item)
+      : window.open(item.viewUrl, "_blank", "noopener");
+  }
+  if (action === "select") {
+    selectionMode = true;
+    toggleSelection(item.id, true);
+  }
+  if (action === "details") showDetails(item);
+  if (action === "delete") deleteSingleItem(item);
 }
 
 function showDetails(item) {
-  E.detailsIcon.className = `fa-solid ${item.type === 'folder' ? 'fa-folder' : fileIcon(item.mimeType, item.name)}`;
+  elements.detailIcon.className = `fa-solid ${item.type === "folder" ? "fa-folder" : getFileIcon(item)}`;
+
   const rows = [
-    ['ชื่อ', item.name],
-    ['ประเภท', item.type === 'folder' ? 'โฟลเดอร์' : (item.mimeType || 'ไฟล์')],
-    ['ขนาด', item.type === 'folder' ? '-' : formatSize(item.size)],
-    ['แก้ไขล่าสุด', item.updatedAt ? new Date(item.updatedAt).toLocaleString('th-TH') : '-'],
-    ['รหัส Google Drive', item.id]
+    ["ชื่อ", item.name],
+    ["ประเภท", item.type === "folder" ? "โฟลเดอร์" : item.mimeType || "ไฟล์"],
+    ["ขนาด", item.type === "folder" ? "-" : formatSize(item.size)],
+    [
+      "แก้ไขล่าสุด",
+      item.updatedAt ? new Date(item.updatedAt).toLocaleString("th-TH") : "-",
+    ],
+    ["Google Drive ID", item.id],
   ];
-  E.detailsBody.innerHTML = rows.map(([label, value]) => `<div class="detail-row"><span>${label}</span><strong>${escapeHtml(value)}</strong></div>`).join('');
-  E.detailsModal.classList.remove('hidden');
+
+  elements.detailsBody.innerHTML = rows
+    .map(
+      ([label, value]) => `
+        <div class="detail">
+          <span>${label}</span>
+          <strong>${escapeHtml(value)}</strong>
+        </div>
+      `,
+    )
+    .join("");
+
+  elements.detailsModal.classList.remove("hidden");
 }
 
 function closeDetails() {
-  E.detailsModal.classList.add('hidden');
+  elements.detailsModal.classList.add("hidden");
 }
 
-function addFiles(fileList) {
-  for (const file of fileList) {
-    if (file.size > MAX_FILE_SIZE) {
-      alert(`${file.name} เกิน 10 MB`);
-      continue;
-    }
-    queue.push({ id: crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`, file, status: 'queued', error: '' });
-  }
-  renderQueue();
-  runQueue();
-}
+async function deleteSingleItem(item) {
+  if (!window.confirm(`ลบ “${item.name}” หรือไม่?`)) return;
 
-function runQueue() {
-  while (uploadWorkers < UPLOAD_LIMIT) {
-    const item = queue.find(value => value.status === 'queued');
-    if (!item) break;
-    uploadWorkers++;
-    upload(item).finally(() => {
-      uploadWorkers--;
-      runQueue();
-    });
-  }
-}
-
-async function upload(item) {
   try {
-    item.status = 'uploading';
-    renderQueue();
-    const file = await toBase64(item.file);
-    await api({ action: 'libraryUploadV1', parentFolderId: currentFolderId, file });
-    item.status = 'success';
+    await callApi({
+      action:
+        item.type === "folder"
+          ? "libraryDeleteFolderV1"
+          : "libraryDeleteFileV1",
+      id: item.id,
+    });
     loadItems();
   } catch (error) {
-    item.status = 'error';
-    item.error = error.message;
-  } finally {
-    renderQueue();
+    window.alert(error.message);
   }
 }
 
-function renderQueue() {
-  E.uploadQueue.innerHTML = queue.map((item, index) => `<div class="upload-item upload-${item.status}">
-    <i class="fa-solid fa-file-arrow-up"></i>
-    <div>
-      <strong>${escapeHtml(item.file.name)}</strong>
-      <small>${formatSize(item.file.size)}</small>
-      <div class="upload-state">${item.status === 'queued' ? 'รอคิว' : item.status === 'uploading' ? 'กำลังอัปโหลด...' : item.status === 'success' ? 'อัปโหลดสำเร็จ' : `ผิดพลาด: ${escapeHtml(item.error)}`}</div>
-      ${item.status === 'uploading' ? '<div class="upload-progress"><i></i></div>' : ''}
-    </div>
-    ${item.status === 'error' ? `<button class="secondary-btn" data-retry="${index}">ลองใหม่</button>` : ''}
-    ${['success', 'error'].includes(item.status) ? `<button class="upload-close" data-close="${index}" title="ปิด"><i class="fa-solid fa-xmark"></i></button>` : ''}
-  </div>`).join('');
+function applyView(nextView) {
+  viewMode = VIEW_LEVELS.includes(nextView) ? nextView : "details";
+  localStorage.setItem("document-explorer-view-v6", viewMode);
 
-  E.uploadQueue.querySelectorAll('[data-retry]').forEach(button => {
-    button.onclick = () => {
-      const item = queue[Number(button.dataset.retry)];
-      item.status = 'queued';
-      item.error = '';
-      renderQueue();
-      runQueue();
-    };
+  if (elements.viewZoom) {
+    elements.viewZoom.value = String(VIEW_LEVELS.indexOf(viewMode));
+  }
+
+  const labels = {
+    details: "รายละเอียด",
+    list: "รายการ",
+    small: "ไอคอนเล็ก",
+    medium: "ไอคอนกลาง",
+    large: "ไอคอนใหญ่",
+  };
+
+  if (elements.viewName) elements.viewName.textContent = labels[viewMode];
+  if (elements.itemsArea) {
+    elements.itemsArea.dataset.view = viewMode;
+    renderItems();
+  }
+}
+
+function applyResponsiveView() {
+  const width = elements.itemsArea.getBoundingClientRect().width;
+  if (width >= 1100) applyView("details");
+  else if (width >= 820) applyView("list");
+  else if (width >= 610) applyView("small");
+  else if (width >= 400) applyView("medium");
+  else applyView("large");
+}
+
+function addUploads(files) {
+  files.forEach((file) => {
+    if (file.size > MAX_UPLOAD_SIZE) {
+      window.alert(`${file.name} เกิน 10 MB`);
+      return;
+    }
+    uploadQueue.push({ file, status: "queued", error: "" });
   });
-  E.uploadQueue.querySelectorAll('[data-close]').forEach(button => {
-    button.onclick = () => {
-      queue.splice(Number(button.dataset.close), 1);
-      renderQueue();
-    };
+
+  renderUploads();
+  runUploads();
+}
+
+function runUploads() {
+  while (uploadWorkers < MAX_UPLOAD_WORKERS) {
+    const item = uploadQueue.find((value) => value.status === "queued");
+    if (!item) break;
+
+    uploadWorkers += 1;
+    uploadFile(item).finally(() => {
+      uploadWorkers -= 1;
+      runUploads();
+    });
+  }
+}
+
+async function uploadFile(item) {
+  try {
+    item.status = "uploading";
+    renderUploads();
+    const file = await fileToBase64(item.file);
+
+    await callApi({
+      action: "libraryUploadV1",
+      parentFolderId: currentFolderId,
+      file,
+    });
+
+    item.status = "success";
+    loadItems();
+  } catch (error) {
+    item.status = "error";
+    item.error = error.message;
+  } finally {
+    renderUploads();
+  }
+}
+
+function renderUploads() {
+  elements.uploadQueue.innerHTML = uploadQueue
+    .map(
+      (item, index) => `
+        <div class="upload-item upload-${item.status}">
+          <i class="fa-solid fa-file-arrow-up"></i>
+          <div>
+            <strong>${escapeHtml(item.file.name)}</strong>
+            <small>${formatSize(item.file.size)}</small>
+            <span class="upload-state">
+              ${item.status === "queued" ? "รอคิว" : ""}
+              ${item.status === "uploading" ? "กำลังอัปโหลด..." : ""}
+              ${item.status === "success" ? "อัปโหลดสำเร็จ" : ""}
+              ${item.status === "error" ? `ผิดพลาด: ${escapeHtml(item.error)}` : ""}
+            </span>
+            ${item.status === "uploading" ? '<div class="upload-progress"><i></i></div>' : ""}
+          </div>
+          ${item.status === "error" ? `<button class="btn" data-retry="${index}">ลองใหม่</button>` : ""}
+          ${["success", "error"].includes(item.status) ? `<button class="upload-close" data-close="${index}" aria-label="ปิด"><i class="fa-solid fa-xmark"></i></button>` : ""}
+        </div>
+      `,
+    )
+    .join("");
+
+  elements.uploadQueue.querySelectorAll("[data-retry]").forEach((button) => {
+    button.addEventListener("click", () => {
+      uploadQueue[Number(button.dataset.retry)].status = "queued";
+      renderUploads();
+      runUploads();
+    });
+  });
+
+  elements.uploadQueue.querySelectorAll("[data-close]").forEach((button) => {
+    button.addEventListener("click", () => {
+      uploadQueue.splice(Number(button.dataset.close), 1);
+      renderUploads();
+    });
   });
 }
 
-function toBase64(file) {
+function fileToBase64(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => resolve({
-      name: file.name,
-      mimeType: file.type || 'application/octet-stream',
-      size: file.size,
-      base64: String(reader.result).split(',')[1] || ''
-    });
+    reader.onload = () => {
+      resolve({
+        name: file.name,
+        mimeType: file.type || "application/octet-stream",
+        size: file.size,
+        base64: String(reader.result).split(",")[1] || "",
+      });
+    };
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
 }
 
-function fileIcon(mime = '', name = '') {
-  const value = `${mime} ${name}`.toLowerCase();
-  if (value.includes('pdf')) return 'fa-file-pdf';
-  if (value.includes('spreadsheet') || /\.(xlsx?|csv)$/.test(value)) return 'fa-file-excel';
-  if (value.includes('presentation') || /\.(pptx?)$/.test(value)) return 'fa-file-powerpoint';
-  if (value.includes('word') || /\.(docx?)$/.test(value)) return 'fa-file-word';
-  if (value.includes('image')) return 'fa-file-image';
-  return 'fa-file';
+function getFileIcon(item) {
+  const value = `${item.mimeType || ""} ${item.name}`.toLowerCase();
+  if (value.includes("pdf")) return "fa-file-pdf";
+  if (/xlsx?|csv|spreadsheet/.test(value)) return "fa-file-excel";
+  if (/docx?|word/.test(value)) return "fa-file-word";
+  if (/pptx?|presentation/.test(value)) return "fa-file-powerpoint";
+  if (value.includes("image")) return "fa-file-image";
+  return "fa-file";
 }
 
 function formatSize(bytes = 0) {
@@ -453,16 +737,23 @@ function formatSize(bytes = 0) {
   return `${(bytes / 1048576).toFixed(1)} MB`;
 }
 
-function escapeHtml(value = '') {
-  return String(value).replace(/[&<>'"]/g, char => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
-  })[char]);
+function escapeHtml(value = "") {
+  return String(value).replace(/[&<>"']/g, (character) => {
+    const entities = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    };
+    return entities[character];
+  });
 }
 
 function showToast(message) {
-  const toast = document.createElement('div');
+  const toast = document.createElement("div");
   toast.textContent = message;
-  Object.assign(toast.style, { position: 'fixed', right: '22px', bottom: '22px', zIndex: 1200, background: '#0f172a', color: '#fff', padding: '11px 16px', borderRadius: '12px', boxShadow: '0 16px 40px rgba(15,23,42,.25)' });
-  document.body.appendChild(toast);
-  setTimeout(() => toast.remove(), 2400);
+  toast.className = "app-toast";
+  document.body.append(toast);
+  window.setTimeout(() => toast.remove(), 2200);
 }

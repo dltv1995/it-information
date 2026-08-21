@@ -1,57 +1,182 @@
 <!doctype html>
 <html lang="th">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>จัดเก็บเอกสาร</title>
-  <script>
-    (()=>{const saved=localStorage.getItem('color-theme');const dark=saved?saved==='dark':matchMedia('(prefers-color-scheme:dark)').matches;document.documentElement.classList.toggle('dark',dark)})();
-  </script>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-  <link rel="stylesheet" href="assets/css/documents.css?v=document-explorer-v4">
-</head>
-<body id="appBody" class="hidden" data-title="จัดเก็บเอกสาร" data-subtitle="จัดการไฟล์บน Google Drive" data-active-menu="documents">
-  <div id="layoutRoot" class="min-h-screen md:flex"></div>
-  <template id="documentsTemplate">
-    <section class="explorer-shell">
-      <header class="explorer-hero">
-        <span class="hero-icon"><i class="fa-brands fa-google-drive"></i></span>
-        <div><h1>จัดเก็บเอกสาร</h1><p>พื้นที่เอกสารทั่วไปบน Google Drive</p></div>
-        <button id="newFolderBtn" class="btn primary"><i class="fa-solid fa-folder-plus"></i> สร้างโฟลเดอร์</button>
-      </header>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>จัดเก็บเอกสาร</title>
+    <script>
+      (() => {
+        const saved = localStorage.getItem("color-theme");
+        const dark = saved
+          ? saved === "dark"
+          : matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.classList.toggle("dark", dark);
+      })();
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="assets/css/documents.css?v=document-explorer-v6"
+    />
+  </head>
+  <body
+    id="appBody"
+    class="hidden"
+    data-title="จัดเก็บเอกสาร"
+    data-subtitle="จัดการไฟล์บน Google Drive"
+    data-active-menu="documents"
+  >
+    <div id="layoutRoot" class="min-h-screen md:flex"></div>
 
-      <div class="explorer-toolbar">
-        <div id="breadcrumbs" class="breadcrumbs"></div>
-        <label class="search"><i class="fa-solid fa-magnifying-glass"></i><input id="docSearch" placeholder="ค้นหาไฟล์หรือโฟลเดอร์"></label>
-        <button id="selectModeBtn" class="btn"><i class="fa-regular fa-square-check"></i><span>เลือกหลายรายการ</span></button>
-        <div class="zoom-control" title="ขนาดมุมมองแบบ Windows Explorer">
-          <i class="fa-solid fa-list"></i><input id="viewZoom" type="range" min="0" max="4" step="1" value="0"><i class="fa-solid fa-table-cells-large"></i>
+    <template id="documentsTemplate">
+      <section class="explorer-shell">
+        <section id="dropZone" class="drop-zone">
+          <input id="fileInput" type="file" multiple hidden />
+          <span class="drop-icon">
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+          </span>
+          <div class="drop-copy">
+            <strong>ลากไฟล์จากเครื่องมาวางที่นี่</strong>
+            <p>อัปโหลดพร้อมกันสูงสุด 3 ไฟล์ ไฟล์ละไม่เกิน 10 MB</p>
+          </div>
+          <button id="chooseFilesBtn" class="btn" type="button">
+            เลือกไฟล์
+          </button>
+        </section>
+
+        <div id="uploadQueue" class="upload-queue"></div>
+
+        <header class="explorer-hero">
+          <span class="hero-icon">
+            <i class="fa-brands fa-google-drive"></i>
+          </span>
+          <div>
+            <h1>จัดเก็บเอกสาร</h1>
+            <p>พื้นที่เอกสารทั่วไปบน Google Drive</p>
+          </div>
+          <button id="newFolderBtn" class="btn primary" type="button">
+            <i class="fa-solid fa-folder-plus"></i>
+            สร้างโฟลเดอร์
+          </button>
+        </header>
+
+        <div class="explorer-toolbar">
+          <div
+            id="breadcrumbs"
+            class="breadcrumbs"
+            aria-label="เส้นทางโฟลเดอร์"
+          ></div>
+
+          <label class="search">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input id="docSearch" placeholder="ค้นหาไฟล์หรือโฟลเดอร์" />
+          </label>
+
+          <button id="selectModeBtn" class="btn" type="button">
+            <i class="fa-regular fa-square-check"></i>
+            <span>เลือกหลายรายการ</span>
+          </button>
+
+          <div class="zoom-control" title="รายละเอียด ไปจนถึงไอคอนใหญ่">
+            <i class="fa-solid fa-list"></i>
+            <input
+              id="viewZoom"
+              type="range"
+              min="0"
+              max="4"
+              step="1"
+              value="0"
+            />
+            <i class="fa-solid fa-table-cells-large"></i>
+          </div>
+
+          <button
+            id="autoViewBtn"
+            class="tool-btn active"
+            type="button"
+            title="ปรับตามความกว้างและ Browser zoom"
+          >
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+          </button>
+
+          <button id="refreshBtn" class="tool-btn" type="button" title="รีเฟรช">
+            <i class="fa-solid fa-rotate"></i>
+          </button>
         </div>
-        <button id="autoViewBtn" class="tool-btn active" title="ปรับมุมมองอัตโนมัติตามความกว้าง"><i class="fa-solid fa-wand-magic-sparkles"></i></button>
-        <button id="refreshBtn" class="tool-btn" title="รีเฟรช"><i class="fa-solid fa-rotate"></i></button>
-      </div>
 
-      <div id="selectionBar" class="selection-bar hidden"><strong id="selectionCount">เลือกแล้ว 0 รายการ</strong><span>ลากรายการที่เลือกไปวางบนโฟลเดอร์เพื่อย้าย</span><button id="deleteSelectedBtn" class="btn danger"><i class="fa-solid fa-trash"></i> ลบที่เลือก</button><button id="clearSelectionBtn" class="btn">ยกเลิก</button></div>
+        <div id="selectionBar" class="selection-bar hidden">
+          <strong id="selectionCount">เลือกแล้ว 0 รายการ</strong>
+          <span>
+            ลากรายการไปวางบนโฟลเดอร์ หรือวางบน breadcrumb
+            เพื่อย้ายออกจากโฟลเดอร์
+          </span>
+          <button id="deleteSelectedBtn" class="btn danger" type="button">
+            <i class="fa-solid fa-trash"></i>
+            ลบที่เลือก
+          </button>
+          <button id="clearSelectionBtn" class="btn" type="button">
+            ยกเลิก
+          </button>
+        </div>
 
-      <div id="dropZone" class="drop-zone"><input id="fileInput" type="file" multiple hidden><span><i class="fa-solid fa-cloud-arrow-up"></i></span><div><strong>ลากไฟล์จากเครื่องมาวางที่นี่</strong><p>อัปโหลดพร้อมกันสูงสุด 3 ไฟล์ ไฟล์ละไม่เกิน 10 MB</p></div><button id="chooseFilesBtn" class="btn">เลือกไฟล์</button></div>
-      <div id="uploadQueue" class="upload-queue"></div>
+        <div class="items-heading">
+          <div>
+            <h2>ไฟล์และโฟลเดอร์</h2>
+            <small id="itemCount">0 รายการ</small>
+          </div>
+          <span id="viewName" class="view-name">รายละเอียด</span>
+        </div>
 
-      <div class="items-heading"><div><h2>ไฟล์และโฟลเดอร์</h2><small id="itemCount">0 รายการ</small></div><span id="viewName" class="view-name">รายละเอียด</span></div>
-      <div id="itemsArea" class="items-area" data-view="details"></div>
+        <div id="itemsArea" class="items-area" data-view="details"></div>
 
-      <div id="contextMenu" class="context-menu hidden">
-        <button data-action="open"><i class="fa-solid fa-arrow-up-right-from-square"></i> เปิด</button>
-        <button data-action="details"><i class="fa-solid fa-circle-info"></i> รายละเอียด</button>
-        <button data-action="select"><i class="fa-regular fa-square-check"></i> เลือก</button>
-        <button data-action="delete" class="danger-text"><i class="fa-solid fa-trash"></i> ลบ</button>
-      </div>
+        <div id="contextMenu" class="context-menu hidden">
+          <button type="button" data-action="open">
+            <i class="fa-solid fa-arrow-up-right-from-square"></i>
+            เปิด
+          </button>
+          <button type="button" data-action="details">
+            <i class="fa-solid fa-circle-info"></i>
+            รายละเอียด
+          </button>
+          <button type="button" data-action="select">
+            <i class="fa-regular fa-square-check"></i>
+            เลือก
+          </button>
+          <button type="button" data-action="delete" class="danger-text">
+            <i class="fa-solid fa-trash"></i>
+            ลบ
+          </button>
+        </div>
 
-      <div id="detailsModal" class="modal-backdrop hidden"><section class="details-modal"><header><div><i id="detailIcon" class="fa-solid fa-file"></i><h3>รายละเอียด</h3></div><button id="closeDetailsBtn"><i class="fa-solid fa-xmark"></i></button></header><div id="detailsBody"></div></section></div>
-    </section>
-  </template>
-  <script src="assets/js/header.js?v=shared-sidebar-v10"></script>
-  <script type="module" src="assets/js/documents.js?v=document-explorer-v4"></script>
-  <script type="module" src="assets/js/session-timeout.js?v=session-timeout-v1"></script>
-</body>
+        <div id="detailsModal" class="modal-backdrop hidden">
+          <section class="details-modal">
+            <header>
+              <div>
+                <i id="detailIcon" class="fa-solid fa-file"></i>
+                <h3>รายละเอียด</h3>
+              </div>
+              <button id="closeDetailsBtn" type="button">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </header>
+            <div id="detailsBody"></div>
+          </section>
+        </div>
+      </section>
+    </template>
+
+    <script src="assets/js/header.js?v=shared-sidebar-v12"></script>
+    <script
+      type="module"
+      src="assets/js/documents.js?v=document-explorer-v6"
+    ></script>
+    <script
+      type="module"
+      src="assets/js/session-timeout.js?v=session-timeout-v1"
+    ></script>
+  </body>
 </html>
