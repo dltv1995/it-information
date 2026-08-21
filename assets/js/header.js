@@ -1,7 +1,7 @@
-// assets/js/header.js - Shared Sidebar v9
-console.log('header.js loaded: shared-sidebar-v9');
+// assets/js/header.js - Shared Sidebar v7
+console.log('header.js loaded: shared-sidebar-v7');
 
-const HEADER_VERSION = 'shared-sidebar-v9';
+const HEADER_VERSION = 'shared-sidebar-v7';
 const ROLE_LABELS = {
   admin: 'ผู้ดูแลระบบ', administrator: 'ผู้ดูแลระบบ',
   manager: 'หัวหน้าฝ่าย', head: 'หัวหน้าฝ่าย', department_head: 'หัวหน้าฝ่าย',
@@ -73,7 +73,7 @@ function setActiveMenu() {
   const file = (location.pathname.split('/').pop() || 'dashboard.html').toLowerCase();
   const map = {
     'dashboard.html': 'dashboard', 'leave.html': 'leave', 'projects.html': 'projects',
-    'meeting.html': 'meeting', 'documents.html': 'documents', 'admin.html': 'admin'
+    'meeting.html': 'meeting', 'admin.html': 'admin'
   };
   const activePage = document.body.dataset.activeMenu || map[file] || 'dashboard';
   document.querySelectorAll('.nav-item').forEach((item) => {
