@@ -1,246 +1,22 @@
-/* assets/css/documents-theme-compat.css
-   Document Explorer theme adapter v2
-   Matches the stable app/dashboard/meeting shell without changing those pages.
+/* Document Explorer theme adapter v3
+   Uses the same shell contrast as the stable Meeting page:
+   dark navy background with light document cards.
 */
 
-:root {
-  color-scheme: light;
-  --doc-page-bg: #f8fafc;
-  --doc-shell-bg: #ffffff;
-  --doc-panel-bg: #ffffff;
-  --doc-panel-soft: #f8fafc;
-  --doc-border: #e2e8f0;
-  --doc-border-strong: #cbd5e1;
-  --doc-text: #0f172a;
-  --doc-muted: #64748b;
-  --doc-hover: #f1f5f9;
-  --doc-selected: #dbeafe;
-  --doc-primary: #2563eb;
-  --doc-primary-soft: #eff6ff;
-}
-
-html.dark {
-  color-scheme: dark;
-  --doc-page-bg: #0f172a;
-  --doc-shell-bg: #0f172a;
-  --doc-panel-bg: #1e293b;
-  --doc-panel-soft: #172033;
-  --doc-border: #334155;
-  --doc-border-strong: #475569;
-  --doc-text: #f8fafc;
-  --doc-muted: #94a3b8;
-  --doc-hover: #273449;
-  --doc-selected: #1e3a8a;
-  --doc-primary: #3b82f6;
-  --doc-primary-soft: #172554;
-}
-
-html,
-body {
-  min-height: 100%;
-}
-
-body {
-  margin: 0;
-  background: var(--doc-page-bg) !important;
-  color: var(--doc-text) !important;
-  font-family: "Prompt", sans-serif !important;
-}
-
-/* Stable shell. Sidebar remains navy in both modes, matching existing pages. */
 #sidebar {
   background: #0f172a !important;
   color: #cbd5e1 !important;
-  border-color: #1e293b !important;
 }
 
-#sidebar > div:first-of-type {
-  background: rgba(15, 23, 42, 0.72) !important;
-  border-color: #1e293b !important;
+.bg-brand-900 {
+  background-color: #0f172a !important;
 }
 
-#sidebar > div:last-of-type {
-  background: rgba(15, 23, 42, 0.9) !important;
-  border-color: #1e293b !important;
+.bg-brand-600 {
+  background-color: #2563eb !important;
 }
 
-#sidebar .nav-item {
-  color: #94a3b8 !important;
-}
-
-#sidebar .nav-item:hover {
-  color: #ffffff !important;
-  background: #1e293b !important;
-}
-
-#sidebar .nav-item.active {
-  color: #ffffff !important;
-  background: linear-gradient(135deg, #2f8bd5, #3867f4) !important;
-  box-shadow: 0 12px 28px rgba(37, 99, 235, 0.24) !important;
-}
-
-/* Main region and top bar use the same dark shades as the old Meeting page. */
-main {
-  background: var(--doc-shell-bg) !important;
-}
-
-main > header {
-  background: #ffffff !important;
-  border-color: #e2e8f0 !important;
-  color: #0f172a !important;
-}
-
-html.dark main > header {
-  background: #1e293b !important;
-  border-color: #334155 !important;
-  color: #f8fafc !important;
-}
-
-html.dark #pageTitle {
-  color: #ffffff !important;
-}
-
-html.dark #pageSubtitle {
-  color: #94a3b8 !important;
-}
-
-#pageContent {
-  background: var(--doc-page-bg) !important;
-}
-
-.explorer-shell {
-  color: var(--doc-text) !important;
-}
-
-.drop-zone,
-.explorer-hero,
-.explorer-toolbar,
-.selection-bar,
-.items-heading,
-.items-area,
-.upload-item,
-.context-menu,
-.details-modal {
-  background: var(--doc-panel-bg) !important;
-  border-color: var(--doc-border) !important;
-  color: var(--doc-text) !important;
-  box-shadow: none !important;
-}
-
-/* Keep the upload zone visually lighter than the page, like the old Meeting cards. */
-.drop-zone {
-  background: var(--doc-panel-bg) !important;
-  border-color: #60a5fa !important;
-}
-
-html.dark .drop-zone {
-  background: #1e293b !important;
-  border-color: #60a5fa !important;
-}
-
-.drop-zone.dragover,
-.folder-target,
-.doc-entry.selected,
-.selection-bar {
-  background: var(--doc-selected) !important;
-  border-color: #60a5fa !important;
-}
-
-.explorer-hero {
-  border-top-color: #38bdf8 !important;
-}
-
-.explorer-hero h1,
-.drop-copy strong,
-.items-heading h2,
-.doc-entry-name,
-.details-modal h3,
-.upload-item strong {
-  color: var(--doc-text) !important;
-}
-
-.explorer-hero p,
-.drop-copy p,
-.view-name,
-.doc-entry-meta,
-.upload-item small,
-.upload-state,
-.detail span {
-  color: var(--doc-muted) !important;
-}
-
-.search,
-.zoom-control,
-.btn,
-.tool-btn,
-.upload-close,
-.details-modal header button {
-  background: var(--doc-panel-bg) !important;
-  border-color: var(--doc-border-strong) !important;
-  color: var(--doc-text) !important;
-}
-
-.search input {
-  background: transparent !important;
-  color: var(--doc-text) !important;
-}
-
-.search input::placeholder {
-  color: var(--doc-muted) !important;
-}
-
-.btn:hover,
-.tool-btn:hover,
-.upload-close:hover,
-.context-menu button:hover,
-.doc-entry:hover {
-  background: var(--doc-hover) !important;
-}
-
-.btn.primary {
-  color: #ffffff !important;
-  border-color: transparent !important;
-  background: linear-gradient(135deg, #0284c7, #2563eb) !important;
-}
-
-.tool-btn.active,
-#selectModeBtn.active {
-  color: #2563eb !important;
-  border-color: #60a5fa !important;
-  background: var(--doc-primary-soft) !important;
-}
-
-.context-menu button,
-.details-modal header button {
-  color: var(--doc-text) !important;
-}
-
-.doc-entry {
-  border-color: var(--doc-border) !important;
-  color: var(--doc-text) !important;
-}
-
-.doc-entry-icon,
-.drop-icon,
-.hero-icon {
-  color: #2563eb !important;
-  background: #dbeafe !important;
-}
-
-html.dark .doc-entry-icon,
-html.dark .drop-icon,
-html.dark .hero-icon {
-  color: #60a5fa !important;
-  background: #e2e8f0 !important;
-}
-
-/* Theme button: exactly one icon is visible. */
-#themeToggleBtn {
-  position: relative !important;
-  overflow: hidden !important;
-}
-
-#themeToggleBtn .theme-toggle-icon {
+.theme-toggle-icon {
   display: none !important;
 }
 
@@ -252,25 +28,105 @@ html.dark #themeToggleBtn .sun-icon {
   display: inline-block !important;
 }
 
-/* If a newer header exposes a single #themeIcon, keep that compatible too. */
-#themeIcon {
-  display: inline-block !important;
+html:not(.dark) body,
+html:not(.dark) main,
+html:not(.dark) #pageContent {
+  background: #f8fafc !important;
+  color: #0f172a !important;
 }
 
-/* The light screenshot showed a gray sidebar because brand classes were unresolved.
-   These rules keep the stable shell deterministic even without Tailwind brand config. */
-.bg-brand-900 {
-  background-color: #0f172a !important;
+html:not(.dark) main > header {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
 }
 
-.bg-brand-600 {
-  background-color: #2563eb !important;
+html.dark body,
+html.dark main,
+html.dark #pageContent {
+  background: #0f172a !important;
+  color: #e2e8f0 !important;
 }
 
-.text-brand-400 {
-  color: #60a5fa !important;
+html.dark main > header {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #ffffff !important;
 }
 
-.text-brand-100\/70 {
-  color: rgba(219, 234, 254, 0.7) !important;
+html.dark #pageTitle {
+  color: #ffffff !important;
+}
+
+/* Important: cards stay light in dark mode, matching the old Meeting page. */
+html.dark .drop-zone,
+html.dark .explorer-hero,
+html.dark .explorer-toolbar,
+html.dark .items-heading,
+html.dark .items-area,
+html.dark .upload-item,
+html.dark .context-menu,
+html.dark .details-modal {
+  background: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+html.dark .drop-zone {
+  border-color: #60a5fa !important;
+}
+
+html.dark .explorer-hero h1,
+html.dark .drop-copy strong,
+html.dark .items-heading h2,
+html.dark .doc-entry-name,
+html.dark .upload-item strong,
+html.dark .details-modal h3 {
+  color: #0f172a !important;
+}
+
+html.dark .explorer-hero p,
+html.dark .drop-copy p,
+html.dark .doc-entry-meta,
+html.dark .view-name,
+html.dark .upload-state,
+html.dark .upload-item small {
+  color: #64748b !important;
+}
+
+html.dark .search,
+html.dark .zoom-control,
+html.dark .btn,
+html.dark .tool-btn,
+html.dark .upload-close,
+html.dark .details-modal header button {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+html.dark .search input {
+  background: transparent !important;
+  color: #0f172a !important;
+}
+
+html.dark .search input::placeholder {
+  color: #94a3b8 !important;
+}
+
+html.dark .btn.primary {
+  color: #ffffff !important;
+  border-color: transparent !important;
+  background: linear-gradient(135deg, #0284c7, #2563eb) !important;
+}
+
+html.dark .doc-entry:hover,
+html.dark .context-menu button:hover {
+  background: #e2e8f0 !important;
+}
+
+html.dark .doc-entry.selected,
+html.dark .selection-bar {
+  background: #dbeafe !important;
+  border-color: #60a5fa !important;
+  color: #0f172a !important;
 }
