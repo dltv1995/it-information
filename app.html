@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="th">
   <head>
+    <script src="assets/js/theme-init.js?v=theme-state-v3"></script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ระบบบริหารจัดการ</title>
@@ -24,59 +25,6 @@
       )
         document.documentElement.classList.add("dark");
       else document.documentElement.classList.remove("dark");
-      window.applyAppTheme = function (theme) {
-        const dark = theme === "dark";
-        document.documentElement.classList.toggle("dark", dark);
-        document.documentElement.style.colorScheme = dark ? "dark" : "light";
-        localStorage.setItem("color-theme", dark ? "dark" : "light");
-
-        const button = document.getElementById("themeToggleBtn");
-        if (!button) return;
-
-        const sun = button.querySelector(".sun-icon");
-        const moon = button.querySelector(".moon-icon");
-
-        if (sun) {
-          sun.style.display = dark ? "inline-block" : "none";
-        }
-        if (moon) {
-          moon.style.display = dark ? "none" : "inline-block";
-        }
-
-        button.dataset.currentTheme = dark ? "dark" : "light";
-      };
-
-      window.toggleAppTheme = function (event) {
-        event.preventDefault();
-        event.stopPropagation();
-        event.stopImmediatePropagation();
-
-        const nextTheme = document.documentElement.classList.contains("dark")
-          ? "light"
-          : "dark";
-
-        window.applyAppTheme(nextTheme);
-        return false;
-      };
-
-      document.addEventListener("DOMContentLoaded", function () {
-        window.applyAppTheme(
-          document.documentElement.classList.contains("dark")
-            ? "dark"
-            : "light",
-        );
-      });
-
-      window.addEventListener("hashchange", function () {
-        requestAnimationFrame(function () {
-          window.applyAppTheme(
-            document.documentElement.classList.contains("dark")
-              ? "dark"
-              : "light",
-          );
-        });
-      });
-
       tailwind.config = {
         darkMode: "class",
         theme: {
@@ -97,18 +45,6 @@
         },
       };
     </script>
-
-    <style>
-      #themeToggleBtn .theme-toggle-icon {
-        display: none;
-      }
-      html:not(.dark) #themeToggleBtn .moon-icon {
-        display: inline-block;
-      }
-      html.dark #themeToggleBtn .sun-icon {
-        display: inline-block;
-      }
-    </style>
   </head>
   <body
     id="appBody"
@@ -147,11 +83,6 @@
             id="closeSidebarBtn"
             class="md:hidden w-8 h-8 rounded-md flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800"
             type="button"
-            onpointerup="return window.toggleAppTheme(event)"
-            onclick="
-              event.preventDefault();
-              return false;
-            "
           >
             <i class="ph ph-x text-xl"></i>
           </button>
@@ -283,10 +214,11 @@
         </div>
       </main>
     </div>
-    <script src="assets/js/app-router-fetch.js?v=app-shell-fetch-v4"></script>
+    <script src="assets/js/app-router-fetch.js?v=app-shell-fetch-v2"></script>
     <script
       type="module"
-      src="assets/js/app-shell-auth.js?v=app-shell-fetch-v4"
+      src="assets/js/app-shell-auth.js?v=app-shell-fetch-v2"
     ></script>
+    <script src="assets/js/theme-toggle.js?v=theme-toggle-v3"></script>
   </body>
 </html>
