@@ -543,30 +543,6 @@ body {
   border-bottom: 1px solid var(--line);
 }
 
-#sidebar {
-  background: #0f172a !important;
-}
-
-#sidebar .nav-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  border-radius: 9px;
-  color: #94a3b8;
-  font-weight: 700;
-}
-
-#sidebar .nav-item i {
-  width: 20px;
-  text-align: center;
-}
-
-#sidebar .nav-item.active {
-  color: #ffffff !important;
-  background: linear-gradient(135deg, #2f8bd5, #3867f4) !important;
-}
-
 .app-toast {
   position: fixed;
   right: 20px;
@@ -629,4 +605,33 @@ body {
   white-space: normal;
   overflow-wrap: break-word;
   word-break: normal;
+}
+
+/* v8: checkbox keeps its grid track; names never collapse into a 30px column */
+#itemsArea .entry-check-hidden {
+  display: block !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+#itemsArea[data-view="details"] > .doc-entry {
+  display: grid !important;
+  grid-template-columns: 30px minmax(0, 1fr) 150px 175px 45px !important;
+  width: 100% !important;
+}
+
+#itemsArea[data-view="details"] > .doc-entry > .doc-entry-main {
+  display: flex !important;
+  min-width: 0 !important;
+  width: 100% !important;
+}
+
+#itemsArea[data-view="details"] .doc-entry-name {
+  display: block !important;
+  min-width: 0 !important;
+  width: 100% !important;
+  white-space: normal !important;
+  overflow-wrap: break-word !important;
+  word-break: normal !important;
 }

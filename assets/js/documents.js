@@ -1,7 +1,7 @@
 import { auth } from "./firebase-config.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-console.log("documents.js loaded: document-explorer-v7");
+console.log("documents.js loaded: document-explorer-v8");
 
 const API_URL =
   "https://script.google.com/macros/s/AKfycbyPvAKHa1OYf7lAKYWMdZv7wrqtT80JVWODKci7vVlzgxVgBa8QaAqKDESHS6QMmNK6dw/exec";
@@ -25,6 +25,9 @@ let contextItem = null;
 let longPressTimer = null;
 let pointerMoved = false;
 let longPressActivated = false;
+let dragInProgress = false;
+let pointerStartX = 0;
+let pointerStartY = 0;
 let automaticView =
   localStorage.getItem("document-explorer-auto-v6") !== "false";
 let viewMode = localStorage.getItem("document-explorer-view-v6") || "details";
@@ -285,7 +288,7 @@ function renderItems() {
           draggable="true"
         >
           <input
-            class="doc-entry-check ${selectionMode || selected ? "" : "hidden"}"
+            class="doc-entry-check ${selectionMode || selected ? "" : "entry-check-hidden"}"
             type="checkbox"
             ${selected ? "checked" : ""}
             aria-label="เลือก ${escapeHtml(item.name)}"
@@ -331,8 +334,12 @@ function bindItemEvents(itemElement) {
     if (event.button !== 0 || event.target.closest("button,input")) return;
 
     pointerMoved = false;
+    dragInProgress = false;
     longPressActivated = false;
+    pointerStartX = event.clientX;
+    pointerStartY = event.clientY;
     longPressTimer = window.setTimeout(() => {
+      if (pointerMoved || dragInProgress) return;
       longPressActivated = true;
       selectionMode = true;
       selectedIds.add(item.id);
@@ -342,9 +349,15 @@ function bindItemEvents(itemElement) {
     }, LONG_PRESS_MS);
   });
 
-  itemElement.addEventListener("pointermove", () => {
-    pointerMoved = true;
-    window.clearTimeout(longPressTimer);
+  itemElement.addEventListener("pointermove", (event) => {
+    const distance = Math.hypot(
+      event.clientX - pointerStartX,
+      event.clientY - pointerStartY,
+    );
+    if (distance > 6) {
+      pointerMoved = true;
+      window.clearTimeout(longPressTimer);
+    }
   });
 
   itemElement.addEventListener("pointerup", () =>
@@ -374,6 +387,8 @@ function bindItemEvents(itemElement) {
   });
 
   itemElement.addEventListener("dragstart", (event) => {
+    dragInProgress = true;
+    pointerMoved = true;
     window.clearTimeout(longPressTimer);
 
     const draggedIds =

@@ -1,6 +1,6 @@
-console.log("header.js loaded: shared-sidebar-v13");
+console.log("header.js loaded: shared-sidebar-v14");
 
-const HEADER_VERSION = "shared-sidebar-v13";
+const HEADER_VERSION = "shared-sidebar-v14";
 
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", initializeHeader, {
@@ -45,8 +45,8 @@ function setPageInformation() {
   document.getElementById("pageSubtitle").textContent =
     body.dataset.subtitle || "";
 
-  document.querySelectorAll(".nav-item").forEach((item) => {
-    item.classList.toggle("active", item.dataset.page === activePage);
+  document.querySelectorAll(".shared-nav-item").forEach((item) => {
+    item.classList.toggle("is-active", item.dataset.page === activePage);
   });
 }
 
