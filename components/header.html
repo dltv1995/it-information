@@ -1,172 +1,207 @@
-<style id="shared-sidebar-v14-style">
-  #sidebar {
-    background: #0f172a !important;
-  }
-  #sidebar nav {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 6px !important;
-  }
-  #sidebar .shared-nav-item {
-    display: flex !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    width: 100% !important;
-    min-height: 48px !important;
-    align-items: center !important;
-    gap: 12px !important;
-    padding: 12px 16px !important;
-    border-radius: 9px !important;
-    color: #94a3b8 !important;
-    text-decoration: none !important;
-    white-space: nowrap !important;
-    overflow: visible !important;
-  }
-  #sidebar .shared-nav-item i {
-    width: 20px !important;
-    flex: 0 0 20px !important;
-    text-align: center !important;
-  }
-  #sidebar .shared-nav-item span {
-    display: block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-  }
-  #sidebar .shared-nav-item:hover {
-    color: #fff !important;
-    background: #1e293b !important;
-  }
-  #sidebar .shared-nav-item.is-active {
-    position: relative !important;
-    color: #fff !important;
-    background: linear-gradient(135deg, #2f8bd5, #3867f4) !important;
-    box-shadow: 0 12px 28px rgba(37, 99, 235, 0.24) !important;
-  }
-  #sidebar .shared-nav-item.is-active::before {
-    content: "";
-    position: absolute;
-    left: -7px;
-    top: 13px;
-    bottom: 13px;
-    width: 3px;
-    border-radius: 99px;
-    background: #67e8f9;
-  }
-</style>
+<!-- components/header.html -->
+<!-- Stable Header v7.1: old working structure + Documents menu -->
 <div
   id="mobileOverlay"
-  class="fixed inset-0 z-40 hidden bg-slate-950/60 md:hidden"
+  class="fixed inset-0 z-40 hidden bg-slate-900/50 opacity-0 backdrop-blur-sm transition-opacity duration-300 dark:bg-black/60 md:hidden"
 ></div>
 
 <aside
   id="sidebar"
-  class="fixed inset-y-0 left-0 z-50 flex w-72 -translate-x-full flex-col border-r border-slate-800 text-slate-300 transition-transform md:relative md:translate-x-0"
+  class="transition-theme fixed inset-y-0 left-0 z-50 flex w-72 -translate-x-full transform flex-col border-r border-slate-800 bg-brand-900 text-slate-300 shadow-xl transition-transform duration-300 ease-in-out md:relative md:translate-x-0"
 >
-  <div class="flex items-center justify-between border-b border-slate-800 p-6">
+  <div
+    class="flex items-center justify-between border-b border-slate-800 bg-slate-900/50 p-6"
+  >
     <div class="flex items-center gap-3">
       <div
-        class="grid h-10 w-10 place-items-center rounded-lg bg-sky-500 text-white"
+        class="transition-theme flex h-10 w-10 items-center justify-center rounded-lg bg-brand-600 text-white shadow-sm dark:bg-sky-600"
       >
-        <i class="fa-solid fa-building"></i>
+        <i class="fa-solid fa-building text-xl"></i>
       </div>
       <div>
-        <h1 class="text-base font-bold text-white">ระบบบริหารจัดการ</h1>
-        <p class="text-[10px] text-slate-400">สารสนเทศและสื่อสารองค์กร</p>
+        <h1
+          class="whitespace-nowrap text-base font-bold tracking-wide text-white"
+        >
+          ระบบบริหารจัดการ
+        </h1>
+        <p class="text-[10px] leading-tight text-brand-100/70">
+          สารสนเทศและสื่อสารองค์กร
+        </p>
       </div>
     </div>
-    <button id="closeSidebarBtn" class="md:hidden" type="button">
-      <i class="fa-solid fa-xmark"></i>
+
+    <button
+      id="closeSidebarBtn"
+      class="flex h-8 w-8 items-center justify-center rounded-md text-slate-400 hover:bg-slate-800 hover:text-white md:hidden"
+      type="button"
+    >
+      <i class="fa-solid fa-xmark text-xl"></i>
     </button>
   </div>
 
   <div class="flex-1 overflow-y-auto p-6">
-    <div class="mb-3 text-[11px] font-semibold uppercase text-slate-500">
+    <div
+      class="mb-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500"
+    >
       เมนูหลัก
     </div>
-    <nav class="space-y-1.5">
+
+    <nav class="space-y-1.5" id="sidebarNav">
       <a
         href="dashboard.html"
         data-page="dashboard"
-        class="shared-nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        class="nav-item flex items-center gap-3 rounded-lg px-4 py-3 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"
       >
-        <i class="fa-solid fa-table-cells-large"></i>
+        <i class="fa-solid fa-table-cells-large text-lg"></i>
         <span>ภาพรวม (Dashboard)</span>
       </a>
+
       <a
         href="leave.html"
         data-page="leave"
-        class="shared-nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        class="nav-item flex items-center gap-3 rounded-lg px-4 py-3 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"
       >
-        <i class="fa-regular fa-calendar"></i>
+        <i class="fa-regular fa-calendar text-lg"></i>
         <span>ระบบจัดการวันลา</span>
       </a>
+
       <a
         href="projects.html"
         data-page="projects"
-        class="shared-nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        class="nav-item flex items-center gap-3 rounded-lg px-4 py-3 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"
       >
-        <i class="fa-solid fa-chart-line"></i>
+        <i class="fa-solid fa-chart-line text-lg"></i>
         <span>โครงการและงบประมาณ</span>
       </a>
+
       <a
         href="meeting.html"
         data-page="meeting"
-        class="shared-nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        class="nav-item flex items-center gap-3 rounded-lg px-4 py-3 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"
       >
-        <i class="fa-solid fa-calendar-check"></i>
+        <i class="fa-solid fa-calendar-check text-lg"></i>
         <span>ระบบจองห้องประชุม</span>
       </a>
+
       <a
         href="documents.html"
         data-page="documents"
-        class="shared-nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        class="nav-item flex items-center gap-3 rounded-lg px-4 py-3 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"
       >
-        <i class="fa-solid fa-folder"></i>
+        <i class="fa-solid fa-folder text-lg"></i>
         <span>จัดเก็บเอกสาร</span>
       </a>
     </nav>
+
+    <div id="adminMenu" class="mt-8 hidden">
+      <div
+        class="mb-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500"
+      >
+        ผู้ดูแลระบบ
+      </div>
+      <nav class="space-y-1.5">
+        <a
+          href="admin.html"
+          data-page="admin"
+          class="nav-item flex items-center gap-3 rounded-lg px-4 py-3 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"
+        >
+          <i class="fa-solid fa-users-gear text-lg"></i>
+          <span>จัดการผู้ใช้งานและสิทธิ์</span>
+        </a>
+      </nav>
+    </div>
   </div>
 
-  <div class="border-t border-slate-800 p-6">
+  <div class="border-t border-slate-800 bg-slate-900/80 p-6">
     <div class="mb-4 flex items-center gap-3">
-      <span class="grid h-10 w-10 place-items-center rounded-full bg-slate-800">
-        <i class="fa-regular fa-user"></i>
-      </span>
-      <div>
-        <strong id="userName" class="text-sm text-white">ผู้ใช้งาน</strong>
-        <p id="userRole" class="text-xs text-slate-400">เจ้าหน้าที่</p>
+      <div
+        class="flex h-10 w-10 items-center justify-center rounded-full border border-slate-700 bg-slate-800 text-slate-300"
+      >
+        <i class="fa-regular fa-user text-xl"></i>
+      </div>
+      <div class="overflow-hidden">
+        <div id="userName" class="truncate text-sm font-medium text-white">
+          กำลังโหลด...
+        </div>
+        <div
+          id="userRole"
+          class="truncate text-[11px] text-brand-400 dark:text-sky-400"
+        >
+          ...
+        </div>
       </div>
     </div>
+
     <button
       id="logoutBtn"
-      class="w-full rounded-lg border border-red-400/40 p-2 text-red-400"
+      class="flex w-full items-center justify-center gap-2 rounded-lg border border-red-500/30 px-4 py-2.5 text-sm text-red-400 transition-colors hover:bg-red-500 hover:text-white"
       type="button"
     >
       <i class="fa-solid fa-right-from-bracket"></i>
-      ออกจากระบบ
+      <span>ออกจากระบบ</span>
     </button>
   </div>
 </aside>
 
-<main class="min-h-screen min-w-0 flex-1">
+<main
+  class="transition-theme flex min-w-0 flex-1 flex-col bg-slate-50 dark:bg-slate-900"
+>
   <header
-    class="sticky top-0 z-30 flex items-center gap-3 border-b border-slate-200 bg-white/90 px-6 py-4 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90"
+    class="transition-theme sticky top-0 z-30 flex h-20 items-center justify-between border-b border-slate-200 bg-white px-6 shadow-sm dark:border-slate-700 dark:bg-slate-800 lg:px-8"
   >
-    <button id="mobileMenuBtn" class="md:hidden" type="button">
-      <i class="fa-solid fa-bars"></i>
-    </button>
-    <div class="flex-1">
-      <h2 id="pageTitle" class="font-black text-slate-900 dark:text-white"></h2>
-      <p id="pageSubtitle" class="text-xs text-slate-500"></p>
+    <div class="flex items-center gap-4">
+      <button
+        id="mobileMenuBtn"
+        class="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-600 transition-colors hover:bg-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 md:hidden"
+        type="button"
+      >
+        <i class="fa-solid fa-bars text-xl"></i>
+      </button>
+
+      <div>
+        <h2
+          id="pageTitle"
+          class="transition-theme text-xl font-bold text-slate-800 dark:text-white md:text-2xl"
+        >
+          ภาพรวมระบบ
+        </h2>
+        <p
+          id="pageSubtitle"
+          class="transition-theme hidden text-sm text-slate-500 dark:text-slate-400 sm:block"
+        >
+          ข้อมูลสรุปการทำงานและสถานะปัจจุบัน
+        </p>
+      </div>
     </div>
-    <button
-      id="themeToggleBtn"
-      class="h-10 w-10 rounded-full border border-slate-300 text-slate-700 dark:border-slate-700 dark:text-slate-200"
-      type="button"
-      aria-label="เปลี่ยนธีม"
-    >
-      <i id="themeIcon" class="fa-solid fa-moon"></i>
-    </button>
+
+    <div class="flex items-center gap-3">
+      <button
+        id="themeToggleBtn"
+        class="theme-toggle-btn flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-slate-600 transition-colors hover:bg-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-yellow-400 dark:hover:bg-slate-600"
+        type="button"
+      >
+        <i
+          class="theme-toggle-icon sun-icon fa-solid fa-sun text-xl"
+        ></i>
+        <i
+          class="theme-toggle-icon moon-icon fa-solid fa-moon text-xl"
+        ></i>
+      </button>
+
+      <button
+        class="relative flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-slate-600 transition-colors hover:bg-brand-50 hover:text-brand-600 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600 dark:hover:text-sky-400"
+        type="button"
+      >
+        <i class="fa-regular fa-bell text-lg"></i>
+        <span
+          class="absolute right-2.5 top-2.5 h-2 w-2 rounded-full border border-white bg-red-500 dark:border-slate-800"
+        ></span>
+      </button>
+    </div>
   </header>
-  <div id="pageContent" class="p-4 md:p-7"></div>
+
+  <div
+    class="z-10 flex-1 overflow-y-auto p-6 lg:p-8"
+    id="pageContent"
+  ></div>
 </main>
