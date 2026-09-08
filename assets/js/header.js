@@ -1,7 +1,7 @@
-// assets/js/header.js - Shared Sidebar v9
-console.log("header.js loaded: shared-sidebar-v9");
+// assets/js/header.js - Shared Sidebar v10
+console.log("header.js loaded: shared-sidebar-v10");
 
-const HEADER_VERSION = "shared-sidebar-v9";
+const HEADER_VERSION = "shared-sidebar-v10";
 const ROLE_LABELS = {
   admin: "ผู้ดูแลระบบ",
   administrator: "ผู้ดูแลระบบ",
@@ -109,6 +109,7 @@ function setActiveMenu() {
   const map = {
     "dashboard.html": "dashboard",
     "leave.html": "leave",
+    "calendar.html": "calendar",
     "projects.html": "projects",
     "meeting.html": "meeting",
     "documents.html": "documents",
