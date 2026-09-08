@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="light dark" />
+  <title>ปฏิทินกิจกรรม</title>
+
+  <script>
+    tailwind = window.tailwind || {};
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: "#f0f9ff",
+              100: "#e0f2fe",
+              400: "#38bdf8",
+              600: "#0284c7",
+              900: "#0f172a"
+            }
+          },
+          fontFamily: {
+            sans: ["Noto Sans Thai", "sans-serif"]
+          }
+        }
+      }
+    };
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <link rel="stylesheet" href="assets/css/header.css" />
+
+  <link rel="stylesheet" href="assets/css/calendar.css?v=calendar-ui-v1" />
+</head>
+<body
+  id="appBody"
+  class="hidden bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100"
+  data-title="ปฏิทินกิจกรรม"
+  data-subtitle="จัดการและติดตามกิจกรรมทั้งหมด"
+  data-active-menu="calendar"
+>
+  <div id="layoutRoot" class="min-h-screen md:h-screen flex overflow-hidden"></div>
+
+  <template id="calendarPageTemplate">
+    <section class="calendar-page max-w-[1650px] mx-auto w-full">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
+        <div>
+          <h3 class="text-lg font-bold text-slate-800 dark:text-white">ภาพรวมกิจกรรม</h3>
+          <p class="text-sm text-slate-500 dark:text-slate-400">ดูหมายกำหนดการและกิจกรรมขององค์กรในที่เดียว</p>
+        </div>
+        <button id="addEventBtn" type="button" class="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 transition">
+          <i class="fa-solid fa-plus"></i>
+          เพิ่มกิจกรรม
+        </button>
+      </div>
+
+      <div class="calendar-layout grid grid-cols-[minmax(0,1fr)_320px] gap-5 items-start">
+        <div class="calendar-card rounded-2xl overflow-hidden min-w-0">
+          <div class="p-4 lg:p-5 border-b border-slate-200 dark:border-slate-700 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-2">
+              <button type="button" id="todayBtn" class="h-10 px-4 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-600">วันนี้</button>
+              <button type="button" class="calendar-nav-btn w-10 h-10 rounded-lg border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700" aria-label="เดือนก่อนหน้า"><i class="fa-solid fa-chevron-left"></i></button>
+              <button type="button" class="calendar-nav-btn w-10 h-10 rounded-lg border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700" aria-label="เดือนถัดไป"><i class="fa-solid fa-chevron-right"></i></button>
+            </div>
+
+            <div class="calendar-toolbar-title text-center">
+              <h4 class="text-lg font-bold text-slate-800 dark:text-white">กันยายน 2569</h4>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <div class="hidden sm:flex rounded-lg bg-slate-100 dark:bg-slate-700 p-1">
+                <button type="button" class="view-btn px-4 py-2 text-sm font-semibold rounded-md bg-blue-600 text-white" data-view="month">เดือน</button>
+                <button type="button" class="view-btn px-4 py-2 text-sm font-medium rounded-md text-slate-600 dark:text-slate-300" data-view="week">สัปดาห์</button>
+                <button type="button" class="view-btn px-4 py-2 text-sm font-medium rounded-md text-slate-600 dark:text-slate-300" data-view="day">วัน</button>
+              </div>
+              <button id="mobileFilterBtn" type="button" class="xl:hidden h-10 px-4 rounded-lg border border-slate-200 dark:border-slate-600 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-700">
+                <i class="fa-solid fa-filter mr-1"></i> ตัวกรอง
+              </button>
+            </div>
+          </div>
+
+          <div class="p-3 lg:p-4 overflow-x-auto">
+            <div class="min-w-[690px]">
+              <div id="calendarGrid" class="calendar-grid rounded-xl overflow-hidden"></div>
+            </div>
+          </div>
+
+          <div class="px-5 py-4 border-t border-slate-200 dark:border-slate-700 flex flex-wrap gap-x-5 gap-y-2 text-xs text-slate-600 dark:text-slate-300">
+            <span class="flex items-center gap-2"><i class="filter-dot bg-sky-500"></i>ประชุมโครงการ</span>
+            <span class="flex items-center gap-2"><i class="filter-dot bg-green-500"></i>คณะดูงาน</span>
+            <span class="flex items-center gap-2"><i class="filter-dot bg-purple-500"></i>อบรม / สัมมนา</span>
+            <span class="flex items-center gap-2"><i class="filter-dot bg-amber-500"></i>ประชุมหัวหน้า</span>
+            <span class="flex items-center gap-2"><i class="filter-dot bg-rose-400"></i>วันหยุด</span>
+          </div>
+        </div>
+
+        <aside id="filterDrawer" class="filter-drawer space-y-4">
+          <div class="calendar-side-card rounded-2xl p-5">
+            <div class="flex items-center justify-between gap-3 mb-4">
+              <h4 class="font-bold text-slate-800 dark:text-white">ตัวกรอง</h4>
+              <div class="flex items-center gap-3">
+                <button id="clearFiltersBtn" type="button" class="text-xs font-medium text-blue-600 dark:text-sky-400 hover:underline">ล้างตัวกรอง</button>
+                <button id="closeFilterBtn" type="button" class="xl:hidden w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700" aria-label="ปิดตัวกรอง"><i class="fa-solid fa-xmark"></i></button>
+              </div>
+            </div>
+
+            <label class="relative block mb-5">
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+              <input id="eventSearch" type="search" placeholder="ค้นหาหัวข้อ รายละเอียด สถานที่..." class="w-full h-11 pl-10 pr-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" />
+            </label>
+
+            <div class="flex items-center justify-between mb-3">
+              <h5 class="text-sm font-bold">ประเภทกิจกรรม</h5>
+              <button id="selectAllBtn" type="button" class="text-xs text-blue-600 dark:text-sky-400 hover:underline">เลือกทั้งหมด</button>
+            </div>
+            <div id="categoryFilters" class="space-y-3"></div>
+
+            <div class="mt-6">
+              <h5 class="text-sm font-bold mb-3">สถานะ</h5>
+              <select id="statusFilter" class="w-full h-11 px-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm outline-none focus:border-blue-500">
+                <option value="all">ทั้งหมด</option>
+                <option value="confirmed">ยืนยันแล้ว</option>
+                <option value="pending">รอดำเนินการ</option>
+                <option value="cancelled">ยกเลิก</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="calendar-side-card rounded-2xl p-5">
+            <div class="flex items-center justify-between mb-4">
+              <h4 class="font-bold text-slate-800 dark:text-white">กิจกรรมที่กำลังจะมาถึง</h4>
+              <span id="resultCount" class="text-xs font-semibold text-blue-600 dark:text-sky-400"></span>
+            </div>
+            <div id="upcomingList" class="space-y-4"></div>
+          </div>
+        </aside>
+      </div>
+    </section>
+    <div id="mobileFilterBackdrop" class="mobile-filter-backdrop"></div>
+
+    <div id="eventModal" hidden class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/55 backdrop-blur-sm">
+      <div class="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xl overflow-hidden">
+        <div class="p-5 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+          <h4 id="modalTitle" class="font-bold text-lg"></h4>
+          <button id="closeModalBtn" type="button" class="w-9 h-9 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="p-5 space-y-4 text-sm">
+          <p id="modalCategory" class="font-semibold"></p>
+          <p><i class="fa-regular fa-calendar w-6 text-slate-400"></i><span id="modalDate"></span></p>
+          <p><i class="fa-regular fa-clock w-6 text-slate-400"></i><span id="modalTime"></span></p>
+          <p><i class="fa-solid fa-location-dot w-6 text-slate-400"></i><span id="modalLocation"></span></p>
+          <p id="modalDescription" class="text-slate-600 dark:text-slate-300 leading-6"></p>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <script type="module" src="assets/js/header.js"></script>
+  <script src="assets/js/calendar.js?v=calendar-ui-v1"></script>
+</body>
+</html>
