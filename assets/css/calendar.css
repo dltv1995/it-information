@@ -148,5 +148,3 @@ body { font-family: "Noto Sans Thai", sans-serif; }
 .dark .time-field-end :is(.form-control,.modern-trigger,.modern-picker-trigger,.custom-picker-trigger,.event-picker-trigger){border-color:#ef4444!important;background:linear-gradient(145deg,#1e293b,rgba(239,68,68,.13))!important}
 .dark .time-theme-start :is(.modern-time-pop,.custom-time-pop,.event-time-popover){border-color:#22c55e!important;background:linear-gradient(160deg,#1e293b,#14271b)!important}
 .dark .time-theme-end :is(.modern-time-pop,.custom-time-pop,.event-time-popover){border-color:#ef4444!important;background:linear-gradient(160deg,#1e293b,#30191d)!important}
-
-/* picker-modern-v3 */
