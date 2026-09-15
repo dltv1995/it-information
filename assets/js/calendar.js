@@ -44,7 +44,8 @@
     const host=document.getElementById("pageContent"), tpl=document.getElementById("calendarPageTemplate");
     if(!host||!tpl||host.dataset.calendarMounted==="true") return;
     host.dataset.calendarMounted="true"; host.appendChild(tpl.content.cloneNode(true));
-    bindEvents(); setupAttachmentField(); setDefaultDate(); renderAll();
+    moveCalendarOverlaysToBody();
+    bindEvents(); setDefaultDate(); renderAll();
   }
   function setDefaultDate(){ document.getElementById("eventDate").value=toDateKey(new Date(2026,8,15)); }
   function filteredEvents(){
@@ -106,20 +107,20 @@
       const cat=getCategory(e.categoryId); return `<button type="button" class="upcoming-button" data-event-id="${e.id}"><span class="upcoming-icon" style="color:${cat.color};background:${cat.color}18"><i class="fa-solid ${cat.icon||"fa-calendar"}"></i></span><span class="min-w-0"><strong class="block text-sm truncate">${escapeHtml(e.title)}</strong><span class="block text-xs text-slate-500 mt-1">${formatThaiDate(e.date)} ${e.start} - ${e.end}</span><span class="block text-xs text-slate-500 mt-1 truncate">${escapeHtml(e.location||"ไม่ระบุสถานที่")}</span></span></button>`;
     }).join(""):`<div class="py-8 text-center text-sm text-slate-400"><i class="fa-regular fa-calendar-xmark text-2xl mb-2 block"></i>ไม่พบกิจกรรม</div>`;
   }
-  function openModal(id){ const el=document.getElementById(id); if(el){ el.hidden=false; document.body.style.overflow="hidden"; } }
-  function closeModal(id){ const el=document.getElementById(id); if(el){ el.hidden=true; if(!document.querySelector(".modal:not([hidden])")) document.body.style.overflow=""; } }
+  function moveCalendarOverlaysToBody(){
+    ["categoryModal","eventFormModal","eventDetailModal","confirmModal","toastContainer","mobileFilterBackdrop"].forEach(id=>{
+      const element=document.getElementById(id);
+      if(element&&element.parentElement!==document.body)document.body.appendChild(element);
+    });
+  }
+  function openModal(id){ const el=document.getElementById(id); if(el){ if(el.parentElement!==document.body)document.body.appendChild(el); el.hidden=false; document.body.classList.add("calendar-modal-open"); document.body.style.overflow="hidden"; } }
+  function closeModal(id){ const el=document.getElementById(id); if(el){ el.hidden=true; if(!document.querySelector("body > .modal:not([hidden])")){ document.body.classList.remove("calendar-modal-open"); document.body.style.overflow=""; } } }
   function openEventDetail(id){
     const e=events.find(x=>x.id===id),cat=e&&getCategory(e.categoryId); if(!e||!cat)return;
     selectedEventId=id; document.getElementById("detailTitle").textContent=e.title; document.getElementById("detailCategory").textContent=cat.name;
     document.getElementById("detailDate").textContent=formatThaiDate(e.date); document.getElementById("detailTime").textContent=`${e.start} ถึง ${e.end} น.`;
     document.getElementById("detailLocation").textContent=e.location||"ไม่ระบุสถานที่"; document.getElementById("detailStatus").textContent=STATUS_LABELS[e.status]||e.status;
-    document.getElementById("detailDescription").textContent=e.description||"ไม่มีรายละเอียดเพิ่มเติม"; renderDetailAttachments(e.attachments||[]); openModal("eventDetailModal");
-  }
-  function renderDetailAttachments(files){
-    const description=document.getElementById("detailDescription");if(!description)return;
-    let section=document.getElementById("detailAttachments");
-    if(!section){section=document.createElement("div");section.id="detailAttachments";section.className="detail-attachments";description.after(section);}
-    section.innerHTML=files.length?`<strong><i class="fa-solid fa-paperclip"></i> ไฟล์แนบ ${files.length} ไฟล์</strong>${files.map(file=>`<div><i class="fa-solid ${calendarFileIcon(file)}"></i><span>${escapeHtml(file.name)}</span><small>${formatCalendarFileSize(file.size)}</small></div>`).join("")}`:`<span class="detail-no-files"><i class="fa-regular fa-folder-open"></i> ไม่มีไฟล์แนบ</span>`;
+    document.getElementById("detailDescription").textContent=e.description||"ไม่มีรายละเอียดเพิ่มเติม"; openModal("eventDetailModal");
   }
   function askConfirm(title,message,action){ pendingConfirmAction=action; document.getElementById("confirmTitle").textContent=title; document.getElementById("confirmMessage").textContent=message; openModal("confirmModal"); }
   function showToast(message,type="success"){ const box=document.getElementById("toastContainer"); const toast=document.createElement("div"); toast.className=`toast ${type}`; toast.textContent=message; box.appendChild(toast); setTimeout(()=>toast.remove(),2800); }
@@ -137,60 +138,12 @@
     const error=document.getElementById("eventFormError"); const title=document.getElementById("eventTitle").value.trim(), date=document.getElementById("eventDate").value, categoryId=document.getElementById("eventCategory").value, start=document.getElementById("eventStartTime").value, end=document.getElementById("eventEndTime").value;
     if(!title||!date||!categoryId||!start||!end){ error.textContent="กรุณากรอกหัวข้อ วันที่ ประเภท และเวลาให้ครบ"; error.hidden=false; return; }
     if(end<=start){ error.textContent="เวลาสิ้นสุดต้องมากกว่าเวลาเริ่ม"; error.hidden=false; return; }
-    events.push({ id:cryptoId(), title,date,categoryId,start,end,status:document.getElementById("eventStatus").value,location:document.getElementById("eventLocation").value.trim(),description:document.getElementById("eventDescription").value.trim(),attachments:calendarDraftFiles.map(file=>({name:file.name,size:file.size,type:file.type||"application/octet-stream"})) });
-    currentDate=parseDateKey(date); selectedCategories.add(categoryId); document.getElementById("eventForm").reset(); resetCalendarAttachments(); setDefaultDate(); error.hidden=true; closeModal("eventFormModal"); renderAll(); showToast("บันทึกกิจกรรมจำลองแล้ว");
+    events.push({ id:cryptoId(), title,date,categoryId,start,end,status:document.getElementById("eventStatus").value,location:document.getElementById("eventLocation").value.trim(),description:document.getElementById("eventDescription").value.trim() });
+    currentDate=parseDateKey(date); selectedCategories.add(categoryId); document.getElementById("eventForm").reset(); setDefaultDate(); error.hidden=true; closeModal("eventFormModal"); renderAll(); showToast("บันทึกกิจกรรมจำลองแล้ว");
   }
   function fillSample(){
     document.getElementById("eventTitle").value="ประชุมเตรียมต้อนรับคณะดูงาน"; document.getElementById("eventDate").value="2026-09-18"; document.getElementById("eventStartTime").value="09:30"; document.getElementById("eventEndTime").value="11:00"; document.getElementById("eventLocation").value="ห้องประชุม 2 ชั้น 3"; document.getElementById("eventDescription").value="เตรียมกำหนดการ ผู้รับผิดชอบ และเอกสารต้อนรับคณะดูงาน"; if(getCategory("visit"))document.getElementById("eventCategory").value="visit";
   }
-  const CALENDAR_MAX_FILES=5;
-  const CALENDAR_MAX_FILE_SIZE=10*1024*1024;
-  let calendarDraftFiles=[];
-  function setupAttachmentField(){
-    const form=document.getElementById("eventForm"),grid=form?.querySelector(".form-grid");
-    if(!form||!grid||document.getElementById("eventAttachments"))return;
-    const field=document.createElement("div");
-    field.className="form-field form-span-2 calendar-attachment-field";
-    field.innerHTML=`<span>ไฟล์แนบ <small>(ไม่เกิน ${CALENDAR_MAX_FILES} ไฟล์ ไฟล์ละไม่เกิน 10 MB)</small></span>
-      <input id="eventAttachments" type="file" multiple hidden>
-      <div id="calendarFileDrop" class="calendar-file-drop" tabindex="0" role="button" aria-label="เลือกไฟล์แนบ">
-        <span class="calendar-upload-icon"><i class="fa-solid fa-cloud-arrow-up"></i></span>
-        <div class="calendar-upload-copy"><strong>แนบเอกสารประกอบกิจกรรม</strong><small>คลิกเพื่อเลือกไฟล์ หรือลากไฟล์มาวางที่นี่</small></div>
-        <button id="chooseCalendarFilesBtn" type="button" class="calendar-choose-file-btn"><i class="fa-solid fa-paperclip"></i> เลือกไฟล์</button>
-      </div>
-      <div id="calendarFileList" class="calendar-file-list"></div>`;
-    const statusField=document.getElementById("eventStatus")?.closest(".form-field");
-    if(statusField)grid.insertBefore(field,statusField);else grid.appendChild(field);
-    const input=field.querySelector("#eventAttachments"),drop=field.querySelector("#calendarFileDrop"),choose=field.querySelector("#chooseCalendarFilesBtn");
-    choose.onclick=e=>{e.stopPropagation();input.click();};
-    drop.onclick=e=>{if(!e.target.closest("button"))input.click();};
-    drop.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();input.click();}};
-    input.onchange=e=>{addCalendarFiles([...e.target.files]);input.value="";};
-    ["dragenter","dragover"].forEach(name=>drop.addEventListener(name,e=>{e.preventDefault();drop.classList.add("is-dragging");}));
-    ["dragleave","drop"].forEach(name=>drop.addEventListener(name,e=>{e.preventDefault();drop.classList.remove("is-dragging");}));
-    drop.addEventListener("drop",e=>addCalendarFiles([...e.dataTransfer.files]));
-    field.querySelector("#calendarFileList").onclick=e=>{const button=e.target.closest("[data-remove-calendar-file]");if(!button)return;calendarDraftFiles.splice(Number(button.dataset.removeCalendarFile),1);renderCalendarFiles();};
-    renderCalendarFiles();
-  }
-  function addCalendarFiles(files){
-    const error=document.getElementById("eventFormError");
-    for(const file of files){
-      if(calendarDraftFiles.length>=CALENDAR_MAX_FILES){showAttachmentError(`แนบไฟล์ได้สูงสุด ${CALENDAR_MAX_FILES} ไฟล์`);break;}
-      if(file.size>CALENDAR_MAX_FILE_SIZE){showAttachmentError(`${file.name} มีขนาดเกิน 10 MB`);continue;}
-      if(calendarDraftFiles.some(item=>item.name===file.name&&item.size===file.size)){showAttachmentError(`${file.name} ถูกเลือกไว้แล้ว`);continue;}
-      calendarDraftFiles.push(file);
-    }
-    if(error&&calendarDraftFiles.length)error.hidden=true;
-    renderCalendarFiles();
-  }
-  function showAttachmentError(message){const error=document.getElementById("eventFormError");if(error){error.textContent=message;error.hidden=false;}else showToast(message,"error");}
-  function renderCalendarFiles(){
-    const list=document.getElementById("calendarFileList");if(!list)return;
-    list.innerHTML=calendarDraftFiles.length?calendarDraftFiles.map((file,index)=>`<div class="calendar-file-item"><span class="calendar-file-type"><i class="fa-solid ${calendarFileIcon(file)}"></i></span><div><strong title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</strong><small>${formatCalendarFileSize(file.size)} · พร้อมแนบ</small></div><button type="button" data-remove-calendar-file="${index}" title="นำไฟล์ออก"><i class="fa-solid fa-xmark"></i></button></div>`).join(""):`<div class="calendar-file-empty"><i class="fa-regular fa-folder-open"></i> ยังไม่ได้เลือกไฟล์</div>`;
-  }
-  function calendarFileIcon(file){const type=file.type||"",name=file.name.toLowerCase();if(type.includes("pdf")||name.endsWith(".pdf"))return "fa-file-pdf";if(type.includes("image"))return "fa-file-image";if(name.endsWith(".doc")||name.endsWith(".docx"))return "fa-file-word";if(name.endsWith(".xls")||name.endsWith(".xlsx"))return "fa-file-excel";if(name.endsWith(".ppt")||name.endsWith(".pptx"))return "fa-file-powerpoint";return "fa-file-lines";}
-  function formatCalendarFileSize(bytes){if(bytes<1024)return `${bytes} B`;if(bytes<1024*1024)return `${(bytes/1024).toFixed(1)} KB`;return `${(bytes/1024/1024).toFixed(1)} MB`;}
-  function resetCalendarAttachments(){calendarDraftFiles=[];renderCalendarFiles();}
   function bindEvents(){
     document.getElementById("manageCategoriesBtn").addEventListener("click",()=>openModal("categoryModal"));
     document.getElementById("addEventBtn").addEventListener("click",()=>{ renderCategorySelect(); openModal("eventFormModal"); });
