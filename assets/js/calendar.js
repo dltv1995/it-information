@@ -44,9 +44,9 @@
     const host=document.getElementById("pageContent"), tpl=document.getElementById("calendarPageTemplate");
     if(!host||!tpl||host.dataset.calendarMounted==="true") return;
     host.dataset.calendarMounted="true"; host.appendChild(tpl.content.cloneNode(true));
-    bindEvents(); setDefaultDate(); renderAll();
+    bindEvents(); setupEventPickers(); setDefaultDate(); syncPickerDisplays(); renderAll();
   }
-  function setDefaultDate(){ document.getElementById("eventDate").value=toDateKey(new Date(2026,8,15)); }
+  function setDefaultDate(){ document.getElementById("eventDate").value=toDateKey(new Date(2026,8,15)); syncPickerDisplays(); }
   function filteredEvents(){
     const q=keyword.trim().toLowerCase();
     return events.filter(e=>{
@@ -137,17 +137,59 @@
   function fillSample(){
     document.getElementById("eventTitle").value="ประชุมเตรียมต้อนรับคณะดูงาน"; document.getElementById("eventDate").value="2026-09-18"; document.getElementById("eventStartTime").value="09:30"; document.getElementById("eventEndTime").value="11:00"; document.getElementById("eventLocation").value="ห้องประชุม 2 ชั้น 3"; document.getElementById("eventDescription").value="เตรียมกำหนดการ ผู้รับผิดชอบ และเอกสารต้อนรับคณะดูงาน"; if(getCategory("visit"))document.getElementById("eventCategory").value="visit";
   }
+  const eventPickerState={start:{hour:null,minute:null},end:{hour:null,minute:null}};
+  let eventDateView=new Date(2026,8,1);
+  function setupEventPickers(){setupDatePicker();setupTimePicker("eventStartTime","start");setupTimePicker("eventEndTime","end");}
+  function setupDatePicker(){
+    const input=document.getElementById("eventDate");if(!input||input.dataset.enhanced)return;
+    input.dataset.enhanced="1";input.type="hidden";
+    const root=document.createElement("div");root.className="event-date-picker";
+    root.innerHTML='<button type="button" class="event-picker-trigger date-trigger"><strong>เลือกวันที่</strong><i class="fa-regular fa-calendar"></i></button><div class="event-date-popover hidden"></div>';
+    input.before(root);root.appendChild(input);
+    root.querySelector('.date-trigger').onclick=e=>{e.stopPropagation();closeEventPickers();const d=input.value?parseDateKey(input.value):new Date();eventDateView=new Date(d.getFullYear(),d.getMonth(),1);drawDatePicker(root);root.querySelector('.event-date-popover').classList.remove('hidden');};
+  }
+  function drawDatePicker(root){
+    const input=root.querySelector('#eventDate'),pop=root.querySelector('.event-date-popover'),y=eventDateView.getFullYear(),m=eventDateView.getMonth(),first=new Date(y,m,1),start=new Date(y,m,1-first.getDay()),selected=input.value,today=toDateKey(new Date());
+    let days='';for(let i=0;i<42;i++){const d=new Date(start);d.setDate(start.getDate()+i);const key=toDateKey(d);days+=`<button type="button" data-pick-date="${key}" class="${d.getMonth()!==m?'outside ':''}${key===selected?'selected ':''}${key===today?'today':''}">${d.getDate()}</button>`;}
+    pop.innerHTML=`<div class="event-date-head"><strong>${MONTHS_TH[m]} ${y+543}</strong><div class="date-nav"><button data-prev-date type="button"><i class="fa-solid fa-chevron-left"></i></button><button data-next-date type="button"><i class="fa-solid fa-chevron-right"></i></button><button type="button" class="event-picker-close"><i class="fa-solid fa-xmark"></i></button></div></div><div class="date-weekdays">${['อา','จ','อ','พ','พฤ','ศ','ส'].map(v=>`<span>${v}</span>`).join('')}</div><div class="date-days">${days}</div><div class="date-actions"><button data-clear-date type="button">ล้าง</button><button data-today-date type="button">วันนี้</button></div>`;
+    pop.onclick=e=>e.stopPropagation();pop.querySelector('.event-picker-close').onclick=()=>pop.classList.add('hidden');
+    pop.querySelector('[data-prev-date]').onclick=()=>{eventDateView.setMonth(eventDateView.getMonth()-1);drawDatePicker(root);};
+    pop.querySelector('[data-next-date]').onclick=()=>{eventDateView.setMonth(eventDateView.getMonth()+1);drawDatePicker(root);};
+    pop.querySelector('[data-clear-date]').onclick=()=>{input.value='';syncPickerDisplays();pop.classList.add('hidden');};
+    pop.querySelector('[data-today-date]').onclick=()=>{input.value=toDateKey(new Date());syncPickerDisplays();pop.classList.add('hidden');};
+    pop.querySelectorAll('[data-pick-date]').forEach(b=>b.onclick=()=>{input.value=b.dataset.pickDate;syncPickerDisplays();pop.classList.add('hidden');});
+  }
+  function setupTimePicker(id,kind){
+    const input=document.getElementById(id);if(!input||input.dataset.enhanced)return;
+    input.dataset.enhanced='1';input.type='hidden';const root=document.createElement('div');root.className=`event-time-picker ${kind==='end'?'end-picker':''}`;
+    root.innerHTML=`<button type="button" class="event-picker-trigger time-trigger"><strong>--:--</strong><i class="fa-regular fa-clock"></i></button><div class="event-time-popover ${kind==='end'?'right':''} hidden"></div>`;
+    input.before(root);root.appendChild(input);root.querySelector('.time-trigger').onclick=e=>{e.stopPropagation();closeEventPickers();const [h,n]=(input.value||'').split(':');eventPickerState[kind]={hour:h||null,minute:n||null};drawTimePicker(root,input,kind);root.querySelector('.event-time-popover').classList.remove('hidden');};
+  }
+  function drawTimePicker(root,input,kind){
+    const pop=root.querySelector('.event-time-popover'),st=eventPickerState[kind],hours=Array.from({length:24},(_,i)=>String(i).padStart(2,'0')),mins=Array.from({length:12},(_,i)=>String(i*5).padStart(2,'0'));
+    pop.innerHTML=`<div class="event-time-head"><strong>${kind==='start'?'เลือกเวลาเริ่ม':'เลือกเวลาสิ้นสุด'}</strong><button type="button" class="event-picker-close"><i class="fa-solid fa-xmark"></i></button></div><div class="time-preview"><span>${st.hour||'--'}</span><b>:</b><span>${st.minute||'--'}</span></div><small class="picker-label">เลือกชั่วโมง</small><div class="hour-grid">${hours.map(v=>`<button type="button" data-hour="${v}" class="${st.hour===v?'active':''}">${v}</button>`).join('')}</div><small class="picker-label">เลือกนาที</small><div class="minute-grid">${mins.map(v=>`<button type="button" data-minute="${v}" class="${st.minute===v?'active':''}">${v}</button>`).join('')}</div><button type="button" class="time-apply" ${!st.hour||!st.minute?'disabled':''}>ใช้เวลานี้</button>`;
+    pop.onclick=e=>e.stopPropagation();pop.querySelector('.event-picker-close').onclick=()=>pop.classList.add('hidden');
+    pop.querySelectorAll('[data-hour]').forEach(b=>b.onclick=()=>{st.hour=b.dataset.hour;drawTimePicker(root,input,kind);});
+    pop.querySelectorAll('[data-minute]').forEach(b=>b.onclick=()=>{st.minute=b.dataset.minute;drawTimePicker(root,input,kind);});
+    pop.querySelector('.time-apply').onclick=()=>{if(!st.hour||!st.minute)return;input.value=`${st.hour}:${st.minute}`;syncPickerDisplays();pop.classList.add('hidden');};
+  }
+  function syncPickerDisplays(){
+    const date=document.getElementById('eventDate'),dateText=document.querySelector('.date-trigger strong');if(dateText)dateText.textContent=date?.value?formatThaiDate(date.value):'เลือกวันที่';
+    ['eventStartTime','eventEndTime'].forEach(id=>{const input=document.getElementById(id),text=input?.closest('.event-time-picker')?.querySelector('.time-trigger strong');if(text)text.textContent=input.value||'--:--';});
+  }
+  function closeEventPickers(){document.querySelectorAll('.event-date-popover,.event-time-popover').forEach(x=>x.classList.add('hidden'));}
   function bindEvents(){
     document.getElementById("manageCategoriesBtn").addEventListener("click",()=>openModal("categoryModal"));
     document.getElementById("addEventBtn").addEventListener("click",()=>{ renderCategorySelect(); openModal("eventFormModal"); });
     document.getElementById("categoryForm").addEventListener("submit",e=>{e.preventDefault();addCategory();});
     document.getElementById("eventForm").addEventListener("submit",e=>{e.preventDefault();saveEvent();});
-    document.getElementById("fillSampleBtn").addEventListener("click",fillSample);
+    document.getElementById("fillSampleBtn").addEventListener("click",()=>{fillSample();syncPickerDisplays();});
     document.addEventListener("click",e=>{
       const closer=e.target.closest("[data-close-modal]"); if(closer)closeModal(closer.dataset.closeModal);
       const eventBtn=e.target.closest("[data-event-id]"); if(eventBtn)openEventDetail(eventBtn.dataset.eventId);
       const catBtn=e.target.closest("[data-delete-category]"); if(catBtn)requestDeleteCategory(catBtn.dataset.deleteCategory);
       if(e.target.classList.contains("modal"))closeModal(e.target.id);
+      if(!e.target.closest(".event-date-picker,.event-time-picker"))closeEventPickers();
     });
     document.getElementById("categoryFilters").addEventListener("change",e=>{ if(!e.target.classList.contains("category-filter"))return; e.target.checked?selectedCategories.add(e.target.value):selectedCategories.delete(e.target.value); renderCalendar();renderUpcoming(); });
     document.getElementById("eventSearch").addEventListener("input",e=>{keyword=e.target.value;renderCalendar();renderUpcoming();});
