@@ -43,7 +43,7 @@
   function mountPage(){
     const host=document.getElementById("pageContent"), tpl=document.getElementById("calendarPageTemplate");
     if(!host||!tpl||host.dataset.calendarMounted==="true") return;
-    host.dataset.calendarMounted="true"; host.appendChild(tpl.content.cloneNode(true));
+    host.dataset.calendarMounted="true"; host.appendChild(tpl.content.cloneNode(true)); document.body.classList.add("calendar-ui-page");
     bindEvents(); applyTimeColorTheme(); setDefaultDate(); renderAll();
   }
   function setDefaultDate(){ document.getElementById("eventDate").value=toDateKey(new Date(2026,8,15)); }
