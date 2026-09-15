@@ -364,3 +364,66 @@ html.dark body{
 .dark .time-theme-start :is(.modern-preview,.modern-time-preview,.custom-time-preview,.time-preview){background:linear-gradient(135deg,#174c2b,#123720) !important;color:#86efac !important}
 .dark .time-theme-end :is(.modern-preview,.modern-time-preview,.custom-time-preview,.time-preview){background:linear-gradient(135deg,#5a2027,#40181f) !important;color:#fca5a5 !important}
 .dark ::-webkit-scrollbar{width:10px;height:10px}.dark ::-webkit-scrollbar-track{background:#0a1629}.dark ::-webkit-scrollbar-thumb{background:linear-gradient(#35557d,#243f62);border:2px solid #0a1629;border-radius:999px}.dark ::-webkit-scrollbar-thumb:hover{background:linear-gradient(#4772a5,#315783)}
+
+
+/* safe-picker-v1: isolated date and time pickers; no changes to upload or modal structure */
+.safe-date-picker,
+.safe-time-picker{position:relative;min-width:0}
+.safe-picker-trigger{width:100%;min-height:50px;display:flex;align-items:center;gap:10px;padding:11px 14px;border:2px solid #cbd5e1;border-radius:15px;background:#fff;color:#334155;text-align:left;transition:border-color .18s ease,box-shadow .18s ease,background .18s ease}
+.safe-picker-trigger strong{flex:1;color:#0f172a;font-size:15px;font-weight:900;font-variant-numeric:tabular-nums}
+.safe-picker-trigger>i{color:#0284c7}
+.safe-picker-trigger:hover,.safe-picker-trigger:focus{border-color:#38bdf8;box-shadow:0 0 0 4px rgba(14,165,233,.12);outline:none}
+.safe-date-panel,.safe-time-panel{position:absolute;top:calc(100% + 8px);left:0;z-index:10050;width:min(390px,calc(100vw - 40px));padding:16px;border:1px solid #bae6fd;border-radius:22px;background:#fff;box-shadow:0 28px 70px rgba(15,23,42,.25);animation:safePickerIn .16s ease}
+.safe-time-picker.time-theme-end .safe-time-panel{left:auto;right:0;border-color:#fecaca}
+.safe-picker-header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+.safe-picker-header>strong{color:#0f172a;font-size:15px;font-weight:900}
+.safe-level-button{display:flex;align-items:center;gap:7px;padding:0 8px;min-height:34px;border-radius:10px;color:#0f172a;font-size:16px;font-weight:900}
+.safe-level-button:hover{background:#f1f5f9}
+.safe-level-button i{font-size:10px;color:#64748b}
+.safe-picker-nav{display:flex;gap:5px}
+.safe-picker-nav button{width:32px;height:32px;display:grid;place-items:center;border-radius:9px;background:#f1f5f9;color:#475569}
+.safe-picker-nav button:hover{background:#e0f2fe;color:#0369a1}
+.safe-weekdays,.safe-days{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.safe-weekdays span{text-align:center;padding:5px 0;color:#64748b;font-size:11px;font-weight:800}
+.safe-days button{height:36px;border-radius:10px;color:#334155;font-size:12px;font-weight:800}
+.safe-days button:hover,.safe-months button:hover,.safe-years button:hover{background:#e0f2fe;color:#0369a1}
+.safe-days button.is-outside{color:#cbd5e1}
+.safe-days button.is-today{border:1px solid #38bdf8}
+.safe-days button.is-selected,.safe-months button.is-selected,.safe-years button.is-selected{background:linear-gradient(135deg,#0ea5e9,#2563eb);color:#fff;box-shadow:0 7px 16px rgba(37,99,235,.23)}
+.safe-months,.safe-years{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;min-height:245px;align-content:center}
+.safe-months button,.safe-years button{min-height:52px;padding:7px;border:1px solid #e2e8f0;border-radius:14px;background:#fff;color:#334155;font-size:13px;font-weight:900}
+.safe-picker-footer{display:flex;justify-content:space-between;margin-top:13px;padding-top:11px;border-top:1px solid #e2e8f0}
+.safe-picker-footer button{color:#2563eb;font-size:12px;font-weight:900}
+.safe-time-picker.time-theme-start .safe-picker-trigger{border-color:#86efac;background:linear-gradient(145deg,#fff,#f0fdf4)}
+.safe-time-picker.time-theme-end .safe-picker-trigger{border-color:#fca5a5;background:linear-gradient(145deg,#fff,#fef2f2)}
+.safe-time-picker.time-theme-start .safe-picker-trigger>i{color:#16a34a}
+.safe-time-picker.time-theme-end .safe-picker-trigger>i{color:#ef4444}
+.safe-picker-label{display:block;margin:9px 0 6px;color:#64748b;font-size:11px;font-weight:800}
+.safe-time-preview{margin:10px 0 13px;padding:13px;border-radius:16px;text-align:center;font-size:26px;font-weight:900;font-variant-numeric:tabular-nums}
+.safe-time-picker.time-theme-start .safe-time-preview{color:#15803d;background:linear-gradient(135deg,#dcfce7,#f0fdf4)}
+.safe-time-picker.time-theme-end .safe-time-preview{color:#dc2626;background:linear-gradient(135deg,#fee2e2,#fef2f2)}
+.safe-hours,.safe-minutes{display:grid;grid-template-columns:repeat(6,1fr);gap:5px}
+.safe-hours button,.safe-minutes button{height:35px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;color:#334155;font-size:11px;font-weight:900}
+.safe-hours button:hover,.safe-minutes button:hover{border-color:#94a3b8;background:#f8fafc}
+.safe-time-picker.time-theme-start :is(.safe-hours,.safe-minutes) button.is-selected{border-color:#16a34a;background:linear-gradient(135deg,#22c55e,#15803d);color:#fff}
+.safe-time-picker.time-theme-end :is(.safe-hours,.safe-minutes) button.is-selected{border-color:#ef4444;background:linear-gradient(135deg,#f87171,#dc2626);color:#fff}
+.safe-time-apply{width:100%;margin-top:13px;padding:11px;border-radius:12px;color:#fff;font-weight:900}
+.safe-time-picker.time-theme-start .safe-time-apply{background:linear-gradient(135deg,#22c55e,#15803d)}
+.safe-time-picker.time-theme-end .safe-time-apply{background:linear-gradient(135deg,#f87171,#dc2626)}
+.safe-time-apply:disabled{opacity:.4;cursor:not-allowed}
+.dark .safe-picker-trigger,.dark .safe-date-panel,.dark .safe-time-panel,.dark .safe-months button,.dark .safe-years button,.dark .safe-hours button,.dark .safe-minutes button{color:#dce8f7;background:linear-gradient(155deg,#172c48,#0d1e35);border-color:rgba(96,165,250,.36)}
+.dark .safe-picker-trigger strong,.dark .safe-picker-header>strong,.dark .safe-level-button{color:#f8fbff}
+.dark .safe-picker-nav button{background:#243a58;color:#cbd8e8}
+.dark .safe-level-button:hover,.dark .safe-picker-nav button:hover{background:#294a72}
+.dark .safe-days button{color:#c9d8ea}
+.dark .safe-days button.is-outside{color:#52657e}
+.dark .safe-months button:hover,.dark .safe-years button:hover,.dark .safe-days button:hover{background:#294a72;color:#fff}
+.dark .safe-picker-footer{border-color:rgba(125,158,202,.2)}
+.dark .safe-time-picker.time-theme-start .safe-picker-trigger{border-color:#22c55e;background:linear-gradient(145deg,#173326,#10291f)}
+.dark .safe-time-picker.time-theme-end .safe-picker-trigger{border-color:#ef4444;background:linear-gradient(145deg,#3a1d25,#2b171d)}
+.dark .safe-time-picker.time-theme-start .safe-time-panel{border-color:#22c55e;background:linear-gradient(155deg,#153423,#0b2116)}
+.dark .safe-time-picker.time-theme-end .safe-time-panel{border-color:#ef4444;background:linear-gradient(155deg,#3b1c23,#251218)}
+.dark .safe-time-picker.time-theme-start .safe-time-preview{color:#86efac;background:#174c2b}
+.dark .safe-time-picker.time-theme-end .safe-time-preview{color:#fca5a5;background:#5a2027}
+@keyframes safePickerIn{from{opacity:0;transform:translateY(-5px) scale(.98)}to{opacity:1;transform:none}}
+@media(max-width:767px){.safe-date-panel,.safe-time-panel,.safe-time-picker.time-theme-end .safe-time-panel{position:fixed;left:10px;right:10px;top:50%;width:auto;max-height:90dvh;overflow:auto;transform:translateY(-50%);animation:none}}
