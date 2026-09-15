@@ -1,169 +1,168 @@
 (() => {
-  const categories = {
-    project: { label: "ประชุมโครงการ", color: "bg-sky-500", className: "event-project", icon: "fa-diagram-project" },
-    visit: { label: "คณะดูงาน", color: "bg-green-500", className: "event-visit", icon: "fa-people-group" },
-    training: { label: "อบรม / สัมมนา", color: "bg-purple-500", className: "event-training", icon: "fa-graduation-cap" },
-    head: { label: "ประชุมหัวหน้า", color: "bg-amber-500", className: "event-head", icon: "fa-user-tie" },
-    holiday: { label: "วันหยุด", color: "bg-rose-400", className: "event-holiday", icon: "fa-flag" }
-  };
-
-  const events = [
-    { id: 1, day: 1, title: "ประชุมหัวหน้าฝ่าย", time: "09:00", end: "10:30", category: "head", status: "confirmed", location: "ห้องประชุม 1 ชั้น 2", description: "ประชุมติดตามงานประจำเดือนของหัวหน้าฝ่าย" },
-    { id: 2, day: 3, title: "คณะดูงานจากหน่วยงานภายนอก", time: "08:30", end: "16:30", category: "visit", status: "confirmed", location: "อาคารสำนักงาน", description: "ต้อนรับและนำเสนอภาพรวมระบบงานขององค์กร" },
-    { id: 3, day: 5, title: "อบรมการใช้งานระบบ", time: "13:00", end: "16:00", category: "training", status: "confirmed", location: "ห้องอบรมคอมพิวเตอร์", description: "อบรมการใช้งานระบบสำหรับเจ้าหน้าที่" },
-    { id: 4, day: 8, title: "ประชุมโครงการระบบ HR", time: "09:00", end: "11:00", category: "project", status: "confirmed", location: "ห้องประชุม 2 ชั้น 3", description: "ติดตามความคืบหน้าและประเด็นงานของโครงการ" },
-    { id: 5, day: 8, title: "ประชุมคณะทำงานโครงการ", time: "14:00", end: "15:30", category: "project", status: "pending", location: "ห้องประชุมออนไลน์", description: "ทบทวนแผนงานและผู้รับผิดชอบ" },
-    { id: 6, day: 10, title: "คณะดูงานด้านสารสนเทศ", time: "08:30", end: "12:00", category: "visit", status: "confirmed", location: "ฝ่ายเทคโนโลยีสารสนเทศ", description: "แลกเปลี่ยนการดำเนินงานด้านเทคโนโลยี" },
-    { id: 7, day: 13, title: "วันหยุดราชการ", time: "ทั้งวัน", end: "", category: "holiday", status: "confirmed", location: "-", description: "วันหยุดตามปฏิทินตัวอย่าง" },
-    { id: 8, day: 15, title: "ประชุมโครงการพัฒนาระบบ", time: "10:00", end: "11:30", category: "project", status: "confirmed", location: "ห้องประชุม 3", description: "สรุปผลการพัฒนาในรอบปัจจุบัน" },
-    { id: 9, day: 17, title: "อบรมการจัดเก็บเอกสาร", time: "09:00", end: "12:00", category: "training", status: "pending", location: "ห้องอบรม 1", description: "แนวทางจัดเก็บและค้นคืนเอกสาร" },
-    { id: 10, day: 19, title: "ประชุมโครงการงบประมาณ", time: "13:30", end: "15:00", category: "project", status: "confirmed", location: "ห้องประชุม 2", description: "ตรวจสอบกรอบงานและงบประมาณโครงการ" },
-    { id: 11, day: 22, title: "คณะดูงานระบบบริหาร", time: "08:30", end: "15:30", category: "visit", status: "confirmed", location: "อาคารสำนักงาน", description: "กิจกรรมศึกษาดูงานระบบบริหารจัดการ" },
-    { id: 12, day: 24, title: "ประชุมหัวหน้าฝ่าย", time: "09:30", end: "11:00", category: "head", status: "confirmed", location: "ห้องประชุม 1 ชั้น 2", description: "ติดตามข้อสั่งการและผลการดำเนินงาน" },
-    { id: 13, day: 29, title: "ประชุมโครงการระบบเอกสาร", time: "09:00", end: "10:30", category: "project", status: "confirmed", location: "ห้องประชุมออนไลน์", description: "ทดสอบระบบและสรุปประเด็นก่อนเปิดใช้งาน" }
+  "use strict";
+  const MONTHS_TH = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+  const STATUS_LABELS = { confirmed:"ยืนยันแล้ว", pending:"รอดำเนินการ", cancelled:"ยกเลิก" };
+  const PALETTE = ["#0ea5e9","#22c55e","#a855f7","#f59e0b","#fb7185","#14b8a6","#6366f1","#f97316"];
+  let categories = [
+    { id:"project", name:"ประชุมโครงการ", color:"#0ea5e9", icon:"fa-diagram-project" },
+    { id:"visit", name:"คณะดูงาน", color:"#22c55e", icon:"fa-people-group" },
+    { id:"training", name:"อบรม / สัมมนา", color:"#a855f7", icon:"fa-graduation-cap" },
+    { id:"head", name:"ประชุมหัวหน้า", color:"#f59e0b", icon:"fa-user-tie" },
+    { id:"holiday", name:"วันหยุด", color:"#fb7185", icon:"fa-flag" }
   ];
-
-  let selectedCategories = new Set(Object.keys(categories));
+  let events = [
+    { id:cryptoId(), date:"2026-09-01", title:"ประชุมหัวหน้าฝ่าย", start:"09:00", end:"10:30", categoryId:"head", status:"confirmed", location:"ห้องประชุม 1 ชั้น 2", description:"ประชุมติดตามงานประจำเดือนของหัวหน้าฝ่าย" },
+    { id:cryptoId(), date:"2026-09-03", title:"คณะดูงานจากหน่วยงานภายนอก", start:"08:30", end:"16:30", categoryId:"visit", status:"confirmed", location:"อาคารสำนักงาน", description:"ต้อนรับและนำเสนอภาพรวมระบบงานขององค์กร" },
+    { id:cryptoId(), date:"2026-09-05", title:"อบรมการใช้งานระบบ", start:"13:00", end:"16:00", categoryId:"training", status:"confirmed", location:"ห้องอบรมคอมพิวเตอร์", description:"อบรมการใช้ระบบสำหรับเจ้าหน้าที่" },
+    { id:cryptoId(), date:"2026-09-08", title:"ประชุมโครงการระบบ HR", start:"09:00", end:"11:00", categoryId:"project", status:"confirmed", location:"ห้องประชุม 2 ชั้น 3", description:"ติดตามความคืบหน้าและประเด็นงานของโครงการ" },
+    { id:cryptoId(), date:"2026-09-08", title:"ประชุมคณะทำงานโครงการ", start:"14:00", end:"15:30", categoryId:"project", status:"pending", location:"ห้องประชุมออนไลน์", description:"ทบทวนแผนงานและผู้รับผิดชอบ" },
+    { id:cryptoId(), date:"2026-09-10", title:"คณะดูงานด้านสารสนเทศ", start:"08:30", end:"12:00", categoryId:"visit", status:"confirmed", location:"ฝ่ายเทคโนโลยีสารสนเทศ", description:"แลกเปลี่ยนการดำเนินงานด้านเทคโนโลยี" },
+    { id:cryptoId(), date:"2026-09-17", title:"อบรมการจัดเก็บเอกสาร", start:"09:00", end:"12:00", categoryId:"training", status:"pending", location:"ห้องอบรม 1", description:"แนวทางจัดเก็บและค้นคืนเอกสาร" }
+  ];
+  let currentDate = new Date(2026,8,1);
+  let selectedCategories = new Set(categories.map(c=>c.id));
   let keyword = "";
   let selectedStatus = "all";
+  let selectedEventId = null;
+  let pendingConfirmAction = null;
 
-  function waitForHeader() {
-    if (document.getElementById("pageContent")) return mountPage();
-    document.addEventListener("shared:header-ready", mountPage, { once: true });
+  function cryptoId(){ return "id-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,8); }
+  function escapeHtml(value){ return String(value??"").replace(/[&<>'"]/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[ch])); }
+  function getCategory(id){ return categories.find(c=>c.id===id); }
+  function toDateKey(date){ const y=date.getFullYear(); const m=String(date.getMonth()+1).padStart(2,"0"); const d=String(date.getDate()).padStart(2,"0"); return `${y}-${m}-${d}`; }
+  function parseDateKey(key){ const [y,m,d]=key.split("-").map(Number); return new Date(y,m-1,d); }
+  function formatThaiDate(key){ const d=parseDateKey(key); return `${d.getDate()} ${MONTHS_TH[d.getMonth()]} ${d.getFullYear()+543}`; }
+  function readableTextColor(hex){ const n=parseInt(hex.slice(1),16); const r=(n>>16)&255,g=(n>>8)&255,b=n&255; return (r*299+g*587+b*114)/1000>160?"#334155":"#ffffff"; }
+
+  function waitForHeader(){
+    if(document.getElementById("pageContent")) return mountPage();
+    const observer=new MutationObserver(()=>{ if(document.getElementById("pageContent")){ observer.disconnect(); mountPage(); }});
+    observer.observe(document.documentElement,{childList:true,subtree:true});
+    document.addEventListener("shared:header-ready",mountPage,{once:true});
   }
-
-  function mountPage() {
-    const pageContent = document.getElementById("pageContent");
-    const template = document.getElementById("calendarPageTemplate");
-    if (!pageContent || !template || pageContent.dataset.calendarMounted === "true") return;
-    pageContent.dataset.calendarMounted = "true";
-    pageContent.appendChild(template.content.cloneNode(true));
-    buildFilters();
-    bindPageEvents();
-    render();
+  function mountPage(){
+    const host=document.getElementById("pageContent"), tpl=document.getElementById("calendarPageTemplate");
+    if(!host||!tpl||host.dataset.calendarMounted==="true") return;
+    host.dataset.calendarMounted="true"; host.appendChild(tpl.content.cloneNode(true));
+    bindEvents(); setDefaultDate(); renderAll();
   }
-
-  function filteredEvents() {
-    const q = keyword.trim().toLowerCase();
-    return events.filter(event => {
-      const text = [event.title, event.location, event.description, categories[event.category].label].join(" ").toLowerCase();
-      return selectedCategories.has(event.category)
-        && (selectedStatus === "all" || event.status === selectedStatus)
-        && (!q || text.includes(q));
+  function setDefaultDate(){ document.getElementById("eventDate").value=toDateKey(new Date(2026,8,15)); }
+  function filteredEvents(){
+    const q=keyword.trim().toLowerCase();
+    return events.filter(e=>{
+      const cat=getCategory(e.categoryId); if(!cat) return false;
+      const hay=[e.title,e.location,e.description,cat.name].join(" ").toLowerCase();
+      return selectedCategories.has(e.categoryId)&&(selectedStatus==="all"||e.status===selectedStatus)&&(!q||hay.includes(q));
     });
   }
-
-  function buildFilters() {
-    const wrap = document.getElementById("categoryFilters");
-    wrap.innerHTML = Object.entries(categories).map(([key, item]) => {
-      const count = events.filter(event => event.category === key).length;
-      return `<label class="flex items-center gap-3 cursor-pointer group">
-        <input class="filter-check category-filter" type="checkbox" value="${key}" checked />
-        <i class="filter-dot ${item.color}"></i>
-        <span class="flex-1 text-sm text-slate-600 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white">${item.label}</span>
-        <span class="min-w-7 h-7 px-2 inline-flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-700 text-xs text-slate-500 dark:text-slate-300">${count}</span>
-      </label>`;
-    }).join("");
+  function renderAll(){ renderFilters(); renderCategorySelect(); renderCategoryManager(); renderCalendar(); renderUpcoming(); renderLegend(); }
+  function renderFilters(){
+    const box=document.getElementById("categoryFilters"); if(!box) return;
+    box.innerHTML=categories.map(cat=>{
+      const count=events.filter(e=>e.categoryId===cat.id).length;
+      return `<label class="filter-row"><input class="filter-check category-filter" type="checkbox" value="${cat.id}" ${selectedCategories.has(cat.id)?"checked":""}><i class="filter-dot" style="background:${cat.color}"></i><span class="flex-1 text-sm">${escapeHtml(cat.name)}</span><span class="filter-count">${count}</span></label>`;
+    }).join("")||`<p class="text-sm text-slate-400">ยังไม่มีหัวข้อ</p>`;
   }
-
-  function render() {
-    renderCalendar();
-    renderUpcoming();
+  function renderCategorySelect(){
+    const select=document.getElementById("eventCategory"); if(!select) return;
+    const old=select.value;
+    select.innerHTML=categories.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+    if(categories.some(c=>c.id===old)) select.value=old;
   }
-
-  function renderCalendar() {
-    const grid = document.getElementById("calendarGrid");
-    const weekdays = ["อา.", "จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส."];
-    let html = weekdays.map((day, index) => `<div class="weekday ${index === 0 || index === 6 ? "weekend" : ""}">${day}</div>`).join("");
-    const cells = [
-      { day: 30, outside: true }, { day: 31, outside: true },
-      ...Array.from({ length: 30 }, (_, i) => ({ day: i + 1, outside: false })),
-      { day: 1, outside: true }, { day: 2, outside: true }, { day: 3, outside: true }, { day: 4, outside: true }, { day: 5, outside: true }
-    ];
-    const visible = filteredEvents();
-    cells.forEach((cell, index) => {
-      const weekdayIndex = index % 7;
-      const dayEvents = cell.outside ? [] : visible.filter(event => event.day === cell.day);
-      const classes = ["calendar-day", cell.outside ? "outside" : "", cell.day === 8 && !cell.outside ? "today" : "", weekdayIndex === 0 ? "sunday" : "", weekdayIndex === 6 ? "saturday" : ""].filter(Boolean).join(" ");
-      html += `<div class="${classes}"><span class="day-number">${cell.day}</span>${dayEvents.map(event => {
-        const cat = categories[event.category];
-        return `<button type="button" class="event-pill ${cat.className}" data-event-id="${event.id}" title="${event.title}">${event.title}<span class="event-time">${event.time}</span></button>`;
+  function renderCategoryManager(){
+    const list=document.getElementById("categoryManageList"); if(!list) return;
+    list.innerHTML=categories.map(cat=>{
+      const count=events.filter(e=>e.categoryId===cat.id).length;
+      return `<div class="category-manage-item"><i class="category-color" style="background:${cat.color}"></i><div class="min-w-0 flex-1"><div class="category-name truncate">${escapeHtml(cat.name)}</div><div class="category-meta">${count} กิจกรรม</div></div><button type="button" class="delete-category-btn" data-delete-category="${cat.id}" title="ลบ ${escapeHtml(cat.name)}"><i class="fa-regular fa-trash-can"></i></button></div>`;
+    }).join("")||`<div class="py-6 text-center text-sm text-slate-400">ยังไม่มีหัวข้อ กรุณาเพิ่มหัวข้อใหม่</div>`;
+  }
+  function renderLegend(){
+    document.getElementById("calendarLegend").innerHTML=categories.map(c=>`<span class="legend-item"><i class="filter-dot" style="background:${c.color}"></i>${escapeHtml(c.name)}</span>`).join("");
+  }
+  function renderCalendar(){
+    const year=currentDate.getFullYear(), month=currentDate.getMonth();
+    document.getElementById("calendarMonthTitle").textContent=`${MONTHS_TH[month]} ${year+543}`;
+    const grid=document.getElementById("calendarGrid");
+    const weekdays=["อา.","จ.","อ.","พ.","พฤ.","ศ.","ส."];
+    let html=weekdays.map((d,i)=>`<div class="weekday ${i===0||i===6?"weekend":""}">${d}</div>`).join("");
+    const first=new Date(year,month,1), start=new Date(year,month,1-first.getDay());
+    const visible=filteredEvents();
+    for(let i=0;i<42;i++){
+      const date=new Date(start); date.setDate(start.getDate()+i); const key=toDateKey(date);
+      const outside=date.getMonth()!==month, weekend=date.getDay()===0?"sunday":date.getDay()===6?"saturday":"";
+      const today=key==="2026-09-15"?"today":"";
+      const dayEvents=outside?[]:visible.filter(e=>e.date===key).sort((a,b)=>a.start.localeCompare(b.start));
+      html+=`<div class="calendar-day ${outside?"outside":""} ${weekend} ${today}" data-date="${key}"><span class="day-number">${date.getDate()}</span>${dayEvents.map(e=>{
+        const cat=getCategory(e.categoryId); const bg=cat.color+"18"; const fg=cat.color; return `<button type="button" class="event-pill ${e.status==="cancelled"?"event-status-cancelled":""}" data-event-id="${e.id}" style="color:${fg};background:${bg};border-color:${cat.color}44" title="${escapeHtml(e.title)}">${escapeHtml(e.title)}<span class="event-time">${e.start} - ${e.end}</span></button>`;
       }).join("")}</div>`;
+    }
+    grid.innerHTML=html;
+  }
+  function renderUpcoming(){
+    const from="2026-09-15";
+    const visible=filteredEvents().filter(e=>e.date>=from).sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start)).slice(0,5);
+    document.getElementById("resultCount").textContent=`พบ ${filteredEvents().length} รายการ`;
+    document.getElementById("upcomingList").innerHTML=visible.length?visible.map(e=>{
+      const cat=getCategory(e.categoryId); return `<button type="button" class="upcoming-button" data-event-id="${e.id}"><span class="upcoming-icon" style="color:${cat.color};background:${cat.color}18"><i class="fa-solid ${cat.icon||"fa-calendar"}"></i></span><span class="min-w-0"><strong class="block text-sm truncate">${escapeHtml(e.title)}</strong><span class="block text-xs text-slate-500 mt-1">${formatThaiDate(e.date)} ${e.start} - ${e.end}</span><span class="block text-xs text-slate-500 mt-1 truncate">${escapeHtml(e.location||"ไม่ระบุสถานที่")}</span></span></button>`;
+    }).join(""):`<div class="py-8 text-center text-sm text-slate-400"><i class="fa-regular fa-calendar-xmark text-2xl mb-2 block"></i>ไม่พบกิจกรรม</div>`;
+  }
+  function openModal(id){ const el=document.getElementById(id); if(el){ el.hidden=false; document.body.style.overflow="hidden"; } }
+  function closeModal(id){ const el=document.getElementById(id); if(el){ el.hidden=true; if(!document.querySelector(".modal:not([hidden])")) document.body.style.overflow=""; } }
+  function openEventDetail(id){
+    const e=events.find(x=>x.id===id),cat=e&&getCategory(e.categoryId); if(!e||!cat)return;
+    selectedEventId=id; document.getElementById("detailTitle").textContent=e.title; document.getElementById("detailCategory").textContent=cat.name;
+    document.getElementById("detailDate").textContent=formatThaiDate(e.date); document.getElementById("detailTime").textContent=`${e.start} ถึง ${e.end} น.`;
+    document.getElementById("detailLocation").textContent=e.location||"ไม่ระบุสถานที่"; document.getElementById("detailStatus").textContent=STATUS_LABELS[e.status]||e.status;
+    document.getElementById("detailDescription").textContent=e.description||"ไม่มีรายละเอียดเพิ่มเติม"; openModal("eventDetailModal");
+  }
+  function askConfirm(title,message,action){ pendingConfirmAction=action; document.getElementById("confirmTitle").textContent=title; document.getElementById("confirmMessage").textContent=message; openModal("confirmModal"); }
+  function showToast(message,type="success"){ const box=document.getElementById("toastContainer"); const toast=document.createElement("div"); toast.className=`toast ${type}`; toast.textContent=message; box.appendChild(toast); setTimeout(()=>toast.remove(),2800); }
+  function addCategory(){
+    const input=document.getElementById("newCategoryName"), color=document.getElementById("newCategoryColor"), error=document.getElementById("categoryError"); const name=input.value.trim();
+    if(!name){ error.textContent="กรุณากรอกชื่อหัวข้อ"; error.hidden=false; return; }
+    if(categories.some(c=>c.name.toLowerCase()===name.toLowerCase())){ error.textContent="ชื่อหัวข้อนี้มีอยู่แล้ว"; error.hidden=false; return; }
+    const id="cat-"+Date.now().toString(36); categories.push({id,name,color:color.value,icon:"fa-calendar-check"}); selectedCategories.add(id); input.value=""; color.value=PALETTE[categories.length%PALETTE.length]; error.hidden=true; renderAll(); showToast(`เพิ่มหัวข้อ “${name}” แล้ว`);
+  }
+  function requestDeleteCategory(id){
+    const cat=getCategory(id); if(!cat)return; const count=events.filter(e=>e.categoryId===id).length;
+    askConfirm("ลบหัวข้อตัวกรอง",count?`หัวข้อ “${cat.name}” มี ${count} กิจกรรม กิจกรรมทั้งหมดในหัวข้อนี้จะถูกลบด้วย`:`ต้องการลบหัวข้อ “${cat.name}” หรือไม่`,()=>{ events=events.filter(e=>e.categoryId!==id); categories=categories.filter(c=>c.id!==id); selectedCategories.delete(id); renderAll(); showToast(`ลบหัวข้อ “${cat.name}” แล้ว`); });
+  }
+  function saveEvent(){
+    const error=document.getElementById("eventFormError"); const title=document.getElementById("eventTitle").value.trim(), date=document.getElementById("eventDate").value, categoryId=document.getElementById("eventCategory").value, start=document.getElementById("eventStartTime").value, end=document.getElementById("eventEndTime").value;
+    if(!title||!date||!categoryId||!start||!end){ error.textContent="กรุณากรอกหัวข้อ วันที่ ประเภท และเวลาให้ครบ"; error.hidden=false; return; }
+    if(end<=start){ error.textContent="เวลาสิ้นสุดต้องมากกว่าเวลาเริ่ม"; error.hidden=false; return; }
+    events.push({ id:cryptoId(), title,date,categoryId,start,end,status:document.getElementById("eventStatus").value,location:document.getElementById("eventLocation").value.trim(),description:document.getElementById("eventDescription").value.trim() });
+    currentDate=parseDateKey(date); selectedCategories.add(categoryId); document.getElementById("eventForm").reset(); setDefaultDate(); error.hidden=true; closeModal("eventFormModal"); renderAll(); showToast("บันทึกกิจกรรมจำลองแล้ว");
+  }
+  function fillSample(){
+    document.getElementById("eventTitle").value="ประชุมเตรียมต้อนรับคณะดูงาน"; document.getElementById("eventDate").value="2026-09-18"; document.getElementById("eventStartTime").value="09:30"; document.getElementById("eventEndTime").value="11:00"; document.getElementById("eventLocation").value="ห้องประชุม 2 ชั้น 3"; document.getElementById("eventDescription").value="เตรียมกำหนดการ ผู้รับผิดชอบ และเอกสารต้อนรับคณะดูงาน"; if(getCategory("visit"))document.getElementById("eventCategory").value="visit";
+  }
+  function bindEvents(){
+    document.getElementById("manageCategoriesBtn").addEventListener("click",()=>openModal("categoryModal"));
+    document.getElementById("addEventBtn").addEventListener("click",()=>{ renderCategorySelect(); openModal("eventFormModal"); });
+    document.getElementById("categoryForm").addEventListener("submit",e=>{e.preventDefault();addCategory();});
+    document.getElementById("eventForm").addEventListener("submit",e=>{e.preventDefault();saveEvent();});
+    document.getElementById("fillSampleBtn").addEventListener("click",fillSample);
+    document.addEventListener("click",e=>{
+      const closer=e.target.closest("[data-close-modal]"); if(closer)closeModal(closer.dataset.closeModal);
+      const eventBtn=e.target.closest("[data-event-id]"); if(eventBtn)openEventDetail(eventBtn.dataset.eventId);
+      const catBtn=e.target.closest("[data-delete-category]"); if(catBtn)requestDeleteCategory(catBtn.dataset.deleteCategory);
+      if(e.target.classList.contains("modal"))closeModal(e.target.id);
     });
-    grid.innerHTML = html;
-    grid.querySelectorAll("[data-event-id]").forEach(button => button.addEventListener("click", () => openEvent(Number(button.dataset.eventId))));
+    document.getElementById("categoryFilters").addEventListener("change",e=>{ if(!e.target.classList.contains("category-filter"))return; e.target.checked?selectedCategories.add(e.target.value):selectedCategories.delete(e.target.value); renderCalendar();renderUpcoming(); });
+    document.getElementById("eventSearch").addEventListener("input",e=>{keyword=e.target.value;renderCalendar();renderUpcoming();});
+    document.getElementById("statusFilter").addEventListener("change",e=>{selectedStatus=e.target.value;renderCalendar();renderUpcoming();});
+    document.getElementById("selectAllBtn").addEventListener("click",()=>{selectedCategories=new Set(categories.map(c=>c.id));renderFilters();renderCalendar();renderUpcoming();});
+    document.getElementById("clearFiltersBtn").addEventListener("click",()=>{selectedCategories=new Set(categories.map(c=>c.id));keyword="";selectedStatus="all";document.getElementById("eventSearch").value="";document.getElementById("statusFilter").value="all";renderAll();});
+    document.getElementById("prevMonthBtn").addEventListener("click",()=>{currentDate.setMonth(currentDate.getMonth()-1);renderCalendar();});
+    document.getElementById("nextMonthBtn").addEventListener("click",()=>{currentDate.setMonth(currentDate.getMonth()+1);renderCalendar();});
+    document.getElementById("todayBtn").addEventListener("click",()=>{currentDate=new Date(2026,8,15);renderCalendar();});
+    document.getElementById("mobileFilterBtn").addEventListener("click",()=>setFilterDrawer(true)); document.getElementById("closeFilterBtn").addEventListener("click",()=>setFilterDrawer(false)); document.getElementById("mobileFilterBackdrop").addEventListener("click",()=>setFilterDrawer(false));
+    document.getElementById("deleteEventBtn").addEventListener("click",()=>{ const e=events.find(x=>x.id===selectedEventId); if(!e)return; askConfirm("ลบกิจกรรม",`ต้องการลบกิจกรรม “${e.title}” หรือไม่`,()=>{events=events.filter(x=>x.id!==selectedEventId);closeModal("eventDetailModal");renderAll();showToast("ลบกิจกรรมแล้ว");}); });
+    document.getElementById("cancelConfirmBtn").addEventListener("click",()=>{pendingConfirmAction=null;closeModal("confirmModal");});
+    document.getElementById("acceptConfirmBtn").addEventListener("click",()=>{const action=pendingConfirmAction;pendingConfirmAction=null;closeModal("confirmModal");if(action)action();});
+    document.addEventListener("keydown",e=>{if(e.key==="Escape"){document.querySelectorAll(".modal:not([hidden])").forEach(m=>closeModal(m.id));setFilterDrawer(false);}});
   }
-
-  function renderUpcoming() {
-    const visible = filteredEvents().filter(event => event.day >= 8).slice(0, 4);
-    document.getElementById("resultCount").textContent = `พบ ${filteredEvents().length} รายการ`;
-    document.getElementById("upcomingList").innerHTML = visible.length ? visible.map(event => {
-      const cat = categories[event.category];
-      return `<button type="button" data-upcoming-id="${event.id}" class="w-full flex gap-3 text-left rounded-xl p-2 -mx-2 hover:bg-slate-50 dark:hover:bg-slate-700/60 transition">
-        <span class="upcoming-icon rounded-xl ${cat.className} inline-flex items-center justify-center"><i class="fa-solid ${cat.icon}"></i></span>
-        <span class="min-w-0">
-          <strong class="block text-sm truncate text-slate-800 dark:text-white">${event.title}</strong>
-          <span class="block text-xs text-slate-500 dark:text-slate-400 mt-1">${event.day} ก.ย. 2569 ${event.time}${event.end ? ` - ${event.end}` : ""}</span>
-          <span class="block text-xs text-slate-500 dark:text-slate-400 mt-1 truncate">${event.location}</span>
-        </span>
-      </button>`;
-    }).join("") : `<div class="py-8 text-center text-sm text-slate-400"><i class="fa-regular fa-calendar-xmark text-2xl mb-2 block"></i>ไม่พบกิจกรรม</div>`;
-    document.querySelectorAll("[data-upcoming-id]").forEach(button => button.addEventListener("click", () => openEvent(Number(button.dataset.upcomingId))));
-  }
-
-  function openEvent(id) {
-    const event = events.find(item => item.id === id);
-    if (!event) return;
-    const cat = categories[event.category];
-    document.getElementById("modalTitle").textContent = event.title;
-    document.getElementById("modalCategory").textContent = cat.label;
-    document.getElementById("modalDate").textContent = `${event.day} กันยายน 2569`;
-    document.getElementById("modalTime").textContent = event.end ? `${event.time} ถึง ${event.end} น.` : event.time;
-    document.getElementById("modalLocation").textContent = event.location;
-    document.getElementById("modalDescription").textContent = event.description;
-    document.getElementById("eventModal").hidden = false;
-  }
-
-  function closeEvent() { document.getElementById("eventModal").hidden = true; }
-
-  function setFilterDrawer(open) {
-    document.getElementById("filterDrawer").classList.toggle("open", open);
-    document.getElementById("mobileFilterBackdrop").classList.toggle("open", open);
-  }
-
-  function bindPageEvents() {
-    document.getElementById("eventSearch").addEventListener("input", event => { keyword = event.target.value; render(); });
-    document.getElementById("statusFilter").addEventListener("change", event => { selectedStatus = event.target.value; render(); });
-    document.getElementById("categoryFilters").addEventListener("change", event => {
-      if (!event.target.classList.contains("category-filter")) return;
-      event.target.checked ? selectedCategories.add(event.target.value) : selectedCategories.delete(event.target.value);
-      render();
-    });
-    document.getElementById("selectAllBtn").addEventListener("click", () => {
-      selectedCategories = new Set(Object.keys(categories));
-      document.querySelectorAll(".category-filter").forEach(box => box.checked = true);
-      render();
-    });
-    document.getElementById("clearFiltersBtn").addEventListener("click", () => {
-      selectedCategories = new Set(Object.keys(categories)); keyword = ""; selectedStatus = "all";
-      document.getElementById("eventSearch").value = "";
-      document.getElementById("statusFilter").value = "all";
-      document.querySelectorAll(".category-filter").forEach(box => box.checked = true);
-      render();
-    });
-    document.getElementById("mobileFilterBtn").addEventListener("click", () => setFilterDrawer(true));
-    document.getElementById("closeFilterBtn").addEventListener("click", () => setFilterDrawer(false));
-    document.getElementById("mobileFilterBackdrop").addEventListener("click", () => setFilterDrawer(false));
-    document.getElementById("closeModalBtn").addEventListener("click", closeEvent);
-    document.getElementById("eventModal").addEventListener("click", event => { if (event.target.id === "eventModal") closeEvent(); });
-    document.addEventListener("keydown", event => { if (event.key === "Escape") { closeEvent(); setFilterDrawer(false); } });
-    document.querySelectorAll(".view-btn").forEach(button => button.addEventListener("click", () => {
-      document.querySelectorAll(".view-btn").forEach(item => item.className = "view-btn px-4 py-2 text-sm font-medium rounded-md text-slate-600 dark:text-slate-300");
-      button.className = "view-btn px-4 py-2 text-sm font-semibold rounded-md bg-blue-600 text-white";
-    }));
-    document.getElementById("addEventBtn").addEventListener("click", () => alert("ขั้นตอนนี้จัดทำเฉพาะหน้า UI ปุ่มเพิ่มกิจกรรมจะเชื่อม Firebase ในขั้นถัดไป"));
-    document.getElementById("todayBtn").addEventListener("click", () => document.querySelector(".today")?.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" }));
-  }
-
+  function setFilterDrawer(open){document.getElementById("filterDrawer").classList.toggle("open",open);document.getElementById("mobileFilterBackdrop").classList.toggle("open",open);}
   waitForHeader();
 })();
