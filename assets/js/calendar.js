@@ -43,10 +43,10 @@
   function mountPage(){
     const host=document.getElementById("pageContent"), tpl=document.getElementById("calendarPageTemplate");
     if(!host||!tpl||host.dataset.calendarMounted==="true") return;
-    host.dataset.calendarMounted="true"; host.appendChild(tpl.content.cloneNode(true)); document.body.classList.add("calendar-ui-page");
-    bindEvents(); applyTimeColorTheme(); setDefaultDate(); renderAll();
+    host.dataset.calendarMounted="true"; host.appendChild(tpl.content.cloneNode(true));
+    bindEvents(); setupModernDateTimePickers(); applyTimeColorTheme(); setDefaultDate(); syncModernPickerValues(); renderAll();
   }
-  function setDefaultDate(){ document.getElementById("eventDate").value=toDateKey(new Date(2026,8,15)); }
+  function setDefaultDate(){ document.getElementById("eventDate").value=toDateKey(new Date(2026,8,15)); syncModernPickerValues(); }
   function filteredEvents(){
     const q=keyword.trim().toLowerCase();
     return events.filter(e=>{
@@ -137,6 +137,32 @@
   function fillSample(){
     document.getElementById("eventTitle").value="ประชุมเตรียมต้อนรับคณะดูงาน"; document.getElementById("eventDate").value="2026-09-18"; document.getElementById("eventStartTime").value="09:30"; document.getElementById("eventEndTime").value="11:00"; document.getElementById("eventLocation").value="ห้องประชุม 2 ชั้น 3"; document.getElementById("eventDescription").value="เตรียมกำหนดการ ผู้รับผิดชอบ และเอกสารต้อนรับคณะดูงาน"; if(getCategory("visit"))document.getElementById("eventCategory").value="visit";
   }
+  const calendarPickerState={view:new Date(2026,8,1),mode:"days"};
+  const clockPickerState={start:{hour:null,minute:null},end:{hour:null,minute:null}};
+  function setupModernDateTimePickers(){setupModernCalendarPicker();setupModernClockPicker("eventStartTime","start");setupModernClockPicker("eventEndTime","end");}
+  function setupModernCalendarPicker(){
+    const input=document.getElementById("eventDate");if(!input||input.dataset.modernPicker)return;
+    input.dataset.modernPicker="1";input.type="hidden";
+    const root=document.createElement("div");root.className="calendar-modern-date";
+    root.innerHTML='<button type="button" class="calendar-modern-trigger"><strong>เลือกวันที่</strong><i class="fa-regular fa-calendar"></i></button><div class="calendar-modern-date-pop hidden"></div>';
+    input.before(root);root.appendChild(input);
+    root.querySelector('.calendar-modern-trigger').onclick=e=>{e.stopPropagation();closeModernDateTimePickers();const d=input.value?parseDateKey(input.value):new Date();calendarPickerState.view=new Date(d.getFullYear(),d.getMonth(),1);calendarPickerState.mode="days";renderModernCalendarPicker(root);root.querySelector('.calendar-modern-date-pop').classList.remove('hidden');};
+  }
+  function renderModernCalendarPicker(root){
+    const input=root.querySelector('#eventDate'),pop=root.querySelector('.calendar-modern-date-pop'),y=calendarPickerState.view.getFullYear(),m=calendarPickerState.view.getMonth();let content='';
+    if(calendarPickerState.mode==='days'){const first=new Date(y,m,1),start=new Date(y,m,1-first.getDay());let days='';for(let i=0;i<42;i++){const d=new Date(start);d.setDate(start.getDate()+i);const key=toDateKey(d);days+=`<button type="button" data-date="${key}" class="${d.getMonth()!==m?'outside ':''}${key===input.value?'selected ':''}${key===toDateKey(new Date())?'today':''}">${d.getDate()}</button>`;}content=`<div class="calendar-modern-week">${['อา','จ','อ','พ','พฤ','ศ','ส'].map(x=>`<b>${x}</b>`).join('')}</div><div class="calendar-modern-days">${days}</div>`;}
+    else if(calendarPickerState.mode==='months'){content=`<div class="calendar-modern-months">${MONTHS_TH.map((x,i)=>`<button type="button" data-month="${i}" class="${i===m?'selected':''}">${x}</button>`).join('')}</div>`;}
+    else{const firstYear=Math.floor(y/12)*12;content=`<div class="calendar-modern-years">${Array.from({length:12},(_,i)=>firstYear+i).map(x=>`<button type="button" data-year="${x}" class="${x===y?'selected':''}">${x+543}</button>`).join('')}</div>`;}
+    const title=calendarPickerState.mode==='days'?`${MONTHS_TH[m]} ${y+543}`:calendarPickerState.mode==='months'?`${y+543}`:`${Math.floor(y/12)*12+543} - ${Math.floor(y/12)*12+554}`;
+    pop.innerHTML=`<header><button type="button" class="calendar-modern-level" data-level>${title}<i class="fa-solid fa-chevron-down"></i></button><span><button type="button" data-prev><i class="fa-solid fa-chevron-left"></i></button><button type="button" data-next><i class="fa-solid fa-chevron-right"></i></button><button type="button" data-close><i class="fa-solid fa-xmark"></i></button></span></header>${content}<footer><button type="button" data-clear>ล้าง</button><button type="button" data-today>วันนี้</button></footer>`;
+    pop.onclick=e=>e.stopPropagation();pop.querySelector('[data-close]').onclick=()=>pop.classList.add('hidden');pop.querySelector('[data-level]').onclick=()=>{calendarPickerState.mode=calendarPickerState.mode==='days'?'months':calendarPickerState.mode==='months'?'years':'days';renderModernCalendarPicker(root);};
+    pop.querySelector('[data-prev]').onclick=()=>{if(calendarPickerState.mode==='days')calendarPickerState.view.setMonth(m-1);else calendarPickerState.view.setFullYear(y-(calendarPickerState.mode==='years'?12:1));renderModernCalendarPicker(root);};pop.querySelector('[data-next]').onclick=()=>{if(calendarPickerState.mode==='days')calendarPickerState.view.setMonth(m+1);else calendarPickerState.view.setFullYear(y+(calendarPickerState.mode==='years'?12:1));renderModernCalendarPicker(root);};
+    pop.querySelector('[data-clear]').onclick=()=>{input.value='';syncModernPickerValues();pop.classList.add('hidden');};pop.querySelector('[data-today]').onclick=()=>{input.value=toDateKey(new Date());syncModernPickerValues();pop.classList.add('hidden');};pop.querySelectorAll('[data-date]').forEach(b=>b.onclick=()=>{input.value=b.dataset.date;syncModernPickerValues();pop.classList.add('hidden');});pop.querySelectorAll('[data-month]').forEach(b=>b.onclick=()=>{calendarPickerState.view.setMonth(+b.dataset.month);calendarPickerState.mode='days';renderModernCalendarPicker(root);});pop.querySelectorAll('[data-year]').forEach(b=>b.onclick=()=>{calendarPickerState.view.setFullYear(+b.dataset.year);calendarPickerState.mode='months';renderModernCalendarPicker(root);});
+  }
+  function setupModernClockPicker(id,kind){const input=document.getElementById(id);if(!input||input.dataset.modernPicker)return;input.dataset.modernPicker='1';input.type='hidden';const root=document.createElement('div');root.className=`calendar-modern-time ${kind==='end'?'end':'start'}`;root.innerHTML='<button type="button" class="calendar-modern-trigger"><strong>--:--</strong><i class="fa-regular fa-clock"></i></button><div class="calendar-modern-time-pop hidden"></div>';input.before(root);root.appendChild(input);root.querySelector('.calendar-modern-trigger').onclick=e=>{e.stopPropagation();closeModernDateTimePickers();const [h,n]=(input.value||'').split(':');clockPickerState[kind]={hour:h||null,minute:n||null};renderModernClockPicker(root,input,kind);root.querySelector('.calendar-modern-time-pop').classList.remove('hidden');};}
+  function renderModernClockPicker(root,input,kind){const pop=root.querySelector('.calendar-modern-time-pop'),st=clockPickerState[kind],hours=Array.from({length:24},(_,i)=>String(i).padStart(2,'0')),minutes=Array.from({length:12},(_,i)=>String(i*5).padStart(2,'0'));pop.innerHTML=`<header><strong>${kind==='start'?'เวลาเริ่ม':'เวลาสิ้นสุด'} ระบบ 24 ชั่วโมง</strong><button type="button" data-close><i class="fa-solid fa-xmark"></i></button></header><div class="calendar-modern-time-preview">${st.hour||'--'} : ${st.minute||'--'}</div><small>เลือกชั่วโมง</small><div class="calendar-modern-hours">${hours.map(x=>`<button type="button" data-hour="${x}" class="${st.hour===x?'selected':''}">${x}</button>`).join('')}</div><small>เลือกนาที</small><div class="calendar-modern-minutes">${minutes.map(x=>`<button type="button" data-minute="${x}" class="${st.minute===x?'selected':''}">${x}</button>`).join('')}</div><button type="button" class="calendar-modern-apply" ${!st.hour||!st.minute?'disabled':''}>ใช้เวลานี้</button>`;pop.onclick=e=>e.stopPropagation();pop.querySelector('[data-close]').onclick=()=>pop.classList.add('hidden');pop.querySelectorAll('[data-hour]').forEach(b=>b.onclick=()=>{st.hour=b.dataset.hour;renderModernClockPicker(root,input,kind);});pop.querySelectorAll('[data-minute]').forEach(b=>b.onclick=()=>{st.minute=b.dataset.minute;renderModernClockPicker(root,input,kind);});pop.querySelector('.calendar-modern-apply').onclick=()=>{if(!st.hour||!st.minute)return;input.value=`${st.hour}:${st.minute}`;syncModernPickerValues();pop.classList.add('hidden');};}
+  function syncModernPickerValues(){const date=document.getElementById('eventDate'),dateText=document.querySelector('.calendar-modern-date .calendar-modern-trigger strong');if(dateText)dateText.textContent=date?.value?formatThaiDate(date.value):'เลือกวันที่';['eventStartTime','eventEndTime'].forEach(id=>{const input=document.getElementById(id),text=input?.closest('.calendar-modern-time')?.querySelector('.calendar-modern-trigger strong');if(text)text.textContent=input.value||'--:--';});}
+  function closeModernDateTimePickers(){document.querySelectorAll('.calendar-modern-date-pop,.calendar-modern-time-pop').forEach(x=>x.classList.add('hidden'));}
   function applyTimeColorTheme(){
     const startInput=document.getElementById("eventStartTime");
     const endInput=document.getElementById("eventEndTime");
@@ -163,12 +189,12 @@
     document.getElementById("addEventBtn").addEventListener("click",()=>{ renderCategorySelect(); openModal("eventFormModal"); });
     document.getElementById("categoryForm").addEventListener("submit",e=>{e.preventDefault();addCategory();});
     document.getElementById("eventForm").addEventListener("submit",e=>{e.preventDefault();saveEvent();});
-    document.getElementById("fillSampleBtn").addEventListener("click",fillSample);
+    document.getElementById("fillSampleBtn").addEventListener("click",()=>{fillSample();syncModernPickerValues();});
     document.addEventListener("click",e=>{
       const closer=e.target.closest("[data-close-modal]"); if(closer)closeModal(closer.dataset.closeModal);
       const eventBtn=e.target.closest("[data-event-id]"); if(eventBtn)openEventDetail(eventBtn.dataset.eventId);
       const catBtn=e.target.closest("[data-delete-category]"); if(catBtn)requestDeleteCategory(catBtn.dataset.deleteCategory);
-      if(e.target.classList.contains("modal"))closeModal(e.target.id);
+      if(e.target.classList.contains("modal"))closeModal(e.target.id); if(!e.target.closest(".calendar-modern-date,.calendar-modern-time"))closeModernDateTimePickers();
     });
     document.getElementById("categoryFilters").addEventListener("change",e=>{ if(!e.target.classList.contains("category-filter"))return; e.target.checked?selectedCategories.add(e.target.value):selectedCategories.delete(e.target.value); renderCalendar();renderUpcoming(); });
     document.getElementById("eventSearch").addEventListener("input",e=>{keyword=e.target.value;renderCalendar();renderUpcoming();});
