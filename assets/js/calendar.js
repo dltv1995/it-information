@@ -44,9 +44,9 @@
     const host=document.getElementById("pageContent"), tpl=document.getElementById("calendarPageTemplate");
     if(!host||!tpl||host.dataset.calendarMounted==="true") return;
     host.dataset.calendarMounted="true"; host.appendChild(tpl.content.cloneNode(true)); document.body.classList.add("calendar-ui-page");
-    bindEvents(); setupSafeDateTimePickers(); applyTimeColorTheme(); setDefaultDate(); syncSafePickerValues(); renderAll();
+    installCalendarFormControls(); bindEvents(); applyTimeColorTheme(); setDefaultDate(); refreshFormControls(); renderAll();
   }
-  function setDefaultDate(){ document.getElementById("eventDate").value=toDateKey(new Date(2026,8,15)); syncSafePickerValues(); }
+  function setDefaultDate(){ document.getElementById("eventDate").value=toDateKey(new Date(2026,8,15)); refreshFormControls(); }
   function filteredEvents(){
     const q=keyword.trim().toLowerCase();
     return events.filter(e=>{
@@ -137,246 +137,39 @@
   function fillSample(){
     document.getElementById("eventTitle").value="ประชุมเตรียมต้อนรับคณะดูงาน"; document.getElementById("eventDate").value="2026-09-18"; document.getElementById("eventStartTime").value="09:30"; document.getElementById("eventEndTime").value="11:00"; document.getElementById("eventLocation").value="ห้องประชุม 2 ชั้น 3"; document.getElementById("eventDescription").value="เตรียมกำหนดการ ผู้รับผิดชอบ และเอกสารต้อนรับคณะดูงาน"; if(getCategory("visit"))document.getElementById("eventCategory").value="visit";
   }
-  const safeDateState = { view: new Date(2026, 8, 1), level: "day" };
-  const safeTimeState = {
-    start: { hour: null, minute: null },
-    end: { hour: null, minute: null }
-  };
-
-  function setupSafeDateTimePickers(){
-    setupSafeDatePicker();
-    setupSafeTimePicker("eventStartTime", "start");
-    setupSafeTimePicker("eventEndTime", "end");
+  let formFiles=[];
+  function installCalendarFormControls(){
+    installDateControl(); installTimeControl("eventStartTime","start"); installTimeControl("eventEndTime","end"); installUploadControl();
+    document.addEventListener("click",e=>{if(!e.target.closest(".cal-control"))document.querySelectorAll(".cal-pop").forEach(x=>x.hidden=true);});
   }
-
-  function setupSafeDatePicker(){
-    const input = document.getElementById("eventDate");
-    if(!input || input.dataset.safePicker === "true") return;
-
-    input.dataset.safePicker = "true";
-    input.type = "hidden";
-
-    const wrapper = document.createElement("div");
-    wrapper.className = "safe-date-picker";
-    wrapper.innerHTML = `
-      <button type="button" class="safe-picker-trigger" aria-haspopup="dialog" aria-expanded="false">
-        <strong>เลือกวันที่</strong>
-        <i class="fa-regular fa-calendar"></i>
-      </button>
-      <div class="safe-date-panel" hidden></div>
-    `;
-
-    input.before(wrapper);
-    wrapper.appendChild(input);
-
-    const trigger = wrapper.querySelector(".safe-picker-trigger");
-    const panel = wrapper.querySelector(".safe-date-panel");
-
-    trigger.addEventListener("click", event => {
-      event.stopPropagation();
-      closeSafePickers(panel);
-      const selected = input.value ? parseDateKey(input.value) : new Date();
-      safeDateState.view = new Date(selected.getFullYear(), selected.getMonth(), 1);
-      safeDateState.level = "day";
-      renderSafeDatePanel(wrapper);
-      panel.hidden = false;
-      trigger.setAttribute("aria-expanded", "true");
-    });
+  function replaceInput(input,kind){
+    if(!input||input.dataset.replaced)return null; input.dataset.replaced="1"; input.type="hidden";
+    const box=document.createElement("div"); box.className=`cal-control cal-${kind}`;
+    box.innerHTML='<button type="button" class="cal-trigger"><strong>--</strong><i class="fa-regular fa-clock"></i></button><div class="cal-pop" hidden></div>';
+    input.before(box); box.appendChild(input); return box;
   }
-
-  function renderSafeDatePanel(wrapper){
-    const input = wrapper.querySelector("#eventDate");
-    const panel = wrapper.querySelector(".safe-date-panel");
-    const year = safeDateState.view.getFullYear();
-    const month = safeDateState.view.getMonth();
-
-    let content = "";
-    let title = "";
-
-    if(safeDateState.level === "day"){
-      title = `${MONTHS_TH[month]} ${year + 543}`;
-      const first = new Date(year, month, 1);
-      const firstCell = new Date(year, month, 1 - first.getDay());
-      let dayButtons = "";
-
-      for(let index = 0; index < 42; index += 1){
-        const date = new Date(firstCell);
-        date.setDate(firstCell.getDate() + index);
-        const key = toDateKey(date);
-        const classes = [
-          date.getMonth() !== month ? "is-outside" : "",
-          key === input.value ? "is-selected" : "",
-          key === toDateKey(new Date()) ? "is-today" : ""
-        ].filter(Boolean).join(" ");
-
-        dayButtons += `<button type="button" data-safe-date="${key}" class="${classes}">${date.getDate()}</button>`;
-      }
-
-      content = `
-        <div class="safe-weekdays">${["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"].map(day => `<span>${day}</span>`).join("")}</div>
-        <div class="safe-days">${dayButtons}</div>
-      `;
-    } else if(safeDateState.level === "month"){
-      title = `${year + 543}`;
-      content = `<div class="safe-months">${MONTHS_TH.map((name, index) => `
-        <button type="button" data-safe-month="${index}" class="${index === month ? "is-selected" : ""}">${name}</button>
-      `).join("")}</div>`;
-    } else {
-      const firstYear = Math.floor(year / 12) * 12;
-      title = `${firstYear + 543} - ${firstYear + 554}`;
-      content = `<div class="safe-years">${Array.from({ length: 12 }, (_, index) => firstYear + index).map(value => `
-        <button type="button" data-safe-year="${value}" class="${value === year ? "is-selected" : ""}">${value + 543}</button>
-      `).join("")}</div>`;
-    }
-
-    panel.innerHTML = `
-      <div class="safe-picker-header">
-        <button type="button" class="safe-level-button" data-safe-level>
-          ${title}<i class="fa-solid fa-chevron-down"></i>
-        </button>
-        <div class="safe-picker-nav">
-          <button type="button" data-safe-prev aria-label="ก่อนหน้า"><i class="fa-solid fa-chevron-left"></i></button>
-          <button type="button" data-safe-next aria-label="ถัดไป"><i class="fa-solid fa-chevron-right"></i></button>
-          <button type="button" data-safe-close aria-label="ปิด"><i class="fa-solid fa-xmark"></i></button>
-        </div>
-      </div>
-      ${content}
-      <div class="safe-picker-footer">
-        <button type="button" data-safe-clear>ล้าง</button>
-        <button type="button" data-safe-today>วันนี้</button>
-      </div>
-    `;
-
-    panel.querySelector("[data-safe-close]").addEventListener("click", () => closeSafePickers());
-    panel.querySelector("[data-safe-level]").addEventListener("click", () => {
-      safeDateState.level = safeDateState.level === "day" ? "month" : safeDateState.level === "month" ? "year" : "day";
-      renderSafeDatePanel(wrapper);
-    });
-    panel.querySelector("[data-safe-prev]").addEventListener("click", () => {
-      if(safeDateState.level === "day") safeDateState.view.setMonth(month - 1);
-      else safeDateState.view.setFullYear(year - (safeDateState.level === "year" ? 12 : 1));
-      renderSafeDatePanel(wrapper);
-    });
-    panel.querySelector("[data-safe-next]").addEventListener("click", () => {
-      if(safeDateState.level === "day") safeDateState.view.setMonth(month + 1);
-      else safeDateState.view.setFullYear(year + (safeDateState.level === "year" ? 12 : 1));
-      renderSafeDatePanel(wrapper);
-    });
-    panel.querySelector("[data-safe-clear]").addEventListener("click", () => {
-      input.value = "";
-      syncSafePickerValues();
-      closeSafePickers();
-    });
-    panel.querySelector("[data-safe-today]").addEventListener("click", () => {
-      input.value = toDateKey(new Date());
-      syncSafePickerValues();
-      closeSafePickers();
-    });
-    panel.querySelectorAll("[data-safe-date]").forEach(button => button.addEventListener("click", () => {
-      input.value = button.dataset.safeDate;
-      syncSafePickerValues();
-      closeSafePickers();
-    }));
-    panel.querySelectorAll("[data-safe-month]").forEach(button => button.addEventListener("click", () => {
-      safeDateState.view.setMonth(Number(button.dataset.safeMonth));
-      safeDateState.level = "day";
-      renderSafeDatePanel(wrapper);
-    }));
-    panel.querySelectorAll("[data-safe-year]").forEach(button => button.addEventListener("click", () => {
-      safeDateState.view.setFullYear(Number(button.dataset.safeYear));
-      safeDateState.level = "month";
-      renderSafeDatePanel(wrapper);
-    }));
+  function installDateControl(){
+    const input=document.getElementById("eventDate"),box=replaceInput(input,"date"); if(!box)return;
+    box.querySelector("i").className="fa-regular fa-calendar"; let view=new Date(2026,8,1),mode="day";
+    const draw=()=>{const pop=box.querySelector(".cal-pop"),y=view.getFullYear(),m=view.getMonth();let body="",title="";
+      if(mode==="day"){title=`${MONTHS_TH[m]} ${y+543}`;const first=new Date(y,m,1),start=new Date(y,m,1-first.getDay());body='<div class="cal-week">'+["อา","จ","อ","พ","พฤ","ศ","ส"].map(x=>`<b>${x}</b>`).join("")+'</div><div class="cal-days">'+Array.from({length:42},(_,i)=>{const d=new Date(start);d.setDate(start.getDate()+i);const k=toDateKey(d);return `<button type="button" data-date="${k}" class="${d.getMonth()!=m?'muted ':''}${k===input.value?'on':''}">${d.getDate()}</button>`}).join("")+'</div>'}
+      else if(mode==="month"){title=String(y+543);body='<div class="cal-choices">'+MONTHS_TH.map((x,i)=>`<button type="button" data-month="${i}">${x}</button>`).join("")+'</div>'}
+      else{const a=Math.floor(y/12)*12;title=`${a+543} - ${a+554}`;body='<div class="cal-choices">'+Array.from({length:12},(_,i)=>a+i).map(x=>`<button type="button" data-year="${x}">${x+543}</button>`).join("")+'</div>'}
+      pop.innerHTML=`<header><button type="button" data-level>${title} ▾</button><span><button type="button" data-prev>‹</button><button type="button" data-next>›</button><button type="button" data-close>×</button></span></header>${body}<footer><button type="button" data-clear>ล้าง</button><button type="button" data-today>วันนี้</button></footer>`;
+      pop.querySelector('[data-close]').onclick=()=>pop.hidden=true;pop.querySelector('[data-level]').onclick=()=>{mode=mode==='day'?'month':mode==='month'?'year':'day';draw()};pop.querySelector('[data-prev]').onclick=()=>{mode==='day'?view.setMonth(m-1):view.setFullYear(y-(mode==='year'?12:1));draw()};pop.querySelector('[data-next]').onclick=()=>{mode==='day'?view.setMonth(m+1):view.setFullYear(y+(mode==='year'?12:1));draw()};pop.querySelector('[data-clear]').onclick=()=>{input.value='';refreshFormControls();pop.hidden=true};pop.querySelector('[data-today]').onclick=()=>{input.value=toDateKey(new Date());refreshFormControls();pop.hidden=true};pop.querySelectorAll('[data-date]').forEach(b=>b.onclick=()=>{input.value=b.dataset.date;refreshFormControls();pop.hidden=true});pop.querySelectorAll('[data-month]').forEach(b=>b.onclick=()=>{view.setMonth(+b.dataset.month);mode='day';draw()});pop.querySelectorAll('[data-year]').forEach(b=>b.onclick=()=>{view.setFullYear(+b.dataset.year);mode='month';draw()});
+    };
+    box.querySelector('.cal-trigger').onclick=e=>{e.stopPropagation();document.querySelectorAll('.cal-pop').forEach(x=>x.hidden=true);const d=input.value?parseDateKey(input.value):new Date();view=new Date(d.getFullYear(),d.getMonth(),1);mode='day';draw();box.querySelector('.cal-pop').hidden=false};
   }
-
-  function setupSafeTimePicker(inputId, kind){
-    const input = document.getElementById(inputId);
-    if(!input || input.dataset.safePicker === "true") return;
-
-    input.dataset.safePicker = "true";
-    input.type = "hidden";
-
-    const wrapper = document.createElement("div");
-    wrapper.className = `event-time-picker safe-time-picker ${kind === "start" ? "time-theme-start" : "time-theme-end"}`;
-    wrapper.innerHTML = `
-      <button type="button" class="safe-picker-trigger" aria-haspopup="dialog" aria-expanded="false">
-        <strong>--:--</strong>
-        <i class="fa-regular fa-clock"></i>
-      </button>
-      <div class="safe-time-panel" hidden></div>
-    `;
-
-    input.before(wrapper);
-    wrapper.appendChild(input);
-
-    const trigger = wrapper.querySelector(".safe-picker-trigger");
-    const panel = wrapper.querySelector(".safe-time-panel");
-
-    trigger.addEventListener("click", event => {
-      event.stopPropagation();
-      closeSafePickers(panel);
-      const [hour, minute] = (input.value || "").split(":");
-      safeTimeState[kind] = { hour: hour || null, minute: minute || null };
-      renderSafeTimePanel(wrapper, input, kind);
-      panel.hidden = false;
-      trigger.setAttribute("aria-expanded", "true");
-    });
+  function installTimeControl(id,kind){
+    const input=document.getElementById(id),box=replaceInput(input,`time ${kind}`);if(!box)return;let h=null,n=null;
+    const draw=()=>{const pop=box.querySelector('.cal-pop'),hours=Array.from({length:24},(_,i)=>String(i).padStart(2,'0')),mins=Array.from({length:12},(_,i)=>String(i*5).padStart(2,'0'));pop.innerHTML=`<header><strong>${kind==='start'?'เวลาเริ่ม':'เวลาสิ้นสุด'} ระบบ 24 ชั่วโมง</strong><button type="button" data-close>×</button></header><div class="cal-preview">${h||'--'} : ${n||'--'}</div><small>เลือกชั่วโมง</small><div class="cal-time-grid">${hours.map(x=>`<button type="button" data-h="${x}" class="${h===x?'on':''}">${x}</button>`).join('')}</div><small>เลือกนาที</small><div class="cal-time-grid">${mins.map(x=>`<button type="button" data-n="${x}" class="${n===x?'on':''}">${x}</button>`).join('')}</div><button type="button" class="cal-apply" ${!h||!n?'disabled':''}>ใช้เวลานี้</button>`;pop.querySelector('[data-close]').onclick=()=>pop.hidden=true;pop.querySelectorAll('[data-h]').forEach(b=>b.onclick=()=>{h=b.dataset.h;draw()});pop.querySelectorAll('[data-n]').forEach(b=>b.onclick=()=>{n=b.dataset.n;draw()});pop.querySelector('.cal-apply').onclick=()=>{if(h&&n){input.value=`${h}:${n}`;refreshFormControls();pop.hidden=true}}};
+    box.querySelector('.cal-trigger').onclick=e=>{e.stopPropagation();document.querySelectorAll('.cal-pop').forEach(x=>x.hidden=true);[h,n]=(input.value||'').split(':');draw();box.querySelector('.cal-pop').hidden=false};
   }
-
-  function renderSafeTimePanel(wrapper, input, kind){
-    const panel = wrapper.querySelector(".safe-time-panel");
-    const state = safeTimeState[kind];
-    const hours = Array.from({ length: 24 }, (_, index) => String(index).padStart(2, "0"));
-    const minutes = Array.from({ length: 12 }, (_, index) => String(index * 5).padStart(2, "0"));
-
-    panel.innerHTML = `
-      <div class="safe-picker-header">
-        <strong>${kind === "start" ? "เวลาเริ่ม" : "เวลาสิ้นสุด"} ระบบ 24 ชั่วโมง</strong>
-        <div class="safe-picker-nav"><button type="button" data-safe-close aria-label="ปิด"><i class="fa-solid fa-xmark"></i></button></div>
-      </div>
-      <div class="safe-time-preview">${state.hour || "--"} : ${state.minute || "--"}</div>
-      <span class="safe-picker-label">เลือกชั่วโมง</span>
-      <div class="safe-hours">${hours.map(value => `<button type="button" data-safe-hour="${value}" class="${state.hour === value ? "is-selected" : ""}">${value}</button>`).join("")}</div>
-      <span class="safe-picker-label">เลือกนาที</span>
-      <div class="safe-minutes">${minutes.map(value => `<button type="button" data-safe-minute="${value}" class="${state.minute === value ? "is-selected" : ""}">${value}</button>`).join("")}</div>
-      <button type="button" class="safe-time-apply" ${!state.hour || !state.minute ? "disabled" : ""}>ใช้เวลานี้</button>
-    `;
-
-    panel.querySelector("[data-safe-close]").addEventListener("click", () => closeSafePickers());
-    panel.querySelectorAll("[data-safe-hour]").forEach(button => button.addEventListener("click", () => {
-      state.hour = button.dataset.safeHour;
-      renderSafeTimePanel(wrapper, input, kind);
-    }));
-    panel.querySelectorAll("[data-safe-minute]").forEach(button => button.addEventListener("click", () => {
-      state.minute = button.dataset.safeMinute;
-      renderSafeTimePanel(wrapper, input, kind);
-    }));
-    panel.querySelector(".safe-time-apply").addEventListener("click", () => {
-      if(!state.hour || !state.minute) return;
-      input.value = `${state.hour}:${state.minute}`;
-      syncSafePickerValues();
-      closeSafePickers();
-    });
+  function installUploadControl(){
+    const grid=document.querySelector('#eventForm .form-grid');if(!grid||document.getElementById('eventAttachments'))return;const wrap=document.createElement('div');wrap.className='form-field form-span-2 upload-control';wrap.innerHTML='<span>ไฟล์แนบ <small>(สูงสุด 5 ไฟล์ ไฟล์ละไม่เกิน 10 MB)</small></span><input id="eventAttachments" type="file" multiple hidden><button type="button" class="upload-drop"><i class="fa-solid fa-cloud-arrow-up"></i><span><strong>แนบเอกสารประกอบกิจกรรม</strong><small>คลิกเพื่อเลือกไฟล์</small></span></button><div class="upload-list"></div>';const status=document.getElementById('eventStatus').closest('.form-field');grid.insertBefore(wrap,status);const input=wrap.querySelector('input');wrap.querySelector('.upload-drop').onclick=()=>input.click();input.onchange=e=>{[...e.target.files].forEach(f=>{if(formFiles.length<5&&f.size<=10485760)formFiles.push(f)});input.value='';renderFiles()};wrap.querySelector('.upload-list').onclick=e=>{const b=e.target.closest('[data-rm]');if(b){formFiles.splice(+b.dataset.rm,1);renderFiles()}};renderFiles();
   }
-
-  function syncSafePickerValues(){
-    const dateInput = document.getElementById("eventDate");
-    const dateText = dateInput?.closest(".safe-date-picker")?.querySelector(".safe-picker-trigger strong");
-    if(dateText) dateText.textContent = dateInput.value ? formatThaiDate(dateInput.value) : "เลือกวันที่";
-
-    ["eventStartTime", "eventEndTime"].forEach(inputId => {
-      const input = document.getElementById(inputId);
-      const text = input?.closest(".safe-time-picker")?.querySelector(".safe-picker-trigger strong");
-      if(text) text.textContent = input.value || "--:--";
-    });
-  }
-
-  function closeSafePickers(except = null){
-    document.querySelectorAll(".safe-date-panel, .safe-time-panel").forEach(panel => {
-      if(panel !== except) panel.hidden = true;
-    });
-    document.querySelectorAll(".safe-picker-trigger").forEach(trigger => trigger.setAttribute("aria-expanded", "false"));
-  }
+  function renderFiles(){const list=document.querySelector('.upload-list');if(!list)return;list.innerHTML=formFiles.length?formFiles.map((f,i)=>`<div><i class="fa-regular fa-file"></i><span>${escapeHtml(f.name)}<small>${(f.size/1048576).toFixed(2)} MB</small></span><button type="button" data-rm="${i}">×</button></div>`).join(''):'<p>ยังไม่ได้เลือกไฟล์</p>'}
+  function refreshFormControls(){const d=document.getElementById('eventDate'),dt=d?.closest('.cal-date')?.querySelector('.cal-trigger strong');if(dt)dt.textContent=d.value?formatThaiDate(d.value):'เลือกวันที่';['eventStartTime','eventEndTime'].forEach(id=>{const i=document.getElementById(id),t=i?.closest('.cal-time')?.querySelector('.cal-trigger strong');if(t)t.textContent=i.value||'--:--'})}
   function applyTimeColorTheme(){
     const startInput=document.getElementById("eventStartTime");
     const endInput=document.getElementById("eventEndTime");
@@ -403,13 +196,12 @@
     document.getElementById("addEventBtn").addEventListener("click",()=>{ renderCategorySelect(); openModal("eventFormModal"); });
     document.getElementById("categoryForm").addEventListener("submit",e=>{e.preventDefault();addCategory();});
     document.getElementById("eventForm").addEventListener("submit",e=>{e.preventDefault();saveEvent();});
-    document.getElementById("fillSampleBtn").addEventListener("click",()=>{ fillSample(); syncSafePickerValues(); });
+    document.getElementById("fillSampleBtn").addEventListener("click",()=>{fillSample();refreshFormControls()});
     document.addEventListener("click",e=>{
       const closer=e.target.closest("[data-close-modal]"); if(closer)closeModal(closer.dataset.closeModal);
       const eventBtn=e.target.closest("[data-event-id]"); if(eventBtn)openEventDetail(eventBtn.dataset.eventId);
       const catBtn=e.target.closest("[data-delete-category]"); if(catBtn)requestDeleteCategory(catBtn.dataset.deleteCategory);
       if(e.target.classList.contains("modal"))closeModal(e.target.id);
-      if(!e.target.closest(".safe-date-picker, .safe-time-picker")) closeSafePickers();
     });
     document.getElementById("categoryFilters").addEventListener("change",e=>{ if(!e.target.classList.contains("category-filter"))return; e.target.checked?selectedCategories.add(e.target.value):selectedCategories.delete(e.target.value); renderCalendar();renderUpcoming(); });
     document.getElementById("eventSearch").addEventListener("input",e=>{keyword=e.target.value;renderCalendar();renderUpcoming();});
