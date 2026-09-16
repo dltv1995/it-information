@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="color-scheme" content="light dark">
   <title>ปฏิทินกิจกรรม</title>
-
   <script>
     tailwind = window.tailwind || {};
     tailwind.config = {
@@ -24,7 +23,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
   <link rel="stylesheet" href="assets/css/header.css">
-  <link rel="stylesheet" href="assets/css/calendar.css?v=calendar-firebase-v1">
+  <link rel="stylesheet" href="assets/css/calendar.css?v=calendar-firebase-v3">
 </head>
 <body id="appBody" class="hidden bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100"
   data-title="ปฏิทินกิจกรรม" data-subtitle="จัดการและติดตามกิจกรรมทั้งหมด" data-active-menu="calendar">
@@ -68,15 +67,9 @@
               </div>
             </div>
             <label class="search-box"><i class="fa-solid fa-magnifying-glass"></i><input id="eventSearch" type="search" placeholder="ค้นหาหัวข้อ รายละเอียด สถานที่..."></label>
-            <div class="flex items-center justify-between mb-3">
-              <h5 class="text-sm font-bold">ประเภทกิจกรรม</h5>
-              <button id="selectAllBtn" type="button" class="text-link">เลือกทั้งหมด</button>
-            </div>
+            <div class="flex items-center justify-between mb-3"><h5 class="text-sm font-bold">ประเภทกิจกรรม</h5><button id="selectAllBtn" type="button" class="text-link">เลือกทั้งหมด</button></div>
             <div id="categoryFilters" class="space-y-3"></div>
-            <div class="mt-6">
-              <h5 class="text-sm font-bold mb-3">สถานะ</h5>
-              <select id="statusFilter" class="form-control"><option value="all">ทั้งหมด</option><option value="confirmed">ยืนยันแล้ว</option><option value="pending">รอดำเนินการ</option><option value="cancelled">ยกเลิก</option></select>
-            </div>
+            <div class="mt-6"><h5 class="text-sm font-bold mb-3">สถานะ</h5><select id="statusFilter" class="form-control"><option value="all">ทั้งหมด</option><option value="confirmed">ยืนยันแล้ว</option><option value="pending">รอดำเนินการ</option><option value="cancelled">ยกเลิก</option></select></div>
           </div>
           <div class="calendar-side-card rounded-2xl p-5">
             <div class="flex items-center justify-between mb-4"><h4 class="font-bold">กิจกรรมที่กำลังจะมาถึง</h4><span id="resultCount" class="text-link"></span></div>
@@ -90,7 +83,7 @@
 
     <div id="categoryModal" class="modal" hidden>
       <div class="modal-card max-w-xl">
-        <div class="modal-header"><div><h4 class="modal-title">จัดการหัวข้อตัวกรอง</h4><p class="modal-subtitle">เพิ่มหรือลบประเภทกิจกรรมแบบจำลอง</p></div><button type="button" class="icon-btn" data-close-modal="categoryModal"><i class="fa-solid fa-xmark"></i></button></div>
+        <div class="modal-header"><div><h4 class="modal-title">จัดการหัวข้อตัวกรอง</h4><p class="modal-subtitle">เพิ่มหรือลบประเภทกิจกรรม</p></div><button type="button" class="icon-btn" data-close-modal="categoryModal"><i class="fa-solid fa-xmark"></i></button></div>
         <div class="modal-body">
           <form id="categoryForm" class="category-create-row">
             <input id="newCategoryName" class="form-control" maxlength="50" required placeholder="เช่น ประชุมคณะกรรมการ">
@@ -99,14 +92,14 @@
           </form>
           <p id="categoryError" class="form-error" hidden></p>
           <div id="categoryManageList" class="category-manage-list"></div>
-          <p class="helper-text"><i class="fa-solid fa-circle-info"></i> หัวข้อที่มีกิจกรรมอยู่จะลบได้ โดยกิจกรรมของหัวข้อนั้นจะถูกลบพร้อมกันในรุ่นจำลองนี้</p>
+          <p class="helper-text"><i class="fa-solid fa-circle-info"></i> ผู้ใช้ที่เข้าสู่ระบบสามารถเพิ่มหรือลบหัวข้อได้</p>
         </div>
       </div>
     </div>
 
     <div id="eventFormModal" class="modal" hidden>
       <div class="modal-card max-w-2xl">
-        <div class="modal-header"><div><h4 class="modal-title">เพิ่มกิจกรรม</h4><p class="modal-subtitle">กรอกข้อมูลตัวอย่างก่อนเชื่อมฐานข้อมูล</p></div><button type="button" class="icon-btn" data-close-modal="eventFormModal"><i class="fa-solid fa-xmark"></i></button></div>
+        <div class="modal-header"><div><h4 class="modal-title">เพิ่มกิจกรรม</h4><p class="modal-subtitle">บันทึกข้อมูลลง Firebase และไฟล์แนบลง Google Drive</p></div><button type="button" class="icon-btn" data-close-modal="eventFormModal"><i class="fa-solid fa-xmark"></i></button></div>
         <form id="eventForm">
           <div class="modal-body form-grid">
             <label class="form-field form-span-2"><span>หัวข้อกิจกรรม <b>*</b></span><input id="eventTitle" class="form-control" maxlength="100" required placeholder="เช่น ประชุมติดตามโครงการระบบ HR"></label>
@@ -118,9 +111,15 @@
             <label class="form-field form-span-2"><span>รายละเอียด</span><textarea id="eventDescription" class="form-control min-h-24" maxlength="500" placeholder="รายละเอียดหรือวาระกิจกรรม"></textarea></label>
             <label class="form-field"><span>สถานะ</span><select id="eventStatus" class="form-control"><option value="confirmed">ยืนยันแล้ว</option><option value="pending">รอดำเนินการ</option><option value="cancelled">ยกเลิก</option></select></label>
             <div class="form-field"><span>ตัวอย่างข้อมูล</span><button id="fillSampleBtn" type="button" class="btn-secondary w-full justify-center"><i class="fa-solid fa-wand-magic-sparkles"></i> เติมข้อมูลตัวอย่าง</button></div>
+            <div class="form-field form-span-2 upload-control">
+              <span>ไฟล์แนบ <small>(สูงสุด 5 ไฟล์ ไฟล์ละไม่เกิน 10 MB)</small></span>
+              <input id="eventAttachments" type="file" multiple hidden>
+              <button id="chooseEventFilesBtn" type="button" class="upload-drop"><i class="fa-solid fa-cloud-arrow-up"></i><span><strong>แนบเอกสารประกอบกิจกรรม</strong><small>คลิกเพื่อเลือกไฟล์</small></span></button>
+              <div id="eventFileList" class="upload-list"></div>
+            </div>
             <p id="eventFormError" class="form-error form-span-2" hidden></p>
           </div>
-          <div class="modal-footer"><button type="button" class="btn-secondary" data-close-modal="eventFormModal">ยกเลิก</button><button type="submit" class="btn-primary"><i class="fa-regular fa-floppy-disk"></i> บันทึกกิจกรรมจำลอง</button></div>
+          <div class="modal-footer"><button type="button" class="btn-secondary" data-close-modal="eventFormModal">ยกเลิก</button><button id="saveEventBtn" type="submit" class="btn-primary"><i class="fa-regular fa-floppy-disk"></i> บันทึกกิจกรรม</button></div>
         </form>
       </div>
     </div>
@@ -128,28 +127,16 @@
     <div id="eventDetailModal" class="modal" hidden>
       <div class="modal-card max-w-lg">
         <div class="modal-header"><div><h4 id="detailTitle" class="modal-title"></h4><p id="detailCategory" class="modal-subtitle"></p></div><button type="button" class="icon-btn" data-close-modal="eventDetailModal"><i class="fa-solid fa-xmark"></i></button></div>
-        <div class="modal-body detail-list">
-          <p><i class="fa-regular fa-calendar"></i><span id="detailDate"></span></p>
-          <p><i class="fa-regular fa-clock"></i><span id="detailTime"></span></p>
-          <p><i class="fa-solid fa-location-dot"></i><span id="detailLocation"></span></p>
-          <p><i class="fa-solid fa-circle-info"></i><span id="detailStatus"></span></p>
-          <div id="detailDescription" class="detail-description"></div>
-        </div>
+        <div class="modal-body detail-list"><p><i class="fa-regular fa-calendar"></i><span id="detailDate"></span></p><p><i class="fa-regular fa-clock"></i><span id="detailTime"></span></p><p><i class="fa-solid fa-location-dot"></i><span id="detailLocation"></span></p><p><i class="fa-solid fa-circle-info"></i><span id="detailStatus"></span></p><div id="detailDescription" class="detail-description"></div></div>
         <div class="modal-footer"><button id="deleteEventBtn" type="button" class="btn-danger"><i class="fa-regular fa-trash-can"></i> ลบกิจกรรม</button><button type="button" class="btn-secondary" data-close-modal="eventDetailModal">ปิด</button></div>
       </div>
     </div>
 
-    <div id="confirmModal" class="modal modal-top" hidden>
-      <div class="modal-card max-w-sm">
-        <div class="modal-body text-center py-7"><div class="confirm-icon"><i class="fa-solid fa-triangle-exclamation"></i></div><h4 id="confirmTitle" class="modal-title mt-4"></h4><p id="confirmMessage" class="text-sm text-slate-500 dark:text-slate-400 mt-2"></p></div>
-        <div class="modal-footer justify-center"><button id="cancelConfirmBtn" type="button" class="btn-secondary">ไม่ลบ</button><button id="acceptConfirmBtn" type="button" class="btn-danger">ยืนยันลบ</button></div>
-      </div>
-    </div>
-
+    <div id="confirmModal" class="modal modal-top" hidden><div class="modal-card max-w-sm"><div class="modal-body text-center py-7"><div class="confirm-icon"><i class="fa-solid fa-triangle-exclamation"></i></div><h4 id="confirmTitle" class="modal-title mt-4"></h4><p id="confirmMessage" class="text-sm text-slate-500 dark:text-slate-400 mt-2"></p></div><div class="modal-footer justify-center"><button id="cancelConfirmBtn" type="button" class="btn-secondary">ไม่ลบ</button><button id="acceptConfirmBtn" type="button" class="btn-danger">ยืนยันลบ</button></div></div></div>
     <div id="toastContainer" class="toast-container"></div>
   </template>
 
   <script type="module" src="assets/js/header.js"></script>
-  <script type="module" src="assets/js/calendar.js?v=calendar-firebase-v1"></script>
+  <script type="module" src="assets/js/calendar.js?v=calendar-firebase-v3"></script>
 </body>
 </html>
